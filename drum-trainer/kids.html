@@ -450,12 +450,13 @@ button:focus { outline: none; }
   font-weight: 700;
 }
 .rec-toggle {
+  width: 100%;
   background: var(--bad);
   color: white;
   border: none;
-  padding: 14px 18px;
+  padding: 14px 12px;
   border-radius: 14px;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   cursor: pointer;
   font-family: inherit;
@@ -463,11 +464,17 @@ button:focus { outline: none; }
   align-items: center;
   justify-content: center;
   gap: 8px;
+  white-space: nowrap;
+  box-sizing: border-box;
 }
 .rec-toggle:hover { filter: brightness(1.05); }
 .rec-toggle.recording {
   background: #444;
-  animation: rec-pulse 1.2s ease-in-out infinite;
+  animation: rec-btn-pulse 1.2s ease-in-out infinite;
+}
+@keyframes rec-btn-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
 }
 .rec-list {
   flex: 1;
@@ -654,6 +661,101 @@ button:focus { outline: none; }
   transform: scale(1.2);
   box-shadow: 0 0 40px white;
 }
+
+/* =====================================================================
+   MODE RÉFLEXES — un pad s'allume progressivement, faut taper avant
+   que ça remplisse à fond
+   ===================================================================== */
+#screen-reflex {
+  background: var(--bg);
+}
+#screen-reflex .reflex-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24px 24px;
+  gap: 16px;
+}
+.reflex-board {
+  position: relative;
+  width: 100%;
+  max-width: 800px;
+}
+.reflex-pad {
+  background: rgba(0,0,0,0.05);
+  border: 3px solid rgba(0,0,0,0.12);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 4px;
+  color: rgba(0,0,0,0.4);
+  font-size: 16px;
+  font-weight: 700;
+  overflow: hidden;
+  position: relative;
+}
+.reflex-pad .rfx-label { font-size: 13px; }
+.reflex-pad .rfx-emoji { font-size: 28px; opacity: 0.5; }
+/* Cercle qui grandit AU CENTRE depuis 0 jusqu'au remplissage complet */
+.reflex-pad .rfx-grow {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 0%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--lane-color, var(--accent));
+  pointer-events: none;
+  transition: width linear;
+  box-shadow: 0 0 30px var(--lane-color, var(--accent));
+}
+/* Pad actif : on rend l'emoji/label plus visible */
+.reflex-pad.active .rfx-emoji,
+.reflex-pad.active .rfx-label { color: rgba(0,0,0,0.85); opacity: 1; }
+/* Pad "réussi" : flash vert qui disparait */
+.reflex-pad.success .rfx-grow {
+  background: var(--good) !important;
+  width: 110% !important;
+  opacity: 0;
+  transition: opacity 0.4s ease-out, width 0.2s ease-out;
+}
+/* Pad "raté" : flash rouge */
+.reflex-pad.missed .rfx-grow {
+  background: var(--bad) !important;
+  width: 100% !important;
+  opacity: 0;
+  transition: opacity 0.6s ease-out;
+}
+
+.reflex-header {
+  display: flex; gap: 30px;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+.reflex-header .stat { display: flex; flex-direction: column; align-items: center; }
+.reflex-header .stat-val { font-size: 32px; line-height: 1; font-variant-numeric: tabular-nums; }
+.reflex-header .stat-lbl { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+.reflex-difficulty {
+  display: flex; gap: 8px;
+  align-items: center;
+}
+.reflex-difficulty button {
+  background: var(--panel); border: 2px solid #eee; padding: 6px 14px;
+  border-radius: 999px; font-size: 13px; font-weight: 700; cursor: pointer;
+  font-family: inherit; color: var(--text);
+}
+.reflex-difficulty button.active { background: var(--accent); border-color: var(--accent); color: white; }
+.reflex-start {
+  background: var(--accent); color: white; border: none;
+  padding: 14px 32px; border-radius: 14px; font-size: 18px;
+  font-weight: 700; cursor: pointer; font-family: inherit;
+  box-shadow: var(--shadow);
+}
+.reflex-start:hover { filter: brightness(1.05); }
 
 .play-controls {
   position: absolute;
@@ -994,6 +1096,11 @@ button:focus { outline: none; }
       <div class="card-title">Apprendre</div>
       <div class="card-sub">suis les barres</div>
     </button>
+    <button class="card" data-goto="reflex">
+      <div class="card-emoji">⚡</div>
+      <div class="card-title">Réflexes</div>
+      <div class="card-sub">tape avant que ça remplisse</div>
+    </button>
     <button class="card" data-goto="progress">
       <div class="card-emoji">📈</div>
       <div class="card-title">Mes progrès</div>
@@ -1053,6 +1160,33 @@ button:focus { outline: none; }
   </div>
   <div class="play-pads" id="play-pads"></div>
   <div class="countdown" id="countdown" style="display:none"></div>
+</section>
+
+<!-- =================================================================== -->
+<!-- MODE RÉFLEXES -->
+<!-- =================================================================== -->
+<section id="screen-reflex" class="screen">
+  <div class="screen-title">
+    <button class="btn-back" data-goto="home">←</button>
+    <h2 style="margin:0">⚡ Tape avant que ça remplisse !</h2>
+    <span style="margin-left:auto;color:var(--muted);font-size:13px;" id="reflex-kit-label"></span>
+  </div>
+  <div class="reflex-area">
+    <div class="reflex-header">
+      <div class="stat"><span class="stat-val" id="rfx-score">0</span><span class="stat-lbl">Réussis</span></div>
+      <div class="stat"><span class="stat-val" id="rfx-misses">0</span><span class="stat-lbl">Ratés</span></div>
+      <div class="stat"><span class="stat-val" id="rfx-streak">0</span><span class="stat-lbl">Combo</span></div>
+    </div>
+    <div class="reflex-difficulty" id="rfx-difficulty">
+      <span style="font-size:13px;color:var(--muted);">Vitesse :</span>
+      <button data-diff="slow">Tranquille</button>
+      <button data-diff="normal" class="active">Normal</button>
+      <button data-diff="fast">Rapide</button>
+      <button data-diff="crazy">Fou</button>
+    </div>
+    <div class="reflex-board dd75-layout" id="reflex-board"></div>
+    <button class="reflex-start" id="rfx-toggle">▶ Démarrer</button>
+  </div>
 </section>
 
 <!-- =================================================================== -->
@@ -1292,6 +1426,8 @@ function selectKit(num) {
   currentKitNum = num;
   localStorage.setItem('boumbi-kit', String(num));
   updateKitDisplay();
+  // Rafraîchit les ⚠ kit mismatch dans la liste des records si on est dessus
+  if (currentScreen === 'free') renderRecordings();
 }
 function updateKitDisplay() {
   const kit = getCurrentKit();
@@ -1474,11 +1610,14 @@ function goto(screen) {
   if (screen === 'learn-select') renderPatternList();
   if (screen === 'progress') renderProgress();
   if (screen === 'free') renderRecordings();
+  if (screen === 'reflex') buildReflexBoard();
   // Quitte le Mode Libre → on stoppe record + replay en cours
   if (screen !== 'free') {
     if (recording) stopRecord();
     stopReplay();
   }
+  // Quitte le mode réflexes → stop
+  if (screen !== 'reflex' && reflexActive) reflexStop();
   if (screen === 'home') stop();
 }
 document.querySelectorAll('[data-goto]').forEach(el => {
@@ -1856,7 +1995,7 @@ function buildFreePads() {
 }
 buildFreePads();
 
-function freePadHit(laneId, sendMidi = false, isReplay = false) {
+function freePadHit(laneId, sendMidi = false, isReplay = false, velocity = 100) {
   const el = document.querySelector(`.free-pad[data-lane="${laneId}"]`);
   if (!el) return;
   el.classList.remove('bounce');
@@ -1867,12 +2006,12 @@ function freePadHit(laneId, sendMidi = false, isReplay = false) {
   if (sendMidi && midiOutput) {
     const note = LANE_TO_NOTE[laneId];
     if (note != null) {
-      midiOutput.send([0x99, note, 110]);
+      midiOutput.send([0x99, note, Math.max(1, Math.min(127, velocity))]);
       setTimeout(() => midiOutput.send([0x89, note, 0]), 60);
     }
   }
   // Capture pour l'enregistrement (sauf si on est en train de replay un record)
-  if (recording && !isReplay) captureHit(laneId);
+  if (recording && !isReplay) captureHit(laneId, velocity);
 }
 
 // =====================================================================
@@ -1921,7 +2060,12 @@ function stopRecord() {
   btn.innerHTML = '🔴 Enregistrer';
   if (recordHits.length > 0 && duration > 500) {
     const list = getRecordings();
-    list.unshift({ ts: Date.now(), duration, hits: recordHits.slice() });
+    list.unshift({
+      ts: Date.now(),
+      duration,
+      hits: recordHits.slice(),
+      kit: currentKitNum,            // kit actif au moment du record
+    });
     while (list.length > MAX_RECORDINGS) list.pop();
     setRecordings(list);
   }
@@ -1929,10 +2073,10 @@ function stopRecord() {
   renderRecordings();
 }
 
-function captureHit(laneId) {
+function captureHit(laneId, velocity = 100) {
   if (!recording) return;
   const t = performance.now() - recordStartTime;
-  recordHits.push({ t, lane: laneId });
+  recordHits.push({ t, lane: laneId, v: velocity });
 }
 
 function playRecording(idx) {
@@ -1941,6 +2085,18 @@ function playRecording(idx) {
   const rec = recs[idx];
   if (!rec) return;
 
+  // Avertit si le kit en cours diffère du kit utilisé à l'enregistrement
+  if (rec.kit && rec.kit !== currentKitNum) {
+    const target = KITS.find(k => k.num === rec.kit);
+    const now = getCurrentKit();
+    const ok = confirm(
+      `Cet enregistrement a été fait avec ${target ? `Kit ${target.num} · ${target.fr}` : 'Kit ' + rec.kit}.\n` +
+      `Tu es maintenant sur Kit ${now.num} · ${now.fr}.\n\n` +
+      `Continuer le replay ? Les sons seront différents.`
+    );
+    if (!ok) return;
+  }
+
   replayActive = {
     idx,
     timers: [],
@@ -1948,10 +2104,10 @@ function playRecording(idx) {
     duration: rec.duration,
   };
 
-  // Schedule les hits
+  // Schedule les hits avec la vélocité enregistrée
   for (const h of rec.hits) {
     const timer = setTimeout(() => {
-      freePadHit(h.lane, /*sendMidi=*/true, /*isReplay=*/true);
+      freePadHit(h.lane, /*sendMidi=*/true, /*isReplay=*/true, h.v || 100);
     }, h.t);
     replayActive.timers.push(timer);
   }
@@ -2007,10 +2163,15 @@ function renderRecordings() {
     item.className = 'rec-item' + (replayActive && replayActive.idx === idx ? ' playing' : '');
     item.dataset.recIdx = idx;
     const durSec = (rec.duration / 1000).toFixed(1);
+    const kit = rec.kit ? KITS.find(k => k.num === rec.kit) : null;
+    const kitLabel = kit ? `🎚 Kit ${kit.num}` : '';
+    const kitMismatch = rec.kit && rec.kit !== currentKitNum;
+    const kitFull = kit ? `Enregistré avec Kit ${kit.num} · ${kit.fr}` : '';
     item.innerHTML = `
       <button class="rec-del" title="Supprimer">×</button>
       <div class="rec-title">🎵 ${rec.hits.length} coup${rec.hits.length > 1 ? 's' : ''} · ${durSec}s</div>
       <div class="rec-meta" title="${absoluteDate(rec.ts)}">${relativeDate(rec.ts)}</div>
+      ${kit ? `<div class="rec-meta" title="${kitFull}" style="${kitMismatch ? 'color:var(--warn);font-weight:700;' : ''}">${kitLabel}${kitMismatch ? ' ⚠' : ''}</div>` : ''}
       <div class="rec-progress"><div class="rec-progress-fill"></div></div>
     `;
     item.addEventListener('click', e => {
@@ -2028,6 +2189,176 @@ function renderRecordings() {
 document.getElementById('rec-toggle').addEventListener('click', () => {
   if (recording) stopRecord();
   else startRecord();
+});
+
+// =====================================================================
+// MODE RÉFLEXES
+// =====================================================================
+const REFLEX_DIFF = {
+  slow:   { grow: 2200, gap: [700, 1500] },   // 2.2s pour remplir, 0.7-1.5s entre les pads
+  normal: { grow: 1400, gap: [400, 1000] },
+  fast:   { grow: 900,  gap: [250, 700] },
+  crazy:  { grow: 550,  gap: [120, 400] },
+};
+let reflexActive = false;
+let reflexDiff = 'normal';
+let reflexScore = 0;
+let reflexMisses = 0;
+let reflexStreak = 0;
+let reflexCurrentLane = null;     // lane id du pad qui se remplit actuellement
+let reflexGrowTimer = null;
+let reflexNextTimer = null;
+
+function buildReflexBoard() {
+  const root = document.getElementById('reflex-board');
+  root.innerHTML = '';
+  for (const lane of LANES) {
+    const isPedal = lane.dd75?.startsWith('Pedal');
+    const el = document.createElement('div');
+    el.className = 'reflex-pad' + (isPedal ? ' pedal' : '');
+    el.dataset.lane = lane.id;
+    el.style.setProperty('--lane-color', lane.color);
+    el.innerHTML = `
+      <div class="rfx-grow"></div>
+      <div class="rfx-emoji">${lane.emoji}</div>
+      <div class="rfx-label">${lane.name}</div>
+    `;
+    el.addEventListener('click', () => {
+      if (reflexActive) rfxOnHit(lane.id);
+    });
+    root.appendChild(el);
+  }
+  // Affiche le kit actuel en haut
+  const k = getCurrentKit();
+  document.getElementById('reflex-kit-label').textContent = `Kit ${k.num} · ${k.fr}`;
+}
+
+function rfxUpdateScores() {
+  document.getElementById('rfx-score').textContent = reflexScore;
+  document.getElementById('rfx-misses').textContent = reflexMisses;
+  document.getElementById('rfx-streak').textContent = reflexStreak;
+}
+
+function rfxClearPadState(el) {
+  el.classList.remove('active', 'success', 'missed');
+  const grow = el.querySelector('.rfx-grow');
+  grow.style.transition = 'none';
+  grow.style.width = '0%';
+  grow.style.opacity = '1';
+  // Force reflow
+  void grow.offsetWidth;
+}
+
+function rfxStartNextPad() {
+  if (!reflexActive) return;
+  // Choisis un pad aléatoire
+  const lane = LANES[Math.floor(Math.random() * LANES.length)];
+  reflexCurrentLane = lane.id;
+  const el = document.querySelector(`.reflex-pad[data-lane="${lane.id}"]`);
+  if (!el) return;
+  rfxClearPadState(el);
+  el.classList.add('active');
+
+  const cfg = REFLEX_DIFF[reflexDiff];
+  const grow = el.querySelector('.rfx-grow');
+  // Force reflow puis transition pour grandir jusqu'à ~110% (déborde un peu = remplit le pad)
+  requestAnimationFrame(() => {
+    grow.style.transition = `width ${cfg.grow}ms linear`;
+    grow.style.width = '110%';
+  });
+
+  // Timeout pour rater
+  reflexGrowTimer = setTimeout(() => {
+    if (reflexCurrentLane !== lane.id) return;
+    rfxOnMiss(lane.id);
+  }, cfg.grow);
+}
+
+function rfxScheduleNext() {
+  if (!reflexActive) return;
+  const cfg = REFLEX_DIFF[reflexDiff];
+  const wait = cfg.gap[0] + Math.random() * (cfg.gap[1] - cfg.gap[0]);
+  reflexNextTimer = setTimeout(rfxStartNextPad, wait);
+}
+
+function rfxOnHit(laneId) {
+  // Validé si le pad tapé == le pad actif
+  if (laneId !== reflexCurrentLane) return false;
+  const el = document.querySelector(`.reflex-pad[data-lane="${laneId}"]`);
+  if (!el) return false;
+  clearTimeout(reflexGrowTimer);
+  el.classList.remove('active');
+  el.classList.add('success');
+  reflexScore++;
+  reflexStreak++;
+  rfxUpdateScores();
+  spawnConfetti(el, 14, LANES.find(l => l.id === laneId)?.color);
+  spawnFloatingEmojiAt(el, '👍', 50);
+  reflexCurrentLane = null;
+  setTimeout(() => { if (el.classList.contains('success')) rfxClearPadState(el); }, 500);
+  rfxScheduleNext();
+  return true;
+}
+
+function rfxOnMiss(laneId) {
+  const el = document.querySelector(`.reflex-pad[data-lane="${laneId}"]`);
+  if (!el) return;
+  el.classList.remove('active');
+  el.classList.add('missed');
+  reflexMisses++;
+  reflexStreak = 0;
+  rfxUpdateScores();
+  spawnFloatingEmojiAt(el, '🙈', 38);
+  reflexCurrentLane = null;
+  setTimeout(() => { if (el.classList.contains('missed')) rfxClearPadState(el); }, 700);
+  rfxScheduleNext();
+}
+
+function spawnFloatingEmojiAt(el, emoji, size) {
+  // Variante de spawnConfetti — utilise les floatingEmojis canvas du mode play.
+  // Ici simple : on crée un span absolute qui monte et s'efface.
+  const rect = el.getBoundingClientRect();
+  const span = document.createElement('div');
+  span.textContent = emoji;
+  span.style.cssText = `
+    position: fixed; left: ${rect.left + rect.width/2}px; top: ${rect.top + rect.height/2}px;
+    font-size: ${size}px; pointer-events: none; z-index: 60;
+    transition: transform 1.2s ease-out, opacity 1.2s ease-out;
+    transform: translate(-50%, -50%);
+  `;
+  document.body.appendChild(span);
+  requestAnimationFrame(() => {
+    span.style.transform = `translate(-50%, calc(-50% - 80px))`;
+    span.style.opacity = '0';
+  });
+  setTimeout(() => span.remove(), 1300);
+}
+
+function reflexStart() {
+  reflexActive = true;
+  reflexScore = 0; reflexMisses = 0; reflexStreak = 0;
+  rfxUpdateScores();
+  document.getElementById('rfx-toggle').textContent = '⏹ Arrêter';
+  rfxScheduleNext();
+}
+function reflexStop() {
+  reflexActive = false;
+  clearTimeout(reflexGrowTimer);
+  clearTimeout(reflexNextTimer);
+  reflexCurrentLane = null;
+  document.querySelectorAll('.reflex-pad').forEach(rfxClearPadState);
+  document.getElementById('rfx-toggle').textContent = '▶ Démarrer';
+}
+
+document.getElementById('rfx-toggle').addEventListener('click', () => {
+  if (reflexActive) reflexStop();
+  else reflexStart();
+});
+document.getElementById('rfx-difficulty').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-diff]');
+  if (!btn) return;
+  reflexDiff = btn.dataset.diff;
+  document.querySelectorAll('#rfx-difficulty button').forEach(b => b.classList.toggle('active', b === btn));
 });
 
 // =====================================================================
@@ -2624,7 +2955,10 @@ function onMIDI(msg) {
   }
   // Feedback selon écran
   if (currentScreen === 'free') {
-    freePadHit(lane.id);
+    // On passe la vélocité depuis le MIDI in (vrai toucher de l'enfant)
+    freePadHit(lane.id, /*sendMidi=*/false, /*isReplay=*/false, vel);
+  } else if (currentScreen === 'reflex' && reflexActive) {
+    rfxOnHit(lane.id);
   } else if (currentScreen === 'play' && mode !== 'stopped') {
     // Flash le pad actif de la colonne correspondante (mini-widget DD-75)
     const col = document.querySelector(`.lane-column[data-lane="${lane.id}"]`);
