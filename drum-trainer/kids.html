@@ -1485,14 +1485,17 @@ button:focus { outline: none; }
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
-.studio-lane-mode {
+.studio-lane-mode,
+.studio-steps-mode {
   display: flex;
   gap: 2px;
   background: var(--panel);
   padding: 3px;
   border-radius: 999px;
+  align-items: center;
 }
-.studio-lane-mode button {
+.studio-lane-mode button,
+.studio-steps-mode button {
   background: transparent;
   border: none;
   padding: 6px 12px;
@@ -1503,7 +1506,14 @@ button:focus { outline: none; }
   cursor: pointer;
   color: var(--text);
 }
-.studio-lane-mode button.active { background: var(--accent); color: white; }
+.studio-lane-mode button.active,
+.studio-steps-mode button.active { background: var(--accent); color: white; }
+.studio-steps-mode .ssm-label {
+  font-size: 11px;
+  color: var(--muted);
+  padding-left: 6px;
+  letter-spacing: 0.5px;
+}
 
 .studio-grid-wrap {
   flex: 1;
@@ -1547,9 +1557,16 @@ button:focus { outline: none; }
 }
 .studio-row-cells {
   display: grid;
-  grid-template-columns: repeat(16, 1fr);
+  grid-template-columns: repeat(16, 1fr);  /* 16 cells max par ligne — au-dela
+                                              ca wrap automatiquement (1 ligne = 1 mesure) */
   gap: 4px;
+  row-gap: 8px;  /* plus d'espace entre les mesures */
 }
+.studio-cell.barstart {
+  border-left: 2px solid rgba(120, 120, 120, 0.4);
+  margin-left: -2px;
+}
+.studio-cell.barstart:first-child { border-left: none; margin-left: 0; }
 .studio-cell {
   aspect-ratio: 1;
   background: #f5f5f0;
@@ -1595,8 +1612,9 @@ button:focus { outline: none; }
 }
 .studio-step-numbers .ssn-cells {
   display: grid;
-  grid-template-columns: repeat(16, 1fr);
+  grid-template-columns: repeat(16, 1fr);  /* matche le wrap des cellules */
   gap: 4px;
+  row-gap: 8px;
   text-align: center;
 }
 
@@ -3445,6 +3463,14 @@ button:focus { outline: none; }
     <div class="studio-lane-mode" id="studio-lane-mode">
       <button data-mode="4" class="active">4 lanes</button>
       <button data-mode="8">8 lanes</button>
+    </div>
+    <div class="studio-steps-mode" id="studio-steps-mode" title="Nombre de pas">
+      <span class="ssm-label">Pas</span>
+      <button data-steps="8">8</button>
+      <button data-steps="16" class="active">16</button>
+      <button data-steps="32">32</button>
+      <button data-steps="64">64</button>
+      <button data-steps="128">128</button>
     </div>
   </div>
   <div class="studio-grid-wrap">
@@ -8526,7 +8552,7 @@ const echoAttribRefresh = setupScoreAttribution(
 // Le kid compose son propre beat sur une grille 16 steps × N lanes,
 // puis l'écoute en boucle. Save dans la bibliothèque per-profile.
 // =====================================================================
-const STUDIO_STEPS = 16;
+const STUDIO_STEPS_OPTIONS = [8, 16, 32, 64, 128];
 const STUDIO_LANES_4 = ['kick', 'snare', 'hihat', 'crash'];
 const STUDIO_LANES_8 = ['kick', 'snare', 'hihat', 'crash', 'tomL', 'tomM', 'tomH', 'ride'];
 
@@ -8534,17 +8560,35 @@ const studio = {
   bpm: 100,
   name: '',
   laneMode: 4,                // 4 ou 8
+  stepsCount: 16,             // 8, 16, 32, 64, 128 (8 max = 8 mesures)
   lanes: STUDIO_LANES_4,      // copie d'un des deux templates
-  steps: {},                  // {kick: [bool * 16], ...}
+  steps: {},                  // {kick: [bool * stepsCount], ...}
   loadedId: null,             // id du motif chargé depuis la lib (pour update)
   playing: false,
   currentStep: -1,
   loopHandle: null,
 };
 
+// Resize les arrays steps (pad avec false ou truncate) en gardant le contenu existant.
+function studioResizeSteps(newCount) {
+  if (!STUDIO_STEPS_OPTIONS.includes(newCount)) return;
+  if (studio.stepsCount === newCount) return;
+  for (const laneId of studio.lanes) {
+    const arr = studio.steps[laneId] || [];
+    if (newCount > arr.length) {
+      while (arr.length < newCount) arr.push(false);
+    } else {
+      arr.length = newCount;
+    }
+    studio.steps[laneId] = arr;
+  }
+  studio.stepsCount = newCount;
+  if (studio.currentStep >= newCount) studio.currentStep = -1;
+}
+
 function studioFreshSteps(lanes) {
   const s = {};
-  lanes.forEach(l => { s[l] = new Array(STUDIO_STEPS).fill(false); });
+  lanes.forEach(l => { s[l] = new Array(studio.stepsCount).fill(false); });
   return s;
 }
 
@@ -8572,6 +8616,7 @@ function studioSaveDraft() {
     name: studio.name,
     bpm: studio.bpm,
     laneMode: studio.laneMode,
+    stepsCount: studio.stepsCount,
     lanes: studio.lanes,
     steps: studio.steps,
     loadedId: studio.loadedId,
@@ -8585,6 +8630,7 @@ function studioLoadDraft() {
     studio.name = d.name || '';
     studio.bpm = d.bpm || 100;
     studio.laneMode = d.laneMode || 4;
+    studio.stepsCount = STUDIO_STEPS_OPTIONS.includes(d.stepsCount) ? d.stepsCount : 16;
     studio.lanes = d.lanes || (studio.laneMode === 8 ? STUDIO_LANES_8 : STUDIO_LANES_4);
     studio.steps = d.steps || studioFreshSteps(studio.lanes);
     studio.loadedId = d.loadedId || null;
@@ -8603,10 +8649,11 @@ function buildStudioGrid() {
     row.dataset.lane = laneId;
     row.style.setProperty('--lane-color', lane.color);
     const cellsHtml = [];
-    for (let i = 0; i < STUDIO_STEPS; i++) {
+    for (let i = 0; i < studio.stepsCount; i++) {
       const isDownbeat = (i % 4 === 0);
+      const isBarStart = (i % 16 === 0);
       const isOn = studio.steps[laneId]?.[i];
-      cellsHtml.push(`<div class="studio-cell ${isDownbeat ? 'downbeat' : ''} ${isOn ? 'on' : ''}" data-lane="${laneId}" data-step="${i}" style="--lane-color:${lane.color}"></div>`);
+      cellsHtml.push(`<div class="studio-cell ${isDownbeat ? 'downbeat' : ''} ${isBarStart ? 'barstart' : ''} ${isOn ? 'on' : ''}" data-lane="${laneId}" data-step="${i}" style="--lane-color:${lane.color}"></div>`);
     }
     row.innerHTML = `
       <div class="studio-row-label" style="color:${lane.color}">
@@ -8617,12 +8664,12 @@ function buildStudioGrid() {
     `;
     grid.appendChild(row);
   }
-  // Numéros de step (1, 2, 3, 4 sur les downbeats)
+  // Numéros de step : 1·2·3·4 par mesure (1 mesure = 16 steps)
   const numRow = document.createElement('div');
   numRow.className = 'studio-step-numbers';
   const numCells = [];
-  for (let i = 0; i < STUDIO_STEPS; i++) {
-    const beat = Math.floor(i / 4) + 1;
+  for (let i = 0; i < studio.stepsCount; i++) {
+    const beat = Math.floor((i % 16) / 4) + 1;  // 1-4 par mesure
     const txt = (i % 4 === 0) ? beat : '·';
     numCells.push(`<div>${txt}</div>`);
   }
@@ -8638,6 +8685,9 @@ function buildStudioGrid() {
   document.getElementById('studio-bpm-val').textContent = studio.bpm;
   document.querySelectorAll('#studio-lane-mode button').forEach(b => {
     b.classList.toggle('active', parseInt(b.dataset.mode, 10) === studio.laneMode);
+  });
+  document.querySelectorAll('#studio-steps-mode button').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.steps, 10) === studio.stepsCount);
   });
   // Show "supprimer" only if loaded from library
   document.getElementById('studio-delete').style.display = studio.loadedId ? '' : 'none';
@@ -8674,7 +8724,7 @@ function studioPlay() {
   btn.classList.add('playing');
   const tick = () => {
     if (!studio.playing) return;
-    studio.currentStep = (studio.currentStep + 1) % STUDIO_STEPS;
+    studio.currentStep = (studio.currentStep + 1) % studio.stepsCount;
     studioRenderStep();
     studio.loopHandle = setTimeout(tick, studioStepIntervalMs());
   };
@@ -8744,6 +8794,7 @@ function studioSave() {
         name,
         bpm: studio.bpm,
         laneMode: studio.laneMode,
+        stepsCount: studio.stepsCount,
         lanes: studio.lanes,
         steps: studio.steps,
         updatedAt: Date.now(),
@@ -8757,6 +8808,7 @@ function studioSave() {
       name,
       bpm: studio.bpm,
       laneMode: studio.laneMode,
+      stepsCount: studio.stepsCount,
       lanes: studio.lanes,
       steps: studio.steps,
       createdAt: Date.now(),
@@ -8808,10 +8860,17 @@ function studioLoadPattern(id) {
   studio.name = p.name;
   studio.bpm = p.bpm;
   studio.laneMode = p.laneMode || 4;
+  studio.stepsCount = STUDIO_STEPS_OPTIONS.includes(p.stepsCount) ? p.stepsCount : 16;
   studio.lanes = p.lanes || (studio.laneMode === 8 ? STUDIO_LANES_8 : STUDIO_LANES_4);
-  // Migration : ensure all lane keys exist
+  // Migration : ensure all lane keys exist + padded au stepsCount
   const fresh = studioFreshSteps(studio.lanes);
-  studio.steps = { ...fresh, ...p.steps };
+  studio.steps = {};
+  for (const lid of studio.lanes) {
+    const old = (p.steps || {})[lid] || [];
+    const arr = old.slice(0, studio.stepsCount);
+    while (arr.length < studio.stepsCount) arr.push(false);
+    studio.steps[lid] = arr;
+  }
   studio.loadedId = id;
   studioSaveDraft();
   buildStudioGrid();
@@ -8879,6 +8938,7 @@ function studioOpen() {
   if (!hadDraft) {
     studio.bpm = 100;
     studio.laneMode = 4;
+    studio.stepsCount = 16;
     studio.lanes = STUDIO_LANES_4;
     studio.steps = studioFreshSteps(studio.lanes);
     studio.name = '';
@@ -8959,6 +9019,19 @@ document.getElementById('studio-lane-mode').addEventListener('click', e => {
   for (const l of newLanes) {
     if (oldSteps[l]) studio.steps[l] = oldSteps[l];
   }
+  studioSaveDraft();
+  buildStudioGrid();
+});
+
+// Selector du nombre de pas (8 / 16 / 32 / 64 / 128)
+document.getElementById('studio-steps-mode').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-steps]');
+  if (!btn) return;
+  const count = parseInt(btn.dataset.steps, 10);
+  if (!STUDIO_STEPS_OPTIONS.includes(count)) return;
+  if (count === studio.stepsCount) return;
+  studioStop();  // par precaution
+  studioResizeSteps(count);
   studioSaveDraft();
   buildStudioGrid();
 });
