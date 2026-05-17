@@ -354,14 +354,142 @@ button:focus { outline: none; }
 
 /* === Mode libre — dispo physique DD-75 (absolute positioning) === */
 #screen-free { background: var(--bg); }
-#screen-free .pads-free {
+#screen-free .free-body {
   flex: 1;
+  display: flex;
+  gap: 20px;
+  padding: 0 24px 24px 24px;
+  min-height: 0;
+}
+#screen-free .pads-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+#screen-free .pads-free {
   position: relative;
   width: 100%;
-  max-width: 900px;
-  margin: 0 auto;
+  max-width: 800px;
   aspect-ratio: 5 / 4;
   padding: 0;
+}
+#screen-free .pads-free.recording::before {
+  content: '🔴 ENREGISTREMENT';
+  position: absolute;
+  top: -8px; left: 50%;
+  transform: translateX(-50%);
+  background: var(--bad);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 4px 14px;
+  border-radius: 999px;
+  animation: rec-pulse 1.2s ease-in-out infinite;
+  z-index: 10;
+}
+@keyframes rec-pulse {
+  0%, 100% { opacity: 1; transform: translateX(-50%) scale(1); }
+  50%      { opacity: 0.55; transform: translateX(-50%) scale(0.95); }
+}
+
+/* === Volet enregistrements === */
+.rec-panel {
+  width: 280px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--panel);
+  border-radius: 20px;
+  padding: 14px;
+  box-shadow: var(--shadow);
+  max-height: 100%;
+  overflow: hidden;
+}
+.rec-panel h3 {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.rec-toggle {
+  background: var(--bad);
+  color: white;
+  border: none;
+  padding: 14px 18px;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.rec-toggle:hover { filter: brightness(1.05); }
+.rec-toggle.recording {
+  background: #444;
+  animation: rec-pulse 1.2s ease-in-out infinite;
+}
+.rec-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 2px;
+}
+.rec-item {
+  background: #f5f5f0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.1s, transform 0.08s, background 0.1s;
+  position: relative;
+}
+.rec-item:hover { border-color: var(--accent); }
+.rec-item:active { transform: scale(0.98); }
+.rec-item.playing { border-color: var(--good); background: #e0f7f5; }
+.rec-item .rec-title { font-size: 14px; font-weight: 700; color: var(--text); }
+.rec-item .rec-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.rec-item .rec-progress {
+  height: 4px;
+  background: rgba(0,0,0,0.08);
+  border-radius: 2px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+.rec-item .rec-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  width: 0%;
+  transition: width 0.1s linear;
+}
+.rec-item .rec-del {
+  position: absolute;
+  top: 8px; right: 8px;
+  background: rgba(0,0,0,0.06);
+  border: none;
+  border-radius: 50%;
+  width: 22px; height: 22px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--muted);
+}
+.rec-item .rec-del:hover { background: var(--bad); color: white; }
+.rec-empty {
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+  padding: 24px 12px;
+  line-height: 1.4;
 }
 .free-pad {
   position: absolute;
@@ -898,7 +1026,16 @@ button:focus { outline: none; }
     <h2 style="margin:0">🥁 Joue ce que tu veux !</h2>
     <span style="margin-left:auto;color:var(--muted);font-size:13px;">Dispo Yamaha DD-75 · Kit 1</span>
   </div>
-  <div class="pads-free" id="pads-free"></div>
+  <div class="free-body">
+    <div class="pads-area">
+      <div class="pads-free" id="pads-free"></div>
+    </div>
+    <div class="rec-panel">
+      <h3>🎙 Mes enregistrements</h3>
+      <button class="rec-toggle" id="rec-toggle">🔴 Enregistrer</button>
+      <div class="rec-list" id="rec-list"></div>
+    </div>
+  </div>
 </section>
 
 <!-- =================================================================== -->
@@ -1346,6 +1483,12 @@ function goto(screen) {
   if (screen === 'home') updateStarsCounter();
   if (screen === 'learn-select') renderPatternList();
   if (screen === 'progress') renderProgress();
+  if (screen === 'free') renderRecordings();
+  // Quitte le Mode Libre → on stoppe record + replay en cours
+  if (screen !== 'free') {
+    if (recording) stopRecord();
+    stopReplay();
+  }
   if (screen === 'home') stop();
 }
 document.querySelectorAll('[data-goto]').forEach(el => {
@@ -1723,22 +1866,179 @@ function buildFreePads() {
 }
 buildFreePads();
 
-function freePadHit(laneId, sendMidi = false) {
+function freePadHit(laneId, sendMidi = false, isReplay = false) {
   const el = document.querySelector(`.free-pad[data-lane="${laneId}"]`);
   if (!el) return;
   el.classList.remove('bounce');
   void el.offsetWidth;
   el.classList.add('bounce');
   spawnConfetti(el, 12, LANES.find(l => l.id === laneId)?.color);
-  // Si déclenché par clic souris et qu'on a un MIDI out → fait sonner la batterie
+  // Si déclenché par clic souris OU replay et qu'on a un MIDI out → batterie joue
   if (sendMidi && midiOutput) {
     const note = LANE_TO_NOTE[laneId];
     if (note != null) {
-      midiOutput.send([0x99, note, 110]);                       // note_on ch 10
-      setTimeout(() => midiOutput.send([0x89, note, 0]), 60);  // note_off
+      midiOutput.send([0x99, note, 110]);
+      setTimeout(() => midiOutput.send([0x89, note, 0]), 60);
     }
   }
+  // Capture pour l'enregistrement (sauf si on est en train de replay un record)
+  if (recording && !isReplay) captureHit(laneId);
 }
+
+// =====================================================================
+// Enregistrement & replay du Mode Libre
+// =====================================================================
+let recording = false;
+let recordStartTime = 0;
+let recordHits = [];
+let recordAutoStopTimer = null;
+let replayActive = null; // { idx, timers, progressTimer, startTime, duration }
+const MAX_REC_DURATION_MS = 120_000;  // garde-fou 2 minutes
+const MAX_RECORDINGS = 20;
+
+function getRecordings() {
+  try { return JSON.parse(localStorage.getItem(pkey('recordings')) || '[]'); }
+  catch { return []; }
+}
+function setRecordings(arr) {
+  localStorage.setItem(pkey('recordings'), JSON.stringify(arr));
+}
+
+function startRecord() {
+  stopReplay();
+  recording = true;
+  recordStartTime = performance.now();
+  recordHits = [];
+  const padsEl = document.getElementById('pads-free');
+  if (padsEl) padsEl.classList.add('recording');
+  const btn = document.getElementById('rec-toggle');
+  btn.classList.add('recording');
+  btn.innerHTML = '⏹ Arrêter';
+  // Auto-stop après 2 min
+  if (recordAutoStopTimer) clearTimeout(recordAutoStopTimer);
+  recordAutoStopTimer = setTimeout(stopRecord, MAX_REC_DURATION_MS);
+}
+
+function stopRecord() {
+  if (!recording) return;
+  if (recordAutoStopTimer) { clearTimeout(recordAutoStopTimer); recordAutoStopTimer = null; }
+  const duration = performance.now() - recordStartTime;
+  recording = false;
+  const padsEl = document.getElementById('pads-free');
+  if (padsEl) padsEl.classList.remove('recording');
+  const btn = document.getElementById('rec-toggle');
+  btn.classList.remove('recording');
+  btn.innerHTML = '🔴 Enregistrer';
+  if (recordHits.length > 0 && duration > 500) {
+    const list = getRecordings();
+    list.unshift({ ts: Date.now(), duration, hits: recordHits.slice() });
+    while (list.length > MAX_RECORDINGS) list.pop();
+    setRecordings(list);
+  }
+  recordHits = [];
+  renderRecordings();
+}
+
+function captureHit(laneId) {
+  if (!recording) return;
+  const t = performance.now() - recordStartTime;
+  recordHits.push({ t, lane: laneId });
+}
+
+function playRecording(idx) {
+  stopReplay();
+  const recs = getRecordings();
+  const rec = recs[idx];
+  if (!rec) return;
+
+  replayActive = {
+    idx,
+    timers: [],
+    startTime: performance.now(),
+    duration: rec.duration,
+  };
+
+  // Schedule les hits
+  for (const h of rec.hits) {
+    const timer = setTimeout(() => {
+      freePadHit(h.lane, /*sendMidi=*/true, /*isReplay=*/true);
+    }, h.t);
+    replayActive.timers.push(timer);
+  }
+
+  // Barre de progression
+  const progressTimer = setInterval(() => {
+    if (!replayActive) return;
+    const elapsed = performance.now() - replayActive.startTime;
+    const pct = Math.min(100, (elapsed / replayActive.duration) * 100);
+    const fillEl = document.querySelector(
+      `.rec-item[data-rec-idx="${replayActive.idx}"] .rec-progress-fill`
+    );
+    if (fillEl) fillEl.style.width = pct + '%';
+    if (elapsed >= replayActive.duration) {
+      stopReplay();
+    }
+  }, 50);
+  replayActive.progressTimer = progressTimer;
+  renderRecordings();
+}
+
+function stopReplay() {
+  if (!replayActive) return;
+  for (const t of replayActive.timers) clearTimeout(t);
+  if (replayActive.progressTimer) clearInterval(replayActive.progressTimer);
+  document.querySelectorAll('.rec-item').forEach(el => {
+    el.classList.remove('playing');
+    const fill = el.querySelector('.rec-progress-fill');
+    if (fill) fill.style.width = '0%';
+  });
+  replayActive = null;
+}
+
+function deleteRecording(idx) {
+  stopReplay();
+  const list = getRecordings();
+  list.splice(idx, 1);
+  setRecordings(list);
+  renderRecordings();
+}
+
+function renderRecordings() {
+  const list = document.getElementById('rec-list');
+  if (!list) return;
+  list.innerHTML = '';
+  const recs = getRecordings();
+  if (recs.length === 0) {
+    list.innerHTML = '<div class="rec-empty">Pas d\'enregistrement.<br>Clique 🔴 puis joue ton truc !</div>';
+    return;
+  }
+  recs.forEach((rec, idx) => {
+    const item = document.createElement('div');
+    item.className = 'rec-item' + (replayActive && replayActive.idx === idx ? ' playing' : '');
+    item.dataset.recIdx = idx;
+    const durSec = (rec.duration / 1000).toFixed(1);
+    item.innerHTML = `
+      <button class="rec-del" title="Supprimer">×</button>
+      <div class="rec-title">🎵 ${rec.hits.length} coup${rec.hits.length > 1 ? 's' : ''} · ${durSec}s</div>
+      <div class="rec-meta" title="${absoluteDate(rec.ts)}">${relativeDate(rec.ts)}</div>
+      <div class="rec-progress"><div class="rec-progress-fill"></div></div>
+    `;
+    item.addEventListener('click', e => {
+      if (e.target.closest('.rec-del')) return;
+      playRecording(idx);
+    });
+    item.querySelector('.rec-del').addEventListener('click', e => {
+      e.stopPropagation();
+      if (confirm('Supprimer cet enregistrement ?')) deleteRecording(idx);
+    });
+    list.appendChild(item);
+  });
+}
+
+document.getElementById('rec-toggle').addEventListener('click', () => {
+  if (recording) stopRecord();
+  else startRecord();
+});
 
 // =====================================================================
 // Mode apprendre — jeu
