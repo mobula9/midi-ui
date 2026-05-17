@@ -3144,35 +3144,14 @@ async function pickSpotifyAccompTrack(track) {
     return;
   }
 
-  // Pas de cache : on tente la détection automatique
-  document.getElementById('sp-accomp-track').textContent = `${track.name} — Détection tempo…`;
-  const result = await spGetTempo(track.id);
-  let label;
-  if (result?.tempo) {
-    const tempo = Math.round(result.tempo);
-    setLiveBpm(tempo);
-    saveTrackSync(track.id, tempo, 0, result.source);
-    label = `${track.name} — ${tempo} BPM (${result.source}) · 💾`;
-  } else {
-    // Spotify a refusé : option manuelle ou tap tempo
-    const manual = prompt(
-      `⚠ Spotify n'a pas donné le tempo du morceau "${track.name}".\n\n` +
-      `Options :\n` +
-      `  • Tape un BPM à la main\n` +
-      `  • Annule et utilise 🥁 Tap tempo (espace) pour mesurer en tapant\n\n` +
-      `BPM (vide = garder ${bpm}) :`,
-      String(bpm)
-    );
-    const manualBpm = parseInt(manual, 10);
-    if (!isNaN(manualBpm) && manualBpm >= 30 && manualBpm <= 220) {
-      setLiveBpm(manualBpm);
-      saveTrackSync(track.id, manualBpm, 0, 'manuel');
-      label = `${track.name} — ${manualBpm} BPM (manuel) · 💾`;
-    } else {
-      label = `${track.name} — BPM ${bpm} (tape espace pour caler)`;
-    }
-  }
-  document.getElementById('sp-accomp-track').textContent = label;
+  // Pas de cache → on déclenche directement le tap tempo
+  // (l'utilisateur tape ESPACE en rythme, on apprend BPM + offset, on save)
+  document.getElementById('sp-accomp-track').textContent =
+    `${track.name} — Tape ESPACE en rythme pour caler le tempo`;
+  // Démarre le tap tempo après une courte attente (que la musique commence)
+  setTimeout(() => {
+    if (apprSpotifyTrack && apprSpotifyTrack.id === track.id) tapTempoStart();
+  }, 800);
   scheduleNotes();
 }
 
