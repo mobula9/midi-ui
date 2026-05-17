@@ -1336,6 +1336,14 @@ button:focus { outline: none; }
   color: var(--text);
 }
 .studio-row-label .srl-emoji { font-size: 20px; }
+.studio-row.tap-flash .studio-row-label {
+  animation: studioRowFlash 0.4s;
+}
+@keyframes studioRowFlash {
+  0% { transform: scale(1); }
+  20% { transform: scale(1.15); filter: brightness(1.3); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
 .studio-row-cells {
   display: grid;
   grid-template-columns: repeat(16, 1fr);
@@ -1889,7 +1897,40 @@ button:focus { outline: none; }
   text-align: center;
   max-width: 560px;
   box-shadow: 0 12px 48px rgba(0,0,0,0.4);
+  position: relative;
 }
+.runner-intro-close {
+  position: absolute;
+  top: 14px; right: 14px;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: #eee;
+  font-size: 20px;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--muted);
+}
+.runner-intro-close:hover { background: #ddd; color: var(--text); }
+.runner-intro-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+  margin-top: 8px;
+}
+.runner-intro-cancel {
+  background: transparent;
+  border: 1px solid #ddd;
+  color: var(--muted);
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+.runner-intro-cancel:hover { background: #f5f5f0; color: var(--text); }
 .runner-intro-content h2 { margin: 12px 0 8px; font-size: 28px; }
 .runner-intro-content p { color: var(--muted); margin: 0 0 16px; line-height: 1.5; font-size: 14px; }
 .runner-intro-legend {
@@ -2733,11 +2774,15 @@ button:focus { outline: none; }
   <!-- Countdown / start screen -->
   <div class="runner-intro" id="runner-intro">
     <div class="runner-intro-content">
+      <button class="runner-intro-close" id="runner-intro-close" data-goto="home" title="Retour">×</button>
       <div style="font-size:88px;line-height:1;">🦖</div>
       <h2 data-title-tpl="{name}, prêt à courir ?">Prêt à courir ?</h2>
       <p>Tape le bon pad au bon moment pour éviter les obstacles.<br/>3 vies. Vas le plus loin possible !</p>
       <div class="runner-intro-legend" id="runner-intro-legend"></div>
-      <button class="runner-start-btn" id="runner-start-btn">▶ Démarrer</button>
+      <div class="runner-intro-actions">
+        <button class="runner-start-btn" id="runner-start-btn">▶ Démarrer</button>
+        <button class="runner-intro-cancel" data-goto="home">← Annuler</button>
+      </div>
     </div>
   </div>
   <!-- Game over -->
@@ -4489,6 +4534,13 @@ let memoSeq = [];
 let memoUserIdx = 0;
 let memoRound = 0;
 let memoPhase = 'idle';  // idle | showing | awaiting | success | gameover
+
+function memoSetPhase(p) {
+  memoPhase = p;
+  // Met à jour le verrou visuel sur les boutons de difficulté (évite que kid
+  // change difficulté en plein jeu → c'était la cause du "ça coupe la manche")
+  if (typeof memoUpdateDifficultyLock === 'function') memoUpdateDifficultyLock();
+}
 let memoTimers = [];
 
 function memoActivePool() {
@@ -4549,14 +4601,27 @@ function buildMemoWidget() {
 
 function memoSetDifficulty(diff) {
   if (!MEMO_POOLS[diff]) return;
+  // Refuse de changer la difficulté en plein jeu — ça couperait la manche
+  // (l'utilisateur recevait un "ça se coupe sans raison" sinon).
+  // Phases bloquantes : showing, awaiting, success.
+  if (memoPhase === 'showing' || memoPhase === 'awaiting' || memoPhase === 'success') return;
   memoDifficulty = diff;
   localStorage.setItem(pkey('memo-difficulty'), diff);
-  // Si on est en plein jeu, on stoppe et on rebuild
+  // Si on est en plein jeu (gameover/idle), on rebuild
   memoStopAll();
   buildMemoWidget();
   document.getElementById('memo-round').textContent = '—';
   memoSetStatus('▶ Démarrer pour jouer');
   document.getElementById('memo-start').style.display = '';
+}
+
+function memoUpdateDifficultyLock() {
+  // Visuel : grise les boutons difficulté pendant le jeu
+  const blocked = memoPhase === 'showing' || memoPhase === 'awaiting' || memoPhase === 'success';
+  document.querySelectorAll('#memo-difficulty button').forEach(b => {
+    b.style.opacity = blocked ? '0.4' : '';
+    b.style.pointerEvents = blocked ? 'none' : '';
+  });
 }
 
 function memoStarsForRound(round) {
@@ -4592,7 +4657,7 @@ function memoNextRound() {
 }
 
 function memoShowSequence() {
-  memoPhase = 'showing';
+  memoSetPhase('showing');
   memoSetStatus('👀 Regarde Boumbi…', 'boumbi');
   memoClearTimers();
   const { padMs, gapMs } = memoTimings(memoRound);
@@ -4606,7 +4671,7 @@ function memoShowSequence() {
   });
   memoTimers.push(setTimeout(() => {
     if (currentScreen !== 'memo') return;
-    memoPhase = 'awaiting';
+    memoSetPhase('awaiting');
     memoSetStatus('🥁 À toi !', 'player');
   }, MEMO_SHOW_START_DELAY + totalShowMs + 80));
 }
@@ -4626,10 +4691,19 @@ function memoPlayBoumbi(laneId, padMs = 480) {
   }
 }
 
+let memoLastTapT = 0;
+let memoLastTapLane = null;
+
 function memoUserTap(laneId) {
   if (memoPhase !== 'awaiting') return;
   const pool = memoActivePool();
   if (!pool.includes(laneId)) return;  // pad hors pool → ignore
+  // Debounce : kids tapent souvent 2 fois la même case en rafale → ça les faisait
+  // perdre. On ignore le re-tap du même pad < 120ms après le précédent.
+  const now = performance.now();
+  if (laneId === memoLastTapLane && (now - memoLastTapT) < 120) return;
+  memoLastTapT = now;
+  memoLastTapLane = laneId;
   const el = document.querySelector(`.memo-pad[data-lane="${laneId}"]`);
   const expected = memoSeq[memoUserIdx];
   if (laneId === expected) {
@@ -4640,7 +4714,7 @@ function memoUserTap(laneId) {
     memoUserIdx++;
     if (memoUserIdx >= memoSeq.length) {
       // Round réussi
-      memoPhase = 'success';
+      memoSetPhase('success');
       memoSetStatus('🎉 Bravo !', 'success');
       // Petit confetti burst pour célébrer (réutilise existant)
       if (typeof spawnConfetti === 'function') {
@@ -4661,7 +4735,7 @@ function memoUserTap(laneId) {
 }
 
 function memoGameOver() {
-  memoPhase = 'gameover';
+  memoSetPhase('gameover');
   memoClearTimers();
   // Rounds réussis = memoRound - 1 (on a fail au round courant)
   const completed = Math.max(0, memoRound - 1);
@@ -4738,7 +4812,7 @@ function memoGameOver() {
 function memoStopAll() {
   // Cleanup quand on quitte l'écran
   memoClearTimers();
-  memoPhase = 'idle';
+  memoSetPhase('idle');
   memoSeq = [];
   memoRound = 0;
   memoUserIdx = 0;
@@ -4780,7 +4854,7 @@ const RUNNER_LEVELS = [
   { lv: 6, threshold: 650, pool: ['kick', 'snare', 'crash', 'tomL', 'hihat'], speed: 390, spawnMs: 850 },
   { lv: 7, threshold: 900, pool: ['kick', 'snare', 'crash', 'tomL', 'hihat'], speed: 440, spawnMs: 780 },
 ];
-const RUNNER_HIT_PX = 80;       // demi-fenêtre de hit en pixels canvas
+const RUNNER_HIT_PX = 130;      // demi-fenêtre de hit en pixels canvas (généreuse pour kids)
 const RUNNER_M_PER_PX = 0.018;  // 1 px ≈ 1.8 cm — donne ~m/s honnêtes
 const RUNNER_JUMP_MS = 520;     // durée de l'animation jump
 const RUNNER_LIVES = 3;
@@ -5197,29 +5271,46 @@ function runnerDraw() {
   ctx.setLineDash([]);
 
   // === Obstacles ===
-  ctx.font = 'bold 56px system-ui, -apple-system, sans-serif';
+  // IMPORTANT : reset fillStyle a une couleur opaque avant fillText (sinon les
+  // emoji heritent du dernier fillStyle qui peut etre semi-transparent).
+  ctx.font = 'bold 56px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
   for (const o of runner.obstacles) {
+    const y = runnerObstacleY(o);
+    const cfg = RUNNER_OBS[o.lane];
     if (o.hit) {
-      // Hit obstacles : on les fait fade out / pop
       const elapsed = (performance.now() - o.hitT) / 300;
       if (elapsed >= 1) continue;
       ctx.globalAlpha = 1 - elapsed;
       const scale = 1 + elapsed * 0.8;
-      const y = runnerObstacleY(o);
       ctx.save();
       ctx.translate(o.x, y);
       ctx.scale(scale, scale);
-      ctx.fillText(RUNNER_OBS[o.lane].emoji, 0, 0);
+      // Halo coloré pour le visuel hit
+      ctx.fillStyle = cfg.color;
+      ctx.beginPath();
+      ctx.arc(0, -28, 36, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#000';
+      ctx.fillText(cfg.emoji, 0, 0);
       ctx.restore();
       ctx.globalAlpha = 1;
-    } else if (o.missed) {
-      ctx.globalAlpha = 0.4;
-      ctx.fillText(RUNNER_OBS[o.lane].emoji, o.x, runnerObstacleY(o));
-      ctx.globalAlpha = 1;
     } else {
-      ctx.fillText(RUNNER_OBS[o.lane].emoji, o.x, runnerObstacleY(o));
+      // Fond coloré sous l'emoji pour que ce soit toujours bien visible
+      ctx.globalAlpha = o.missed ? 0.4 : 1;
+      ctx.fillStyle = cfg.color;
+      ctx.beginPath();
+      ctx.arc(o.x, y - 26, 34, 0, Math.PI * 2);
+      ctx.fill();
+      // Bord blanc pour relief
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      // L'emoji par-dessus avec fillStyle OPAQUE
+      ctx.fillStyle = '#000';
+      ctx.fillText(cfg.emoji, o.x, y);
+      ctx.globalAlpha = 1;
     }
   }
 
@@ -5290,11 +5381,37 @@ function runnerDrawBoumbi(ctx, x, groundY) {
   ctx.scale(scaleX, scaleY);
   ctx.rotate(rot);
 
-  // Boumbi en emoji simple — c'est rapide à rendre et reconnaissable
-  ctx.font = 'bold 72px system-ui, -apple-system, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'bottom';
-  ctx.fillText('🦉', 0, 0);
+  // Corps marron coloré pour qu'on voit toujours Boumbi, même si l'emoji
+  // ne rend pas correctement les couleurs (Chrome/Firefox sur Linux notamment).
+  ctx.fillStyle = '#8B5A2B';
+  ctx.beginPath();
+  ctx.ellipse(0, -40, 38, 50, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Ventre clair
+  ctx.fillStyle = '#F5DEB3';
+  ctx.beginPath();
+  ctx.ellipse(0, -32, 22, 28, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Yeux
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(-12, -58, 8, 0, Math.PI * 2);
+  ctx.arc(12, -58, 8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.arc(-12, -58, 4, 0, Math.PI * 2);
+  ctx.arc(12, -58, 4, 0, Math.PI * 2);
+  ctx.fill();
+  // Bec
+  ctx.fillStyle = '#FFA94D';
+  ctx.beginPath();
+  ctx.moveTo(-4, -48);
+  ctx.lineTo(4, -48);
+  ctx.lineTo(0, -42);
+  ctx.closePath();
+  ctx.fill();
+
   ctx.restore();
 }
 
@@ -5628,18 +5745,42 @@ function echoPhaseShowing() {
   echo.currentMotif.forEach(note => {
     echo.timers.push(setTimeout(() => echoPlayPad(note.lane), note.t));
   });
-  // Après la mesure, transition vers listening
-  echo.timers.push(setTimeout(echoPhaseListening, echo.measureMs + 150));
+  // Après la mesure, transition vers bridge (1 mesure de pause avant le tour du kid)
+  echo.timers.push(setTimeout(echoPhaseBridge, echo.measureMs + 150));
+}
+
+// Phase BRIDGE : 4 temps de silence après Boumbi, avec compte à rebours visuel
+// "À toi dans 4·3·2·1" pour que le kid puisse s'enchaîner sereinement.
+function echoPhaseBridge() {
+  if (currentScreen !== 'echo' || !echo.active) return;
+  echo.phase = 'bridge';
+  echoSetStatus('⏳ À toi dans 4…', 'countin');
+  echoClearTimers();
+  // Click "doux" sur chaque temps + countdown visuel
+  for (let i = 0; i < 4; i++) {
+    echo.timers.push(setTimeout(() => {
+      playClick(false);  // click doux (pas de fort sur le 1 — c'est la transition)
+      echoPulseBeat(i);
+      const remaining = 4 - i - 1;
+      if (remaining > 0) {
+        echoSetStatus(`⏳ À toi dans ${remaining}…`, 'countin');
+      } else {
+        echoSetStatus('🥁 GO ! À toi !', 'player');
+      }
+    }, i * echo.beatMs));
+  }
+  // Après les 4 temps, on passe en listening
+  echo.timers.push(setTimeout(echoPhaseListening, 4 * echo.beatMs));
 }
 
 function echoPhaseListening() {
   if (currentScreen !== 'echo' || !echo.active) return;
   echo.phase = 'listening';
-  echoSetStatus('🥁 À toi de jouer !', 'player');
+  echoSetStatus('🥁 GO ! À toi !', 'player');
   echo.userTaps = [];
   echo.listenStartT = performance.now();
   echoClearTimers();
-  // Click track pendant que kid joue
+  // Click track pendant que kid joue (fort sur le 1)
   for (let i = 0; i < 4; i++) {
     echo.timers.push(setTimeout(() => {
       playClick(i === 0);
@@ -5891,6 +6032,7 @@ function buildStudioGrid() {
     if (!lane) continue;
     const row = document.createElement('div');
     row.className = 'studio-row';
+    row.dataset.lane = laneId;
     row.style.setProperty('--lane-color', lane.color);
     const cellsHtml = [];
     for (let i = 0; i < STUDIO_STEPS; i++) {
@@ -6177,6 +6319,32 @@ function studioStopAll() {
   studioStop();
   const ov = document.getElementById('studio-library');
   if (ov) ov.classList.remove('active');
+}
+
+// Reaction au MIDI : flash la ligne du pad tape + si la lecture est en cours,
+// toggle la case du step courant (live record).
+function studioOnPadTap(laneId) {
+  const row = document.querySelector(`.studio-row[data-lane="${laneId}"]`);
+  if (row) {
+    row.classList.remove('tap-flash');
+    void row.offsetWidth;
+    row.classList.add('tap-flash');
+  }
+  // Si on est en train de jouer, ajoute la note au step courant (mode "live record")
+  if (studio.playing && studio.steps[laneId] && studio.currentStep >= 0) {
+    const step = studio.currentStep;
+    if (!studio.steps[laneId][step]) {
+      studio.steps[laneId][step] = true;
+      const cell = document.querySelector(`.studio-cell[data-lane="${laneId}"][data-step="${step}"]`);
+      if (cell) {
+        cell.classList.add('on');
+        cell.classList.remove('flash');
+        void cell.offsetWidth;
+        cell.classList.add('flash');
+      }
+      studioSaveDraft();
+    }
+  }
 }
 
 // Wire UI
@@ -7488,6 +7656,8 @@ function onMIDI(msg) {
     runnerTap(lane.id);
   } else if (currentScreen === 'echo' && echo.phase === 'listening') {
     echoUserTap(lane.id);
+  } else if (currentScreen === 'studio') {
+    studioOnPadTap(lane.id);
   } else if (currentScreen === 'spotify' && spSchedule.length) {
     spRegisterHit(lane.id);
   } else if (currentScreen === 'play' && mode !== 'stopped') {
