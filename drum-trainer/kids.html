@@ -680,6 +680,7 @@ button:focus { outline: none; }
    ===================================================================== */
 #screen-reflex {
   background: var(--bg);
+  position: relative;
 }
 #screen-reflex .reflex-area {
   flex: 1;
@@ -687,8 +688,96 @@ button:focus { outline: none; }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 0 24px 24px;
+  padding: 0 24px 24px 120px;   /* place pour la jauge à gauche */
   gap: 16px;
+}
+
+/* === Grosse jauge de temps verticale === */
+.reflex-time-gauge {
+  position: fixed;
+  left: 28px;
+  top: 110px;
+  bottom: 28px;
+  width: 70px;
+  background: rgba(0,0,0,0.05);
+  border-radius: 36px;
+  border: 3px solid rgba(0,0,0,0.1);
+  overflow: hidden;
+  z-index: 5;
+  display: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+.reflex-time-gauge.active { display: block; }
+.reflex-time-fill {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  background: linear-gradient(to top, #FF6B6B 0%, #FFA94D 30%, #FFD93D 60%, #6BCB77 100%);
+  height: 100%;
+  transition: height 0.95s linear;
+  box-shadow: inset 0 4px 12px rgba(255,255,255,0.3);
+}
+.reflex-time-fill.urgent {
+  animation: gauge-urgent 0.45s ease-in-out infinite;
+}
+@keyframes gauge-urgent {
+  0%, 100% { opacity: 1; transform: scaleX(1); }
+  50%      { opacity: 0.55; transform: scaleX(0.9); }
+}
+.reflex-time-label {
+  position: fixed;
+  left: 28px;
+  top: 65px;
+  width: 70px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  z-index: 6;
+  display: none;
+}
+.reflex-time-label.active { display: block; }
+.reflex-time-num {
+  position: fixed;
+  left: 28px;
+  top: 80px;
+  width: 70px;
+  text-align: center;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text);
+  z-index: 6;
+  pointer-events: none;
+  display: none;
+  font-variant-numeric: tabular-nums;
+}
+.reflex-time-num.active { display: block; }
+
+/* === Score gold + record === */
+@keyframes gold-flash {
+  0%, 100% { transform: scale(1); color: #FFD700; text-shadow: 0 0 30px #FFD700, 0 0 60px #FFA500; }
+  50%      { transform: scale(1.2); color: #FFA500; text-shadow: 0 0 40px #FFD700, 0 0 80px #FFA500; }
+}
+.score-gold {
+  animation: gold-flash 0.45s ease-in-out infinite;
+}
+.record-banner {
+  display: inline-block;
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  color: #4a2800;
+  font-weight: 800;
+  font-size: 14px;
+  padding: 6px 16px;
+  border-radius: 999px;
+  margin-bottom: 6px;
+  letter-spacing: 1px;
+  box-shadow: 0 4px 16px rgba(255,165,0,0.5);
+  animation: gold-shine 1s ease-in-out infinite;
+}
+@keyframes gold-shine {
+  0%, 100% { box-shadow: 0 4px 16px rgba(255,165,0,0.5); }
+  50%      { box-shadow: 0 4px 28px rgba(255,165,0,0.9); }
 }
 .reflex-board {
   position: relative;
@@ -1226,6 +1315,11 @@ button:focus { outline: none; }
     <h2 style="margin:0">⚡ Tape avant que ça remplisse !</h2>
     <span style="margin-left:auto;color:var(--muted);font-size:13px;" id="reflex-kit-label"></span>
   </div>
+  <div class="reflex-time-label" id="rfx-gauge-label">TEMPS</div>
+  <div class="reflex-time-num" id="rfx-gauge-num">60</div>
+  <div class="reflex-time-gauge" id="rfx-gauge">
+    <div class="reflex-time-fill" id="rfx-gauge-fill"></div>
+  </div>
   <div class="reflex-area">
     <div class="reflex-header">
       <div class="stat"><span class="stat-val" id="rfx-time">60</span><span class="stat-lbl">Secondes</span></div>
@@ -1245,12 +1339,14 @@ button:focus { outline: none; }
   </div>
   <!-- Overlay de fin de session -->
   <div id="rfx-end-overlay" style="position:absolute;inset:0;background:rgba(0,0,0,0.85);display:none;align-items:center;justify-content:center;z-index:100;">
-    <div style="background:var(--panel);padding:32px 48px;border-radius:24px;text-align:center;max-width:500px;">
+    <div style="background:var(--panel);padding:32px 48px;border-radius:24px;text-align:center;max-width:520px;">
+      <div id="rfx-end-record" class="record-banner" style="display:none">🏆 NOUVEAU RECORD !</div>
       <div style="font-size:80px;line-height:1;" id="rfx-end-emoji">🎉</div>
       <h2 style="margin:8px 0;font-size:28px;" id="rfx-end-title">Session terminée !</h2>
-      <div style="font-size:80px;font-weight:800;line-height:1;color:var(--accent);" id="rfx-end-score">0</div>
+      <div style="font-size:96px;font-weight:800;line-height:1;color:var(--accent);" id="rfx-end-score">0</div>
       <div style="color:var(--muted);font-size:14px;margin-top:4px;">coups réussis en 1 minute</div>
-      <div style="margin-top:12px;font-size:14px;color:var(--text);" id="rfx-end-detail"></div>
+      <div style="margin-top:8px;font-size:13px;color:var(--muted);" id="rfx-end-prev"></div>
+      <div style="margin-top:8px;font-size:14px;color:var(--text);" id="rfx-end-detail"></div>
       <div style="display:flex;gap:12px;margin-top:24px;justify-content:center;">
         <button id="rfx-end-again" style="background:var(--accent);color:white;border:none;padding:14px 24px;border-radius:12px;font-weight:700;font-size:15px;cursor:pointer;font-family:inherit;">🔁 Encore</button>
         <button id="rfx-end-home" style="background:#eee;color:var(--text);border:none;padding:14px 24px;border-radius:12px;font-weight:700;font-size:15px;cursor:pointer;font-family:inherit;">🏠 Maison</button>
@@ -2498,6 +2594,22 @@ const REFLEX_SESSION_SEC = 60;
 let reflexTimeLeft = REFLEX_SESSION_SEC;
 let reflexTimerInterval = null;
 
+function showGauge(visible) {
+  const els = ['rfx-gauge', 'rfx-gauge-label', 'rfx-gauge-num'];
+  for (const id of els) {
+    document.getElementById(id).classList.toggle('active', visible);
+  }
+}
+
+function updateGauge(secLeft) {
+  const fill = document.getElementById('rfx-gauge-fill');
+  const num = document.getElementById('rfx-gauge-num');
+  const pct = Math.max(0, Math.min(100, (secLeft / REFLEX_SESSION_SEC) * 100));
+  fill.style.height = pct + '%';
+  num.textContent = Math.max(0, secLeft);
+  fill.classList.toggle('urgent', secLeft <= 10 && secLeft > 0);
+}
+
 function reflexStart() {
   reflexActive = true;
   reflexScore = 0; reflexMisses = 0; reflexStreak = 0;
@@ -2505,10 +2617,13 @@ function reflexStart() {
   rfxUpdateScores();
   document.getElementById('rfx-time').textContent = reflexTimeLeft;
   document.getElementById('rfx-toggle').textContent = '⏹ Arrêter';
+  showGauge(true);
+  updateGauge(reflexTimeLeft);
   if (reflexTimerInterval) clearInterval(reflexTimerInterval);
   reflexTimerInterval = setInterval(() => {
     reflexTimeLeft--;
     document.getElementById('rfx-time').textContent = Math.max(0, reflexTimeLeft);
+    updateGauge(reflexTimeLeft);
     if (reflexTimeLeft <= 0) {
       reflexFinishSession();
     }
@@ -2524,15 +2639,23 @@ function reflexStop() {
   reflexCurrentLane = null;
   document.querySelectorAll('.reflex-pad').forEach(rfxClearPadState);
   document.getElementById('rfx-toggle').textContent = '▶ Démarrer (1 min)';
+  showGauge(false);
 }
 
 function reflexFinishSession() {
   reflexStop();
-  // Sauvegarde l'essai dans l'historique du profil courant
   // patternId = 'reflex_<diff>'
   const patternId = 'reflex_' + reflexDiff;
   const pattern = PATTERNS.find(p => p.id === patternId);
   const maxScale = pattern?.maxScale || 50;
+
+  // Détecte un éventuel nouveau record AVANT de sauvegarder
+  const historyBefore = getHistory()[patternId] || [];
+  const previousBest = historyBefore.length > 0
+    ? Math.max(...historyBefore.map(a => a.score))
+    : 0;
+  const isNewRecord = reflexScore > 0 && reflexScore > previousBest;
+
   const stars = Math.max(1, Math.min(pattern?.stars || 5,
                   Math.floor((reflexScore / maxScale) * (pattern?.stars || 5)) + 1));
   saveAttempt(patternId, reflexScore, stars);
@@ -2548,18 +2671,41 @@ function reflexFinishSession() {
 
   document.getElementById('rfx-end-emoji').textContent = emoji;
   document.getElementById('rfx-end-title').textContent = title;
-  document.getElementById('rfx-end-score').textContent = reflexScore;
+  const scoreEl = document.getElementById('rfx-end-score');
+  scoreEl.textContent = reflexScore;
   document.getElementById('rfx-end-detail').textContent =
     `${reflexMisses} ratés · ${pattern?.name || 'Réflexes'}`;
-  document.getElementById('rfx-end-overlay').style.display = 'flex';
 
-  // Confettis et son de récompense
-  if (ratio >= 0.25) {
+  // Affiche le record précédent ET le banner si nouveau record
+  const prevEl = document.getElementById('rfx-end-prev');
+  const recordEl = document.getElementById('rfx-end-record');
+  scoreEl.classList.remove('score-gold');
+  if (isNewRecord) {
+    recordEl.style.display = 'inline-block';
+    prevEl.textContent = previousBest > 0
+      ? `Ancien record : ${previousBest}`
+      : 'Premier score sauvegardé !';
+    // Anime le score en gold + énorme burst de confetti
+    setTimeout(() => scoreEl.classList.add('score-gold'), 100);
+    setTimeout(() => scoreEl.classList.remove('score-gold'), 3500);
     playReward();
-    for (let i = 0; i < Math.round(40 + ratio * 80); i++) {
-      setTimeout(() => spawnConfetti(null, 1), Math.random() * 1500);
+    setTimeout(playReward, 350);
+    setTimeout(playReward, 700);
+    for (let i = 0; i < 200; i++) {
+      setTimeout(() => spawnConfetti(null, 1), Math.random() * 3500);
+    }
+  } else {
+    recordEl.style.display = 'none';
+    prevEl.textContent = previousBest > 0 ? `Ton record : ${previousBest}` : '';
+    if (ratio >= 0.25) {
+      playReward();
+      for (let i = 0; i < Math.round(40 + ratio * 80); i++) {
+        setTimeout(() => spawnConfetti(null, 1), Math.random() * 1500);
+      }
     }
   }
+
+  document.getElementById('rfx-end-overlay').style.display = 'flex';
   updateStarsCounter();
 }
 
