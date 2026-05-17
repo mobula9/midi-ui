@@ -3053,6 +3053,9 @@ button:focus { outline: none; }
         <button class="runner-start-btn" id="runner-start-btn">▶ Démarrer</button>
         <button class="runner-intro-cancel" data-goto="home">← Annuler</button>
       </div>
+      <div style="margin-top:14px;font-size:12px;color:var(--muted);">
+        💡 Astuce : tape n'importe quel pad pour démarrer 🥁
+      </div>
     </div>
   </div>
   <!-- Game over -->
@@ -3078,6 +3081,9 @@ button:focus { outline: none; }
       <div class="actions">
         <button class="primary" id="runner-over-again">🔁 Rejouer</button>
         <button class="secondary" id="runner-over-home">🏠 Maison</button>
+      </div>
+      <div style="margin-top:12px;font-size:12px;color:var(--muted);">
+        💡 Tape n'importe quel pad pour relancer 🥁
       </div>
     </div>
   </div>
@@ -6506,6 +6512,25 @@ document.getElementById('runner-over-home').addEventListener('click', () => {
   goto('home');
 });
 
+// Helper unique : recoit un tap (MIDI ou clavier) sur l'ecran runner.
+// Si une partie est en cours → runnerTap. Sinon → start si on est sur l'intro,
+// ou rejouer si on est sur le gameover. Permet au kid de demarrer/relancer
+// directement avec sa batterie, sans cliquer.
+function runnerHandlePadOrKey(laneId) {
+  if (runner.active) {
+    runnerTap(laneId);
+    return;
+  }
+  const over = document.getElementById('runner-over');
+  const intro = document.getElementById('runner-intro');
+  if (over && over.classList.contains('active')) {
+    over.classList.remove('active');
+    runnerStart();
+  } else if (intro && !intro.classList.contains('hidden')) {
+    runnerStart();
+  }
+}
+
 // Keyboard fallback (pour tester sans MIDI)
 // kick=1, snare=2, crash=3, tomL=4, hihat=5 — Space déclenche kick (jump)
 const RUNNER_KEY_MAP = {
@@ -6513,12 +6538,12 @@ const RUNNER_KEY_MAP = {
   ' ': 'kick', 'Spacebar': 'kick',
 };
 document.addEventListener('keydown', e => {
-  if (currentScreen !== 'runner' || !runner.active) return;
+  if (currentScreen !== 'runner') return;
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
   const laneId = RUNNER_KEY_MAP[e.key];
   if (laneId) {
     e.preventDefault();
-    runnerTap(laneId);
+    runnerHandlePadOrKey(laneId);
   }
 });
 
@@ -8705,8 +8730,8 @@ function onMIDI(msg) {
     rfxOnHit(lane.id);
   } else if (currentScreen === 'memo' && memoPhase === 'awaiting') {
     memoUserTap(lane.id);
-  } else if (currentScreen === 'runner' && runner.active) {
-    runnerTap(lane.id);
+  } else if (currentScreen === 'runner') {
+    runnerHandlePadOrKey(lane.id);
   } else if (currentScreen === 'echo' && echo.phase === 'listening') {
     echoUserTap(lane.id);
   } else if (currentScreen === 'studio') {
