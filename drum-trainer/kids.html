@@ -1653,10 +1653,16 @@ function spawnFloatingEmoji(laneId, emoji, size = 64) {
 // =====================================================================
 // Navigation entre écrans
 // =====================================================================
+// Écrans qu'on persiste à travers les refresh (pas play/done : transient)
+const PERSISTED_SCREENS = new Set(['home', 'free', 'learn-select', 'reflex', 'progress']);
+
 function goto(screen) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + screen).classList.add('active');
   currentScreen = screen;
+  if (PERSISTED_SCREENS.has(screen)) {
+    localStorage.setItem('boumbi-last-screen', screen);
+  }
   if (screen === 'home') updateStarsCounter();
   if (screen === 'learn-select') renderPatternList();
   if (screen === 'progress') renderProgress();
@@ -3221,6 +3227,11 @@ updateKitDisplay();
 setupMIDI();
 loop();
 resizePlay();
+// Restaure l'écran courant depuis localStorage (sauf 'home' qui est déjà actif)
+const savedScreen = localStorage.getItem('boumbi-last-screen');
+if (savedScreen && PERSISTED_SCREENS.has(savedScreen) && savedScreen !== 'home') {
+  goto(savedScreen);
+}
 </script>
 </body>
 </html>
