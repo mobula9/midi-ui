@@ -3064,6 +3064,24 @@ function closeSpotifyAccompPicker() {
   document.getElementById('sp-picker-overlay').style.display = 'none';
 }
 
+// =====================================================================
+// Cache de sync par track Spotify (BPM + offset depuis le début du morceau)
+// Storage global (partagé entre profils, parce que le tempo d'un morceau
+// est universel — pas besoin de réapprendre par enfant).
+// =====================================================================
+function loadTrackSync(trackId) {
+  try {
+    const db = JSON.parse(localStorage.getItem('boumbi-track-sync') || '{}');
+    return db[trackId] || null;
+  } catch { return null; }
+}
+function saveTrackSync(trackId, bpm, offsetMs, source) {
+  let db = {};
+  try { db = JSON.parse(localStorage.getItem('boumbi-track-sync') || '{}'); } catch {}
+  db[trackId] = { bpm, offsetMs, source, updatedAt: Date.now() };
+  localStorage.setItem('boumbi-track-sync', JSON.stringify(db));
+}
+
 async function spGetTempo(trackId) {
   // 1. Essai audio-features (simple, retourne juste tempo + key + danceability...)
   try {
@@ -3093,9 +3111,12 @@ async function pickSpotifyAccompTrack(track) {
   if (accompOn) toggleAccomp();
   closeSpotifyAccompPicker();
 
-  // Affiche le badge "Now playing" avec état "Détection tempo..."
+  // Affiche le badge "Now playing"
   document.getElementById('sp-accomp-info').style.display = 'inline-flex';
-  document.getElementById('sp-accomp-track').textContent = `${track.name} — Détection tempo…`;
+  document.getElementById('sp-accomp-track').textContent = `${track.name} — Lecture…`;
+
+  // Vérifie si on a déjà une sync mémorisée pour ce track
+  const cached = loadTrackSync(track.id);
 
   // Lance la lecture
   try {
@@ -3107,27 +3128,48 @@ async function pickSpotifyAccompTrack(track) {
     return;
   }
 
-  // Cherche le tempo : audio-features d'abord, audio-analysis ensuite
+  if (cached) {
+    // Restore depuis le cache : BPM + offset
+    setLiveBpm(cached.bpm);
+    // Attend que le player ait calé spStartedAt (via player_state_changed)
+    for (let i = 0; i < 30 && spStartedAt === 0; i++) await new Promise(r => setTimeout(r, 100));
+    if (spStartedAt > 0 && mode !== 'stopped') {
+      startTime = spStartedAt + cached.offsetMs;
+      lastClickBeat = -1;
+      lastAccompBeat = -1;
+    }
+    document.getElementById('sp-accomp-track').textContent =
+      `${track.name} — ${cached.bpm} BPM (💾 mémorisé via ${cached.source})`;
+    scheduleNotes();
+    return;
+  }
+
+  // Pas de cache : on tente la détection automatique
+  document.getElementById('sp-accomp-track').textContent = `${track.name} — Détection tempo…`;
   const result = await spGetTempo(track.id);
   let label;
   if (result?.tempo) {
     const tempo = Math.round(result.tempo);
     setLiveBpm(tempo);
-    label = `${track.name} — ${tempo} BPM (${result.source})`;
+    saveTrackSync(track.id, tempo, 0, result.source);
+    label = `${track.name} — ${tempo} BPM (${result.source}) · 💾`;
   } else {
-    // Spotify a refusé : on demande manuellement
+    // Spotify a refusé : option manuelle ou tap tempo
     const manual = prompt(
-      `⚠ Spotify n'a pas voulu me donner le tempo du morceau "${track.name}".\n\n` +
-      `(C'est une limitation côté Spotify depuis fin 2024 pour les nouvelles apps.)\n\n` +
-      `Tape le BPM à la main (ou laisse vide pour garder le BPM actuel : ${bpm}) :`,
+      `⚠ Spotify n'a pas donné le tempo du morceau "${track.name}".\n\n` +
+      `Options :\n` +
+      `  • Tape un BPM à la main\n` +
+      `  • Annule et utilise 🥁 Tap tempo (espace) pour mesurer en tapant\n\n` +
+      `BPM (vide = garder ${bpm}) :`,
       String(bpm)
     );
     const manualBpm = parseInt(manual, 10);
     if (!isNaN(manualBpm) && manualBpm >= 30 && manualBpm <= 220) {
       setLiveBpm(manualBpm);
-      label = `${track.name} — ${manualBpm} BPM (manuel)`;
+      saveTrackSync(track.id, manualBpm, 0, 'manuel');
+      label = `${track.name} — ${manualBpm} BPM (manuel) · 💾`;
     } else {
-      label = `${track.name} — BPM ${bpm}`;
+      label = `${track.name} — BPM ${bpm} (tape espace pour caler)`;
     }
   }
   document.getElementById('sp-accomp-track').textContent = label;
@@ -3214,10 +3256,13 @@ function tapTempoFinish() {
     lastClickBeat = -1;
     lastAccompBeat = -1;
   }
-  // Feedback dans le badge Spotify si actif
-  if (apprSpotifyTrack) {
+  // Si on a un track Spotify actif, save BPM + offset (depuis le début du
+  // morceau) dans la db, pour réutilisation la prochaine fois.
+  if (apprSpotifyTrack && spStartedAt > 0) {
+    const offsetMs = Math.round(tapTimes[0] - spStartedAt);
+    saveTrackSync(apprSpotifyTrack.id, bpmComputed, offsetMs, 'tap-tempo');
     document.getElementById('sp-accomp-track').textContent =
-      `${apprSpotifyTrack.name} — ${bpmComputed} BPM (tap tempo)`;
+      `${apprSpotifyTrack.name} — ${bpmComputed} BPM (tap tempo) · 💾`;
   }
 }
 
