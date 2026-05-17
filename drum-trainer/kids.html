@@ -1214,6 +1214,239 @@ button:focus { outline: none; }
   background: white; color: var(--text); border: 1px solid #ddd;
 }
 
+/* === Echo (call & response) === */
+#screen-echo {
+  padding: 0 24px 24px 24px;
+  align-items: center;
+}
+#screen-echo .screen-title { width: 100%; }
+.echo-controls {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 8px 0 12px 0;
+}
+.echo-level {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  background: var(--panel);
+  padding: 4px 6px 4px 14px;
+  border-radius: 999px;
+  box-shadow: var(--shadow);
+  flex-wrap: wrap;
+}
+.echo-level-label { font-size: 13px; color: var(--muted); margin-right: 6px; }
+.echo-level button {
+  background: transparent;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text);
+  transition: background 0.1s, color 0.1s;
+}
+.echo-level button:hover { background: #f5f5f0; }
+.echo-level button.active { background: var(--accent); color: white; }
+.echo-stats {
+  display: flex;
+  gap: 28px;
+  font-size: 13px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.echo-stats strong {
+  display: block;
+  font-size: 24px;
+  color: var(--accent);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.echo-status {
+  font-size: 26px;
+  font-weight: 700;
+  height: 38px;
+  text-align: center;
+  margin-bottom: 8px;
+  color: var(--text);
+  transition: color 0.2s;
+}
+.echo-status.boumbi { color: #4ECDC4; }
+.echo-status.countin { color: #C77DFF; }
+.echo-status.player { color: #FFB85C; }
+.echo-status.feedback-ok { color: #6BCB77; }
+.echo-status.feedback-bad { color: #FF6B6B; }
+
+.echo-pulse {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 14px;
+  height: 24px;
+}
+.echo-pulse-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.15);
+  transition: transform 0.08s, background 0.1s, box-shadow 0.1s;
+}
+.echo-pulse-dot.active {
+  background: var(--accent);
+  transform: scale(1.35);
+  box-shadow: 0 0 18px var(--accent);
+}
+.echo-pulse-dot.downbeat.active {
+  background: #FFD93D;
+  box-shadow: 0 0 24px #FFD93D;
+}
+
+.echo-widget-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 0;
+}
+.echo-widget {
+  width: min(540px, 90%);
+  background: var(--panel);
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+}
+.echo-pad {
+  background: var(--lane-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 4px solid rgba(0,0,0,0.2);
+  font-size: clamp(20px, 3.5vw, 36px);
+  cursor: pointer;
+  transition: transform 0.1s, filter 0.15s, box-shadow 0.18s;
+  user-select: none;
+  box-shadow: inset 0 -6px 12px rgba(0,0,0,0.15), inset 0 3px 6px rgba(255,255,255,0.2);
+}
+.echo-pad.disabled {
+  filter: grayscale(0.7);
+  opacity: 0.35;
+  pointer-events: none;
+}
+.echo-pad.boumbi-play {
+  transform: scale(1.18);
+  filter: brightness(1.6) saturate(1.3);
+  box-shadow: 0 0 40px 6px var(--lane-color);
+}
+.echo-pad.user-tap-ok {
+  animation: echoTapOk 0.25s;
+}
+.echo-pad.user-tap-miss {
+  animation: echoTapMiss 0.35s;
+}
+@keyframes echoTapOk {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(0.92); filter: brightness(1.4); }
+}
+@keyframes echoTapMiss {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); filter: brightness(0.7); }
+  75% { transform: translateX(6px); filter: brightness(0.7); }
+}
+
+.echo-start {
+  margin-top: 12px;
+  padding: 14px 32px;
+  background: linear-gradient(135deg, var(--accent), #6BCB77);
+  color: white;
+  border: none;
+  border-radius: 999px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: var(--shadow);
+}
+.echo-start:hover { filter: brightness(1.05); }
+.echo-start[disabled] { opacity: 0.4; cursor: default; }
+
+.echo-over {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.echo-over.active { display: flex; }
+.echo-over-content {
+  background: var(--panel);
+  padding: 28px 40px;
+  border-radius: 24px;
+  text-align: center;
+  max-width: 540px;
+}
+.echo-over-content h2 { margin: 8px 0; font-size: 28px; }
+.echo-over-record {
+  display: none;
+  background: linear-gradient(135deg, #FFD93D, #FFA94D);
+  color: white;
+  font-weight: 700;
+  padding: 8px 18px;
+  border-radius: 999px;
+  margin-bottom: 14px;
+  font-size: 14px;
+  letter-spacing: 1px;
+}
+.echo-over-record.show { display: inline-block; }
+.echo-over-stars {
+  font-size: 48px;
+  letter-spacing: 8px;
+  margin: 16px 0;
+}
+.echo-over-breakdown {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  margin: 10px 0;
+  flex-wrap: wrap;
+}
+.echo-over-breakdown .ob-cell {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  color: white;
+  background: #ccc;
+  position: relative;
+}
+.echo-over-breakdown .ob-cell.ok { background: #6BCB77; }
+.echo-over-breakdown .ob-cell.mid { background: #FFD93D; color: #5a4400; }
+.echo-over-breakdown .ob-cell.bad { background: #FF6B6B; }
+.echo-over-content .actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 18px;
+}
+.echo-over-content .actions button {
+  padding: 12px 22px;
+  border-radius: 999px;
+  border: none;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+}
+.echo-over-content .actions .primary { background: var(--accent); color: white; }
+.echo-over-content .actions .secondary { background: white; color: var(--text); border: 1px solid #ddd; }
+
 /* === Boumbi Runner === */
 #screen-runner {
   background: linear-gradient(180deg, #87CEEB 0%, #FFB6C1 60%, #FFD93D 100%);
@@ -1890,6 +2123,11 @@ button:focus { outline: none; }
       <div class="card-title">Boumbi court</div>
       <div class="card-sub">tape pour sauter les obstacles</div>
     </button>
+    <button class="card" data-goto="echo">
+      <div class="card-emoji">🔁</div>
+      <div class="card-title">Echo</div>
+      <div class="card-sub">imite le rythme de Boumbi</div>
+    </button>
     <button class="card" data-goto="spotify">
       <div class="card-emoji">🎵</div>
       <div class="card-title">Spotify</div>
@@ -2199,6 +2437,62 @@ button:focus { outline: none; }
   </div>
   <!-- Countdown 3-2-1-GO -->
   <div class="runner-countdown" id="runner-countdown"></div>
+</section>
+
+<!-- =================================================================== -->
+<!-- ECHO — Call & response avec Boumbi -->
+<!-- =================================================================== -->
+<section id="screen-echo" class="screen">
+  <div class="screen-title">
+    <button class="btn-back" data-goto="home">←</button>
+    <h2 style="margin:0" data-title-tpl="🔁 {name}, imite le rythme de Boumbi">🔁 Echo</h2>
+    <span style="margin-left:auto;color:var(--muted);font-size:13px;">8 motifs · à la suite</span>
+  </div>
+  <div class="echo-controls">
+    <div class="echo-level" id="echo-level">
+      <span class="echo-level-label">Niveau :</span>
+      <button data-lv="1" class="active">1 · ♩</button>
+      <button data-lv="2">2 · ♩♩♩♩</button>
+      <button data-lv="3">3 · boum-tac</button>
+      <button data-lv="4">4 · rock</button>
+      <button data-lv="5">5 · rock+</button>
+      <button data-lv="6">6 · pro</button>
+    </div>
+    <div class="echo-stats">
+      <div>Motif <strong id="echo-motif-idx">—</strong>/<span id="echo-motif-total">8</span></div>
+      <div>Best <strong id="echo-best">—</strong></div>
+    </div>
+  </div>
+  <div class="echo-status" id="echo-status">▶ Démarrer pour jouer</div>
+  <!-- Pulse dots = 4 temps, visualise le tempo -->
+  <div class="echo-pulse" id="echo-pulse">
+    <div class="echo-pulse-dot" data-beat="0"></div>
+    <div class="echo-pulse-dot" data-beat="1"></div>
+    <div class="echo-pulse-dot" data-beat="2"></div>
+    <div class="echo-pulse-dot" data-beat="3"></div>
+  </div>
+  <div class="echo-widget-wrap">
+    <div class="echo-widget dd75-layout" id="echo-widget"></div>
+  </div>
+  <button class="echo-start" id="echo-start">▶ Démarrer</button>
+
+  <!-- Overlay fin de session -->
+  <div id="echo-over" class="echo-over">
+    <div class="echo-over-content">
+      <div class="echo-over-record" id="echo-over-record">🏆 NOUVEAU RECORD !</div>
+      <div style="font-size:80px;line-height:1;" id="echo-over-emoji">🎉</div>
+      <h2 id="echo-over-title">Bien joué !</h2>
+      <div style="color:var(--muted);font-size:14px;">Score moyen</div>
+      <div style="font-size:64px;font-weight:800;line-height:1;color:var(--accent);"><span id="echo-over-score">0</span><span style="font-size:30px;opacity:0.6">%</span></div>
+      <div class="echo-over-stars" id="echo-over-stars">⭐</div>
+      <div class="echo-over-breakdown" id="echo-over-breakdown"></div>
+      <div id="echo-over-prev" style="margin-top:8px;font-size:13px;color:var(--muted);"></div>
+      <div class="actions">
+        <button class="primary" id="echo-over-again">🔁 Rejouer</button>
+        <button class="secondary" id="echo-over-home">🏠 Maison</button>
+      </div>
+    </div>
+  </div>
 </section>
 
 <!-- =================================================================== -->
@@ -2677,7 +2971,7 @@ function spawnFloatingEmoji(laneId, emoji, size = 64) {
 // Navigation entre écrans
 // =====================================================================
 // Écrans qu'on persiste à travers les refresh (pas play/done : transient)
-const PERSISTED_SCREENS = new Set(['home', 'free', 'learn-select', 'reflex', 'memo', 'runner', 'progress', 'spotify']);
+const PERSISTED_SCREENS = new Set(['home', 'free', 'learn-select', 'reflex', 'memo', 'runner', 'echo', 'progress', 'spotify']);
 
 function goto(screen) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -2702,6 +2996,16 @@ function goto(screen) {
     document.getElementById('memo-over').classList.remove('active');
   }
   if (screen === 'runner') runnerOpen();
+  if (screen === 'echo') {
+    const savedLv = parseInt(localStorage.getItem(pkey('echo-level')) || '1', 10);
+    if (ECHO_LEVEL_POOLS[savedLv]) echo.level = savedLv;
+    echoComputeTimings();
+    buildEchoWidget();
+    document.getElementById('echo-motif-idx').textContent = '—';
+    echoSetStatus('▶ Démarrer pour jouer');
+    document.getElementById('echo-start').style.display = '';
+    document.getElementById('echo-over').classList.remove('active');
+  }
   if (screen === 'spotify') {
     spUpdateUI();
     if (!spCanvas) {
@@ -2733,6 +3037,12 @@ function goto(screen) {
   // Quitte Boumbi Runner → stop la boucle + reset
   if (screen !== 'runner') {
     runnerStopAll();
+  }
+  // Quitte Echo → cleanup timers
+  if (screen !== 'echo') {
+    echoStopAll();
+    const ov = document.getElementById('echo-over');
+    if (ov) ov.classList.remove('active');
   }
   if (screen === 'home') stop();
 }
@@ -3015,6 +3325,13 @@ function renderProfileDropdown() {
         }
         if (currentScreen === 'runner') {
           runnerOpen();
+        }
+        if (currentScreen === 'echo') {
+          echoStopAll();
+          const savedLv = parseInt(localStorage.getItem(pkey('echo-level')) || '1', 10);
+          if (ECHO_LEVEL_POOLS[savedLv]) echo.level = savedLv;
+          echoComputeTimings();
+          buildEchoWidget();
         }
       }
       closeProfileDropdown();
@@ -4700,6 +5017,424 @@ runnerCanvas.addEventListener('click', () => {
 });
 
 // =====================================================================
+// Echo — Call & response avec Boumbi
+// 8 motifs : Boumbi joue 1 mesure, le joueur la rejoue. Score moyen.
+// =====================================================================
+const ECHO_TOTAL_MOTIFS = 8;
+const ECHO_BPM = 90;
+const ECHO_HIT_WINDOW_MS = 200;
+const ECHO_LEVEL_POOLS = {
+  1: ['snare'],
+  2: ['snare'],
+  3: ['kick', 'snare'],
+  4: ['kick', 'snare', 'hihat'],
+  5: ['kick', 'snare', 'hihat', 'crash'],
+  6: ['kick', 'snare', 'hihat', 'crash'],
+};
+
+const echo = {
+  active: false,
+  level: 1,
+  bpm: ECHO_BPM,
+  beatMs: 0,
+  measureMs: 0,
+  stepMs: 0,
+  motifIdx: 0,
+  currentMotif: [],
+  phase: 'idle',       // idle | countin | showing | listening | feedback
+  userTaps: [],        // [{lane, t}] t = ms relative to listening start
+  listenStartT: 0,
+  motifScores: [],     // [0..1] par motif
+  timers: [],
+};
+
+function echoComputeTimings() {
+  echo.beatMs = 60000 / echo.bpm;
+  echo.measureMs = echo.beatMs * 4;
+  echo.stepMs = echo.measureMs / 16;
+}
+
+function echoClearTimers() {
+  echo.timers.forEach(t => clearTimeout(t));
+  echo.timers = [];
+}
+
+function echoBestKey(lv) { return pkey(`echo-best-lv${lv || echo.level}`); }
+function echoGetBest(lv) { return parseInt(localStorage.getItem(echoBestKey(lv)) || '0', 10); }
+
+function echoActivePool() { return ECHO_LEVEL_POOLS[echo.level] || ECHO_LEVEL_POOLS[1]; }
+
+function echoSetStatus(text, klass) {
+  const el = document.getElementById('echo-status');
+  el.textContent = text;
+  el.classList.remove('boumbi', 'countin', 'player', 'feedback-ok', 'feedback-bad');
+  if (klass) el.classList.add(klass);
+}
+
+function buildEchoWidget() {
+  const root = document.getElementById('echo-widget');
+  root.innerHTML = '';
+  const pool = echoActivePool();
+  for (const lane of LANES) {
+    const inPool = pool.includes(lane.id);
+    const el = document.createElement('div');
+    el.className = 'echo-pad' + (inPool ? '' : ' disabled');
+    el.dataset.lane = lane.id;
+    el.style.setProperty('--lane-color', lane.color);
+    el.innerHTML = `<div class="ep-emoji">${lane.emoji}</div>`;
+    el.addEventListener('click', () => {
+      if (echo.phase === 'listening' && inPool) echoUserTap(lane.id);
+    });
+    root.appendChild(el);
+  }
+  document.getElementById('echo-best').textContent = echoGetBest() || '—';
+  document.getElementById('echo-motif-total').textContent = ECHO_TOTAL_MOTIFS;
+  document.querySelectorAll('#echo-level button').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.lv, 10) === echo.level);
+  });
+}
+
+function echoSetLevel(lv) {
+  if (!ECHO_LEVEL_POOLS[lv]) return;
+  echo.level = lv;
+  localStorage.setItem(pkey('echo-level'), String(lv));
+  echoStopAll();
+  buildEchoWidget();
+  document.getElementById('echo-motif-idx').textContent = '—';
+  echoSetStatus('▶ Démarrer pour jouer');
+  document.getElementById('echo-start').style.display = '';
+}
+
+function echoGenerateMotif() {
+  echoComputeTimings();
+  const motif = [];
+  const lv = echo.level;
+  const pickArr = arr => arr[Math.floor(Math.random() * arr.length)];
+
+  if (lv === 1) {
+    // 2 hits sur snare sur des positions naturelles (downbeats / backbeats)
+    const variations = [[0, 8], [4, 12], [0, 12], [4, 8]];
+    pickArr(variations).forEach(step => motif.push({ lane: 'snare', step }));
+  } else if (lv === 2) {
+    // 4 noires sur snare
+    [0, 4, 8, 12].forEach(step => motif.push({ lane: 'snare', step }));
+  } else if (lv === 3) {
+    // Boum-tac de base + variation kick
+    motif.push({ lane: 'kick',  step: 0 });
+    motif.push({ lane: 'snare', step: 4 });
+    motif.push({ lane: 'kick',  step: 8 });
+    motif.push({ lane: 'snare', step: 12 });
+    if (Math.random() < 0.45) {
+      motif.push({ lane: 'kick', step: pickArr([6, 10]) });
+    }
+  } else if (lv === 4) {
+    // Rock basique : kick 0/8, snare 4/12, hihat sur les croches
+    motif.push({ lane: 'kick',  step: 0 });
+    motif.push({ lane: 'snare', step: 4 });
+    motif.push({ lane: 'kick',  step: 8 });
+    motif.push({ lane: 'snare', step: 12 });
+    [0, 2, 4, 6, 8, 10, 12, 14].forEach(step => motif.push({ lane: 'hihat', step }));
+  } else if (lv === 5) {
+    // Rock + crash + variations
+    motif.push({ lane: 'crash', step: 0 });
+    motif.push({ lane: 'kick',  step: 0 });
+    motif.push({ lane: 'snare', step: 4 });
+    motif.push({ lane: 'kick',  step: 8 });
+    motif.push({ lane: 'snare', step: 12 });
+    [2, 4, 6, 8, 10, 12, 14].forEach(step => motif.push({ lane: 'hihat', step }));
+    if (Math.random() < 0.5) motif.push({ lane: 'kick', step: 10 });
+  } else {
+    // L6 : motifs syncopés
+    motif.push({ lane: 'kick',  step: 0 });
+    motif.push({ lane: 'hihat', step: 0 });
+    motif.push({ lane: 'hihat', step: 2 });
+    motif.push({ lane: 'snare', step: 4 });
+    motif.push({ lane: 'hihat', step: 4 });
+    motif.push({ lane: 'kick',  step: 6 });
+    motif.push({ lane: 'hihat', step: 6 });
+    motif.push({ lane: 'kick',  step: 8 });
+    motif.push({ lane: 'hihat', step: 8 });
+    motif.push({ lane: 'hihat', step: 10 });
+    motif.push({ lane: 'snare', step: 12 });
+    motif.push({ lane: 'hihat', step: 12 });
+    motif.push({ lane: 'hihat', step: 14 });
+    if (Math.random() < 0.3) motif.push({ lane: 'crash', step: 0 });
+  }
+
+  motif.forEach(m => m.t = m.step * echo.stepMs);
+  motif.sort((a, b) => a.t - b.t);
+  return motif;
+}
+
+function echoPlayPad(laneId) {
+  // Highlight + son via MIDI
+  const el = document.querySelector(`.echo-pad[data-lane="${laneId}"]`);
+  if (el) {
+    el.classList.add('boumbi-play');
+    setTimeout(() => el.classList.remove('boumbi-play'), 250);
+  }
+  const note = LANE_TO_NOTE[laneId];
+  if (midiOutput && note != null) {
+    midiOutput.send([0x99, note, 100]);
+    setTimeout(() => midiOutput.send([0x89, note, 0]), 60);
+  }
+}
+
+function echoPulseBeat(beat) {
+  const dots = document.querySelectorAll('.echo-pulse-dot');
+  dots.forEach((d, i) => {
+    d.classList.toggle('active', i === beat);
+    d.classList.toggle('downbeat', i === 0);
+  });
+  echo.timers.push(setTimeout(() => {
+    const d = dots[beat];
+    if (d) d.classList.remove('active');
+  }, 150));
+}
+
+function echoClearPulse() {
+  document.querySelectorAll('.echo-pulse-dot').forEach(d => {
+    d.classList.remove('active', 'downbeat');
+  });
+}
+
+function echoStart() {
+  echo.motifIdx = 0;
+  echo.motifScores = [];
+  echo.active = true;
+  document.getElementById('echo-over').classList.remove('active');
+  document.getElementById('echo-start').style.display = 'none';
+  echoNextMotif();
+}
+
+function echoNextMotif() {
+  if (!echo.active) return;
+  if (echo.motifIdx >= ECHO_TOTAL_MOTIFS) {
+    echoSessionOver();
+    return;
+  }
+  echo.motifIdx++;
+  document.getElementById('echo-motif-idx').textContent = echo.motifIdx;
+  echo.currentMotif = echoGenerateMotif();
+  echo.userTaps = [];
+  echoPhaseCountIn();
+}
+
+function echoPhaseCountIn() {
+  echo.phase = 'countin';
+  echoSetStatus('🎶 Compte 1·2·3·4', 'countin');
+  echoClearTimers();
+  // 4 beats de count-in, click + pulse dot
+  for (let i = 0; i < 4; i++) {
+    echo.timers.push(setTimeout(() => {
+      playClick(i === 0);
+      echoPulseBeat(i);
+    }, i * echo.beatMs));
+  }
+  // À la fin du count-in, Boumbi joue
+  echo.timers.push(setTimeout(echoPhaseShowing, 4 * echo.beatMs));
+}
+
+function echoPhaseShowing() {
+  if (currentScreen !== 'echo' || !echo.active) return;
+  echo.phase = 'showing';
+  echoSetStatus('👂 Écoute Boumbi…', 'boumbi');
+  echoClearTimers();
+  // Joue chaque note du motif à son t + click track
+  for (let i = 0; i < 4; i++) {
+    echo.timers.push(setTimeout(() => {
+      playClick(i === 0);
+      echoPulseBeat(i);
+    }, i * echo.beatMs));
+  }
+  echo.currentMotif.forEach(note => {
+    echo.timers.push(setTimeout(() => echoPlayPad(note.lane), note.t));
+  });
+  // Après la mesure, transition vers listening
+  echo.timers.push(setTimeout(echoPhaseListening, echo.measureMs + 150));
+}
+
+function echoPhaseListening() {
+  if (currentScreen !== 'echo' || !echo.active) return;
+  echo.phase = 'listening';
+  echoSetStatus('🥁 À toi de jouer !', 'player');
+  echo.userTaps = [];
+  echo.listenStartT = performance.now();
+  echoClearTimers();
+  // Click track pendant que kid joue
+  for (let i = 0; i < 4; i++) {
+    echo.timers.push(setTimeout(() => {
+      playClick(i === 0);
+      echoPulseBeat(i);
+    }, i * echo.beatMs));
+  }
+  // Fin de la mesure → évaluation
+  echo.timers.push(setTimeout(echoPhaseEvaluate, echo.measureMs + ECHO_HIT_WINDOW_MS));
+}
+
+function echoUserTap(laneId) {
+  if (echo.phase !== 'listening') return;
+  if (!echoActivePool().includes(laneId)) return;
+  const t = performance.now() - echo.listenStartT;
+  echo.userTaps.push({ lane: laneId, t });
+  // Visual feedback : on regardera si ok au moment de l'évaluation
+  const el = document.querySelector(`.echo-pad[data-lane="${laneId}"]`);
+  if (el) {
+    el.classList.remove('user-tap-ok', 'user-tap-miss');
+    void el.offsetWidth;
+    // Vérifier en live si ce tap matche quelque chose dans le motif
+    const matched = echo.currentMotif.some(n => {
+      if (n.lane !== laneId) return false;
+      return Math.abs(t - n.t) <= ECHO_HIT_WINDOW_MS;
+    });
+    el.classList.add(matched ? 'user-tap-ok' : 'user-tap-miss');
+    setTimeout(() => el.classList.remove('user-tap-ok', 'user-tap-miss'), 250);
+  }
+}
+
+function echoPhaseEvaluate() {
+  if (currentScreen !== 'echo' || !echo.active) return;
+  echo.phase = 'feedback';
+  echoClearPulse();
+  // Algo : pour chaque note du motif, trouve le tap utilisateur le plus proche
+  // sur la même lane dans la fenêtre ±200ms. Don't reuse.
+  const taps = echo.userTaps.map(t => ({ ...t, used: false }));
+  let matched = 0;
+  for (const note of echo.currentMotif) {
+    let bestIdx = -1, bestDt = Infinity;
+    for (let i = 0; i < taps.length; i++) {
+      if (taps[i].used) continue;
+      if (taps[i].lane !== note.lane) continue;
+      const dt = Math.abs(taps[i].t - note.t);
+      if (dt < bestDt && dt <= ECHO_HIT_WINDOW_MS) {
+        bestDt = dt;
+        bestIdx = i;
+      }
+    }
+    if (bestIdx >= 0) { taps[bestIdx].used = true; matched++; }
+  }
+  const accuracy = echo.currentMotif.length > 0 ? matched / echo.currentMotif.length : 0;
+  echo.motifScores.push(accuracy);
+
+  // Feedback visuel + audio
+  if (accuracy >= 0.9) {
+    echoSetStatus('🎉 Parfait !', 'feedback-ok');
+    if (typeof spawnConfetti === 'function') {
+      for (let i = 0; i < 14; i++) setTimeout(() => spawnConfetti(null, 1), Math.random() * 300);
+    }
+  } else if (accuracy >= 0.7) {
+    echoSetStatus('👏 Bien !', 'feedback-ok');
+  } else if (accuracy >= 0.4) {
+    echoSetStatus('💪 Presque !', 'feedback-bad');
+  } else {
+    echoSetStatus('😅 Pas tout à fait…', 'feedback-bad');
+  }
+
+  // Suivant motif après 1.5s
+  echoClearTimers();
+  echo.timers.push(setTimeout(echoNextMotif, 1500));
+}
+
+function echoSessionOver() {
+  echo.active = false;
+  echo.phase = 'idle';
+  echoClearTimers();
+  echoClearPulse();
+  // Score moyen sur 100
+  const avg = echo.motifScores.reduce((a, b) => a + b, 0) / Math.max(1, echo.motifScores.length);
+  const score100 = Math.round(avg * 100);
+  // Persist best per-level
+  const prevBest = echoGetBest();
+  const isNewBest = score100 > prevBest;
+  if (isNewBest) localStorage.setItem(echoBestKey(), String(score100));
+  document.getElementById('echo-best').textContent = Math.max(prevBest, score100);
+  // Stars (per-level patternId)
+  let stars = 0;
+  if (score100 >= 90) stars = 3;
+  else if (score100 >= 70) stars = 2;
+  else if (score100 >= 50) stars = 1;
+  if (stars > 0) addStarsFor(`echo-lv${echo.level}`, stars);
+  // Historique
+  try {
+    const hKey = pkey('echo-history');
+    const arr = JSON.parse(localStorage.getItem(hKey) || '[]');
+    arr.push({
+      ts: Date.now(),
+      level: echo.level,
+      score: score100,
+      breakdown: echo.motifScores.map(s => Math.round(s * 100)),
+      stars,
+      record: isNewBest,
+    });
+    if (arr.length > 100) arr.splice(0, arr.length - 100);
+    localStorage.setItem(hKey, JSON.stringify(arr));
+  } catch {}
+  // Overlay
+  const overlay = document.getElementById('echo-over');
+  document.getElementById('echo-over-score').textContent = score100;
+  const starsEl = document.getElementById('echo-over-stars');
+  starsEl.textContent = stars > 0 ? '⭐'.repeat(stars) : '✨';
+  starsEl.style.opacity = stars > 0 ? '1' : '0.4';
+  const recEl = document.getElementById('echo-over-record');
+  if (isNewBest && score100 > 0) recEl.classList.add('show');
+  else recEl.classList.remove('show');
+  const prevLine = document.getElementById('echo-over-prev');
+  if (isNewBest && prevBest > 0) prevLine.textContent = `Ancien record niv ${echo.level} : ${prevBest}%`;
+  else if (!isNewBest && prevBest > 0) prevLine.textContent = `Record niv ${echo.level} : ${prevBest}%`;
+  else prevLine.textContent = `Niveau ${echo.level}`;
+  // Breakdown des 8 motifs
+  const bdEl = document.getElementById('echo-over-breakdown');
+  bdEl.innerHTML = '';
+  echo.motifScores.forEach((s, i) => {
+    const pct = Math.round(s * 100);
+    const cell = document.createElement('div');
+    cell.className = 'ob-cell ' + (pct >= 70 ? 'ok' : pct >= 40 ? 'mid' : 'bad');
+    cell.textContent = pct;
+    cell.title = `Motif ${i + 1} : ${pct}%`;
+    bdEl.appendChild(cell);
+  });
+  // Title selon perf
+  const emojiEl = document.getElementById('echo-over-emoji');
+  const titleEl = document.getElementById('echo-over-title');
+  if (score100 >= 90) { emojiEl.textContent = '🏆'; titleEl.textContent = 'Maître du rythme !'; }
+  else if (score100 >= 70) { emojiEl.textContent = '🌟'; titleEl.textContent = 'Excellent oreille !'; }
+  else if (score100 >= 50) { emojiEl.textContent = '👏'; titleEl.textContent = 'Bien joué !'; }
+  else if (score100 >= 25) { emojiEl.textContent = '💪'; titleEl.textContent = 'On y retourne !'; }
+  else { emojiEl.textContent = '🦉'; titleEl.textContent = 'Boumbi est patient…'; }
+  if (isNewBest && score100 > 0 && typeof playReward === 'function') {
+    playReward();
+    setTimeout(playReward, 350);
+  }
+  overlay.classList.add('active');
+  updateStarsCounter();
+}
+
+function echoStopAll() {
+  echo.active = false;
+  echo.phase = 'idle';
+  echoClearTimers();
+  echoClearPulse();
+  echoSetStatus('▶ Démarrer pour jouer');
+  document.getElementById('echo-motif-idx').textContent = '—';
+  document.getElementById('echo-start').style.display = '';
+}
+
+document.getElementById('echo-start').addEventListener('click', echoStart);
+document.getElementById('echo-over-again').addEventListener('click', () => {
+  document.getElementById('echo-over').classList.remove('active');
+  echoStart();
+});
+document.getElementById('echo-over-home').addEventListener('click', () => {
+  document.getElementById('echo-over').classList.remove('active');
+  goto('home');
+});
+document.getElementById('echo-level').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-lv]');
+  if (!btn) return;
+  echoSetLevel(parseInt(btn.dataset.lv, 10));
+});
+
+// =====================================================================
 // Mode apprendre — jeu
 // =====================================================================
 let awaitingStart = false;
@@ -5964,6 +6699,8 @@ function onMIDI(msg) {
     memoUserTap(lane.id);
   } else if (currentScreen === 'runner' && runner.active) {
     runnerTap(lane.id);
+  } else if (currentScreen === 'echo' && echo.phase === 'listening') {
+    echoUserTap(lane.id);
   } else if (currentScreen === 'spotify' && spSchedule.length) {
     spRegisterHit(lane.id);
   } else if (currentScreen === 'play' && mode !== 'stopped') {
