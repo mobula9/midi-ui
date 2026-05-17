@@ -1524,19 +1524,27 @@ button:focus { outline: none; }
 }
 .studio-grid {
   flex: 1;
-  display: grid;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;  /* rows ne s'étirent PAS à la largeur du grid :
+                                chaque row prend la largeur de son contenu,
+                                ce qui permet à position:sticky de fonctionner */
   gap: 6px;
   align-self: center;
   background: var(--panel);
   padding: 16px;
   border-radius: 16px;
   box-shadow: var(--shadow);
+  overflow-x: auto;
+  overflow-y: visible;
+  --studio-cell-w: 36px;
 }
 .studio-row {
-  display: grid;
-  grid-template-columns: 90px 1fr;
-  gap: 8px;
+  display: flex;
   align-items: center;
+  gap: 8px;
+  width: max-content;  /* largeur = somme des cells, indispensable pour sticky */
 }
 .studio-row-label {
   display: flex;
@@ -1545,6 +1553,12 @@ button:focus { outline: none; }
   font-weight: 700;
   font-size: 13px;
   color: var(--text);
+  position: sticky;
+  left: 0;
+  background: var(--panel);
+  z-index: 3;
+  flex: 0 0 90px;
+  padding-right: 4px;
 }
 .studio-row-label .srl-emoji { font-size: 20px; }
 .studio-row.tap-flash .studio-row-label {
@@ -1556,11 +1570,9 @@ button:focus { outline: none; }
   100% { transform: scale(1); filter: brightness(1); }
 }
 .studio-row-cells {
-  display: grid;
-  grid-template-columns: repeat(16, 1fr);  /* 16 cells max par ligne — au-dela
-                                              ca wrap automatiquement (1 ligne = 1 mesure) */
+  display: flex;
   gap: 4px;
-  row-gap: 8px;  /* plus d'espace entre les mesures */
+  flex: 0 0 auto;
 }
 .studio-cell.barstart {
   border-left: 2px solid rgba(120, 120, 120, 0.4);
@@ -1568,14 +1580,15 @@ button:focus { outline: none; }
 }
 .studio-cell.barstart:first-child { border-left: none; margin-left: 0; }
 .studio-cell {
-  aspect-ratio: 1;
+  flex: 0 0 var(--studio-cell-w, 36px);
+  width: var(--studio-cell-w, 36px);
+  height: var(--studio-cell-w, 36px);
   background: #f5f5f0;
   border: 2px solid transparent;
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.08s, transform 0.06s, box-shadow 0.1s;
   position: relative;
-  min-height: 28px;
 }
 .studio-cell:hover { background: #ebe8de; }
 .studio-cell.downbeat { background: #e8e3d5; }
@@ -1603,18 +1616,29 @@ button:focus { outline: none; }
   display: contents;
 }
 .studio-step-numbers {
-  display: grid;
-  grid-template-columns: 90px 1fr;
+  display: flex;
+  align-items: center;
   gap: 8px;
   margin-top: 6px;
   font-size: 11px;
   color: var(--muted);
+  width: max-content;
+}
+.studio-step-numbers .ssn-label-spacer {
+  flex: 0 0 90px;
+  position: sticky;
+  left: 0;
+  background: var(--panel);
+  z-index: 3;
 }
 .studio-step-numbers .ssn-cells {
-  display: grid;
-  grid-template-columns: repeat(16, 1fr);  /* matche le wrap des cellules */
+  display: flex;
   gap: 4px;
-  row-gap: 8px;
+  flex: 0 0 auto;
+}
+.studio-step-numbers .ssn-cells > div {
+  flex: 0 0 var(--studio-cell-w, 36px);
+  width: var(--studio-cell-w, 36px);
   text-align: center;
 }
 
@@ -8641,6 +8665,14 @@ function studioLoadDraft() {
 function buildStudioGrid() {
   const grid = document.getElementById('studio-grid');
   grid.innerHTML = '';
+  // Largeur de cellule adaptative : moins de steps = plus large
+  // mais pas trop pour ne pas pousser les actions hors viewport
+  const cellW = (studio.stepsCount <= 8)  ? 44
+              : (studio.stepsCount <= 16) ? 40
+              : (studio.stepsCount <= 32) ? 32
+              : (studio.stepsCount <= 64) ? 28
+              :                              24;
+  grid.style.setProperty('--studio-cell-w', cellW + 'px');
   for (const laneId of studio.lanes) {
     const lane = LANES.find(l => l.id === laneId);
     if (!lane) continue;
@@ -8673,7 +8705,7 @@ function buildStudioGrid() {
     const txt = (i % 4 === 0) ? beat : '·';
     numCells.push(`<div>${txt}</div>`);
   }
-  numRow.innerHTML = `<div></div><div class="ssn-cells">${numCells.join('')}</div>`;
+  numRow.innerHTML = `<div class="ssn-label-spacer"></div><div class="ssn-cells">${numCells.join('')}</div>`;
   grid.appendChild(numRow);
   // Wire cell clicks
   grid.querySelectorAll('.studio-cell').forEach(c => {
