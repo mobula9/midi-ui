@@ -289,7 +289,10 @@ button:focus { outline: none; }
   justify-content: space-between;
   gap: 8px;
   margin-bottom: 6px;
+  cursor: move;
+  user-select: none;
 }
+.sim-pad-widget.dragging { opacity: 0.92; box-shadow: 0 12px 36px rgba(0,0,0,0.5); }
 .sim-pad-widget .spw-title { font-size: 11px; font-weight: 700; opacity: 0.85; }
 .sim-pad-widget .spw-close {
   background: rgba(255,255,255,0.12);
@@ -324,11 +327,17 @@ button:focus { outline: none; }
   box-shadow: inset 0 -3px 6px rgba(0,0,0,0.2), inset 0 2px 4px rgba(255,255,255,0.2);
 }
 .sim-pad-widget .spw-pad:hover { filter: brightness(1.08); }
-.sim-pad-widget .spw-pad:active,
-.sim-pad-widget .spw-pad.hit {
+.sim-pad-widget .spw-pad:active {
   transform: scale(0.92);
   filter: brightness(1.4);
-  box-shadow: 0 0 14px var(--lane-color, white), inset 0 -3px 6px rgba(0,0,0,0.2);
+}
+.sim-pad-widget .spw-pad.hit {
+  animation: spwPadHit 0.28s ease-out;
+}
+@keyframes spwPadHit {
+  0% { transform: scale(0.85); filter: brightness(1.6) saturate(1.4); box-shadow: 0 0 22px var(--lane-color, white); }
+  60% { transform: scale(1.1); filter: brightness(1.3); box-shadow: 0 0 14px var(--lane-color, white); }
+  100% { transform: scale(1); filter: brightness(1); box-shadow: inset 0 -3px 6px rgba(0,0,0,0.2), inset 0 2px 4px rgba(255,255,255,0.2); }
 }
 .sim-pad-widget .spw-key {
   font-size: 13px;
@@ -3290,7 +3299,7 @@ button:focus { outline: none; }
       <button class="runner-intro-close" id="runner-intro-close" data-goto="home" title="Retour">×</button>
       <div style="font-size:88px;line-height:1;">🦖</div>
       <h2 data-title-tpl="{name}, prêt à courir ?">Prêt à courir ?</h2>
-      <p>Tape le bon pad au bon moment pour éviter les obstacles.<br/>3 vies. Vas le plus loin possible !</p>
+      <p>Saute pour taper le bon pad au bon moment et exploser les obstacles.<br/>Tu as une <strong>barre de vie</strong> : 5 ratés et c'est terminé. Choppe les ❤️ qui flottent pour te soigner !</p>
       <label class="runner-intro-option">
         <input type="checkbox" id="runner-skip-pedals">
         <span>Sans les pédales 🦶 (pas de kick)</span>
@@ -4069,11 +4078,85 @@ document.querySelectorAll('.home-cards .card').forEach(card => {
   });
 });
 
-// === Pad simulé : close button + keyboard global (Digit1-Digit0) ===
+// === Pad simulé : close button + drag + keyboard global ===
 document.getElementById('spw-close').addEventListener('click', () => {
   _simPadDismissed = true;
   updateSimPadWidget();
 });
+
+// Drag : on attrape par le header et on glisse ou on veut. Position sauvee.
+(function setupSimPadDrag() {
+  const widget = document.getElementById('sim-pad-widget');
+  const header = widget?.querySelector('.spw-header');
+  if (!widget || !header) return;
+  let drag = null;
+  const POS_KEY = 'boumbi-sim-pad-pos';
+
+  function applyPos(x, y) {
+    const w = widget.offsetWidth;
+    const h = widget.offsetHeight;
+    const cx = Math.max(4, Math.min(window.innerWidth - w - 4, x));
+    const cy = Math.max(4, Math.min(window.innerHeight - h - 4, y));
+    widget.style.left = cx + 'px';
+    widget.style.top = cy + 'px';
+    widget.style.right = 'auto';
+    widget.style.bottom = 'auto';
+  }
+
+  function restorePos() {
+    try {
+      const raw = localStorage.getItem(POS_KEY);
+      if (!raw) return;
+      const p = JSON.parse(raw);
+      // Wait one frame so widget has dimensions if it just appeared
+      requestAnimationFrame(() => applyPos(p.x, p.y));
+    } catch {}
+  }
+
+  function startDrag(clientX, clientY) {
+    const r = widget.getBoundingClientRect();
+    drag = { startX: clientX, startY: clientY, baseX: r.left, baseY: r.top };
+    widget.classList.add('dragging');
+  }
+  function moveDrag(clientX, clientY) {
+    if (!drag) return;
+    applyPos(drag.baseX + (clientX - drag.startX), drag.baseY + (clientY - drag.startY));
+  }
+  function endDrag() {
+    if (!drag) return;
+    drag = null;
+    widget.classList.remove('dragging');
+    const r = widget.getBoundingClientRect();
+    try { localStorage.setItem(POS_KEY, JSON.stringify({ x: r.left, y: r.top })); } catch {}
+  }
+
+  // Mouse events
+  header.addEventListener('mousedown', e => {
+    if (e.target.closest('.spw-close')) return;
+    e.preventDefault();
+    startDrag(e.clientX, e.clientY);
+  });
+  document.addEventListener('mousemove', e => moveDrag(e.clientX, e.clientY));
+  document.addEventListener('mouseup', endDrag);
+  // Touch events (tablet/iPad)
+  header.addEventListener('touchstart', e => {
+    if (e.target.closest('.spw-close')) return;
+    const t = e.touches[0];
+    if (t) startDrag(t.clientX, t.clientY);
+  }, { passive: true });
+  document.addEventListener('touchmove', e => {
+    const t = e.touches[0];
+    if (t && drag) moveDrag(t.clientX, t.clientY);
+  }, { passive: true });
+  document.addEventListener('touchend', endDrag);
+
+  // Restore position quand le widget devient visible
+  const obs = new MutationObserver(() => {
+    if (widget.classList.contains('visible')) restorePos();
+  });
+  obs.observe(widget, { attributes: true, attributeFilter: ['class'] });
+  if (widget.classList.contains('visible')) restorePos();
+})();
 // Keyboard global : touche 1-9-0 → simulatePadHit, avec event.code donc OK
 // peu importe la dispo (azerty produit & é etc mais code = Digit1...).
 document.addEventListener('keydown', e => {
@@ -5821,6 +5904,8 @@ const RUNNER_DECORS = [
 ];
 
 function runnerCurrentDecor() {
+  // Mort → force la nuit etoilee (decor 2)
+  if (runner.dead) return RUNNER_DECORS[2];
   const idx = ((runner.level || 1) - 1) % RUNNER_DECORS.length;
   return RUNNER_DECORS[idx];
 }
@@ -5974,6 +6059,7 @@ function runnerOpen() {
   runner.cloudsX = 0;
   runner.hillsX = 0;
   runner.obstaclesPassed = 0;
+  runner.dead = false;
   runner.boumbi = { y: 0, vy: 0, anim: null, animT: 0, jumpHeight: 110 };
   runner.floatingText = [];
   runner.flyingHearts = [];
@@ -6045,6 +6131,7 @@ function runnerStart() {
   runner.scrollX = 0;
   runner.obstaclesPassed = 0;
   runner.paused = false;
+  runner.dead = false;
   runner.boumbi = { y: 0, vy: 0, anim: null, animT: 0, jumpHeight: 110 };
   document.getElementById('runner-distance').textContent = '0';
   document.getElementById('runner-level').textContent = '1';
@@ -6098,7 +6185,7 @@ function runnerUpdate(dt, now) {
     runnerSpawnLevelUpParticles();
   }
   // Avance le scroll
-  runner.scrollX = (runner.scrollX + advance) % 100;
+  runner.scrollX = (runner.scrollX + advance) % 60;  // period 60 = match dashes spacing
   runner.cloudsX = (runner.cloudsX + advance * 0.15) % rW;
   runner.hillsX = (runner.hillsX + advance * 0.4) % rW;
   // Avance les obstacles
@@ -6570,9 +6657,9 @@ function runnerDraw() {
   // Herbe au sommet du sol
   ctx.fillStyle = decor.grass;
   ctx.fillRect(0, groundY, rW, 8);
-  // Tirets sol (donnent l'impression de scroll)
+  // Tirets sol (defile vers la GAUCHE comme le reste du decor)
   ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-  for (let x = -100 + runner.scrollX; x < rW; x += 60) {
+  for (let x = -60 - runner.scrollX; x < rW; x += 60) {
     ctx.fillRect(x, groundY + 24, 30, 4);
   }
 
@@ -6804,6 +6891,44 @@ function runnerDrawCloud(ctx, x, y, size) {
 }
 
 function runnerDrawBoumbi(ctx, x, groundY) {
+  // Mort : Boumbi a terre, etale sur le dos (rotation 90deg + au sol)
+  if (runner.dead) {
+    const now = performance.now();
+    const elapsed = (now - (runner.deadAt || now)) / 1000;
+    // Animation "tomber" : pendant les 600 premiers ms, Boumbi tombe puis reste
+    const fall = Math.min(1, elapsed / 0.6);
+    const rotAmount = (Math.PI / 2) * fall;  // 0 → 90deg
+    const yDown = 30 * fall;
+    ctx.save();
+    ctx.translate(x, groundY - 4 + yDown);
+    ctx.rotate(rotAmount);
+    // Corps brun
+    ctx.fillStyle = '#5a3a1a';  // brun plus sombre pour rendre "mort"
+    ctx.beginPath();
+    ctx.ellipse(0, -40, 38, 50, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#b39769';  // ventre plus terne
+    ctx.beginPath();
+    ctx.ellipse(0, -32, 22, 28, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Yeux X X (mort)
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-16, -62); ctx.lineTo(-8, -54);
+    ctx.moveTo(-16, -54); ctx.lineTo(-8, -62);
+    ctx.moveTo(8, -62); ctx.lineTo(16, -54);
+    ctx.moveTo(8, -54); ctx.lineTo(16, -62);
+    ctx.stroke();
+    // Bec
+    ctx.fillStyle = '#aa6a30';
+    ctx.beginPath();
+    ctx.moveTo(-4, -48); ctx.lineTo(4, -48); ctx.lineTo(0, -42);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
   // Animation
   const now = performance.now();
   const jumpMs = runner.boumbi.jumpDuration || RUNNER_JUMP_MS;
@@ -6887,6 +7012,8 @@ function runnerDrawBoumbi(ctx, x, groundY) {
 
 function runnerGameOver() {
   runner.active = false;
+  runner.dead = true;          // Boumbi est mort → render flat + nuit
+  runner.deadAt = performance.now();
   runnerMusicStop();
   // Persist
   const final = Math.floor(runner.distance);
@@ -6936,10 +7063,13 @@ function runnerGameOver() {
     playReward();
     setTimeout(playReward, 350);
   }
-  overlay.classList.add('active');
-  updateStarsCounter();
-  document.getElementById('runner-best-hud').innerHTML = `Best : <strong>${Math.max(prevBest, final)}</strong>m`;
-  if (typeof runnerAttribRefresh === 'function') runnerAttribRefresh();
+  // Delai pour qu'on voie Boumbi tomber a terre + decor nuit avant le modal
+  setTimeout(() => {
+    overlay.classList.add('active');
+    updateStarsCounter();
+    document.getElementById('runner-best-hud').innerHTML = `Best : <strong>${Math.max(prevBest, final)}</strong>m`;
+    if (typeof runnerAttribRefresh === 'function') runnerAttribRefresh();
+  }, 1600);
 }
 
 function runnerStopAll() {
@@ -7490,12 +7620,19 @@ function simulatePadHit(laneId, velocity = 100) {
   if (note != null && typeof onMIDI === 'function') {
     onMIDI({ data: [0x90, note, velocity] });
   }
-  // Flash le bouton correspondant dans le widget si visible
+  // Flash le bouton correspondant dans le widget si visible + confetti
   const btn = document.querySelector(`.sim-pad-widget [data-lane="${laneId}"]`);
   if (btn) {
     btn.classList.remove('hit');
     void btn.offsetWidth;
     btn.classList.add('hit');
+    // Auto-clear apres l'animation (au cas ou)
+    setTimeout(() => btn.classList.remove('hit'), 320);
+    // Confetti au-dessus du pad (reutilise spawnConfetti existant)
+    if (typeof spawnConfetti === 'function') {
+      const lane = LANES.find(l => l.id === laneId);
+      spawnConfetti(btn, 10, lane?.color);
+    }
   }
 }
 
