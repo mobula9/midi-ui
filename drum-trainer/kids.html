@@ -1890,7 +1890,7 @@ button:focus { outline: none; }
 
 /* === Boumbi Runner === */
 #screen-runner {
-  background: linear-gradient(180deg, #87CEEB 0%, #FFB6C1 60%, #FFD93D 100%);
+  background: #1a1530;  /* fallback derriere le canvas — le decor est peint sur le canvas */
   overflow: hidden;
   padding: 0;
 }
@@ -5489,6 +5489,65 @@ const RUNNER_OBS = {
   hihat: { emoji: '🎩', name: 'Hi-Hat', y: 'm', color: '#6BCB77', anim: 'duck' },
 };
 // Progression : on commence par les sauts (sol), on ajoute les ducks (air) au niveau 4.
+// 5 decors qui cyclent selon le niveau (level → decor = (level-1) % 5)
+const RUNNER_DECORS = [
+  { // 0 : Coucher de soleil (default)
+    name: 'Coucher de soleil',
+    sky: ['#87CEEB', '#FFB6C1', '#FFD93D'],
+    hills: '#6BCB77',
+    ground: '#8B5A2B',
+    grass: '#6BCB77',
+    sun: { color: 'rgba(255,255,200,0.95)', glow: 'rgba(255,255,200,0.35)', y: 0.18, x: 0.82, r: 40 },
+    cloud: 'rgba(255,255,255,0.7)',
+    stars: false,
+  },
+  { // 1 : Prairie le matin
+    name: 'Prairie',
+    sky: ['#7FC8F8', '#B7E0FA', '#FFF8E0'],
+    hills: '#5BB668',
+    ground: '#A0825C',
+    grass: '#7DCC8A',
+    sun: { color: 'rgba(255,255,180,1)', glow: 'rgba(255,255,180,0.4)', y: 0.14, x: 0.16, r: 38 },
+    cloud: 'rgba(255,255,255,0.92)',
+    stars: false,
+  },
+  { // 2 : Nuit etoilee
+    name: 'Nuit étoilée',
+    sky: ['#0d1640', '#2a3266', '#5a5f8a'],
+    hills: '#2a4636',
+    ground: '#1f2440',
+    grass: '#3a5a48',
+    sun: { color: 'rgba(245,245,255,0.95)', glow: 'rgba(245,245,255,0.3)', y: 0.16, x: 0.78, r: 36 },
+    cloud: 'rgba(180,190,220,0.4)',
+    stars: true,
+  },
+  { // 3 : Foret profonde
+    name: 'Forêt',
+    sky: ['#3d5a35', '#6c8f60', '#a5c895'],
+    hills: '#2f4e2a',
+    ground: '#5c3e1f',
+    grass: '#3f7a32',
+    sun: { color: 'rgba(255,225,140,0.75)', glow: 'rgba(255,225,140,0.22)', y: 0.22, x: 0.82, r: 34 },
+    cloud: 'rgba(220,230,200,0.5)',
+    stars: false,
+  },
+  { // 4 : Espace
+    name: 'Espace',
+    sky: ['#0a0a32', '#2a1a6a', '#6a3aa6'],
+    hills: '#3a3a6a',
+    ground: '#2a2a4a',
+    grass: '#6a4ab0',
+    sun: { color: 'rgba(210,170,255,0.95)', glow: 'rgba(210,170,255,0.4)', y: 0.15, x: 0.85, r: 42 },
+    cloud: 'rgba(180,160,220,0.35)',
+    stars: true,
+  },
+];
+
+function runnerCurrentDecor() {
+  const idx = ((runner.level || 1) - 1) % RUNNER_DECORS.length;
+  return RUNNER_DECORS[idx];
+}
+
 // Niveaux : pool d'obstacles + vitesse + cadence de spawn (en NOMBRE DE BEATS
 // musicaux a 100 BPM). 1 beat = 600ms. Les obstacles spawnent en sync avec
 // les beats du morceau qui joue.
@@ -5508,7 +5567,7 @@ const RUNNER_HIT_AHEAD_START = 70;   // px devant Boumbi ou commence la fenetre
 const RUNNER_HIT_AHEAD_END   = 280;  // px devant Boumbi ou finit la fenetre
 const RUNNER_COLLISION_X     = 30;   // si obstacle.x < boumbiX - 30 sans evitement → collision
 const RUNNER_M_PER_PX = 0.018;       // 1 px ≈ 1.8 cm
-const RUNNER_JUMP_MS  = 900;         // duree du saut/duck (laisse le temps a l'obstacle de passer)
+const RUNNER_JUMP_MS  = 650;         // duree du saut parabolique pur (300ms up + 350ms down)
 const RUNNER_LIVES    = 3;
 
 const runnerCanvas = document.getElementById('runner-canvas');
@@ -5610,7 +5669,8 @@ function runnerOpen() {
   runner.cloudsX = 0;
   runner.hillsX = 0;
   runner.obstaclesPassed = 0;
-  runner.boumbi = { y: 0, vy: 0, anim: null, animT: 0 };
+  runner.boumbi = { y: 0, vy: 0, anim: null, animT: 0, jumpHeight: 110 };
+  runner.floatingText = [];
   // HUD reset
   document.getElementById('runner-distance').textContent = '0';
   document.getElementById('runner-level').textContent = '1';
@@ -5664,9 +5724,10 @@ function runnerStart() {
   runner.level = 1;
   runner.obstacles = [];
   runner.particles = [];
+  runner.floatingText = [];
   runner.scrollX = 0;
   runner.obstaclesPassed = 0;
-  runner.boumbi = { y: 0, vy: 0, anim: null, animT: 0 };
+  runner.boumbi = { y: 0, vy: 0, anim: null, animT: 0, jumpHeight: 110 };
   document.getElementById('runner-distance').textContent = '0';
   document.getElementById('runner-level').textContent = '1';
   document.getElementById('runner-lives').textContent = '❤️'.repeat(RUNNER_LIVES);
@@ -5725,11 +5786,22 @@ function runnerUpdate(dt, now) {
   for (const o of runner.obstacles) {
     o.x -= advance;
   }
-  // Detecte les collisions : un obstacle qui atteint Boumbi sans avoir ete
-  // evite = -1 vie. Si avoide, il passe sereinement en dessous.
+  // Detecte collisions + punch impacts
   const boumbiX = rW * 0.18;
   for (const o of runner.obstacles) {
-    if (o.avoided || o.collided) continue;
+    if (o.collided || o.punched) continue;
+    // Si l'obstacle est avoided (tap correct fait), on attend qu'il arrive
+    // sur Boumbi pour declencher le PUNCH (boumbi est en l'air a ce moment).
+    if (o.avoided) {
+      const dxAbs = Math.abs(o.x - boumbiX);
+      if (dxAbs < 28) {
+        o.punched = true;
+        o.punchedT = now;
+        runnerSpawnPunchBurst(o, boumbiX);
+      }
+      continue;
+    }
+    // Pas avoided → si l'obstacle passe Boumbi, c'est une collision
     if (o.x < boumbiX - RUNNER_COLLISION_X) {
       o.collided = true;
       o.collidedT = now;
@@ -5740,8 +5812,9 @@ function runnerUpdate(dt, now) {
   runner.obstacles = runner.obstacles.filter(o => o.x > -120 && (now - o.spawnTime) < 30000);
   // Spawn synchronise sur les beats de la musique
   runnerBeatSpawn(cfg, now);
-  // Boumbi anim cooldown
-  if (runner.boumbi.anim && now - runner.boumbi.animT > RUNNER_JUMP_MS) {
+  // Boumbi anim cooldown — base sur la duree adaptee
+  const jumpDur = runner.boumbi.jumpDuration || RUNNER_JUMP_MS;
+  if (runner.boumbi.anim && now - runner.boumbi.animT > jumpDur) {
     runner.boumbi.anim = null;
   }
   // Particles
@@ -5752,6 +5825,14 @@ function runnerUpdate(dt, now) {
     p.life -= dt;
   });
   runner.particles = runner.particles.filter(p => p.life > 0);
+  // Floating text (POW! BOUM!) qui monte et fade
+  if (runner.floatingText && runner.floatingText.length) {
+    runner.floatingText.forEach(t => {
+      t.y += t.vy * dt;
+      t.vy *= 0.95;  // ralenti
+    });
+    runner.floatingText = runner.floatingText.filter(t => (performance.now() - t.born) / 1000 < t.life);
+  }
   // HUD
   document.getElementById('runner-distance').textContent = Math.floor(runner.distance);
 }
@@ -5805,6 +5886,37 @@ function runnerSpawn(cfg, now, preferLane) {
   });
 }
 
+// Burst d'impact "POW!" quand Boumbi tape l'obstacle en l'air.
+function runnerSpawnPunchBurst(o, boumbiX) {
+  const y = runnerObstacleY(o) - 30;
+  const color = RUNNER_OBS[o.lane].color;
+  // 20 particules explosent dans toutes les directions
+  for (let i = 0; i < 22; i++) {
+    const a = (i / 22) * Math.PI * 2 + Math.random() * 0.3;
+    const sp = 250 + Math.random() * 300;
+    runner.particles.push({
+      x: o.x,
+      y,
+      vx: Math.cos(a) * sp,
+      vy: Math.sin(a) * sp - 80,
+      color: i % 3 === 0 ? '#FFD93D' : (i % 3 === 1 ? '#FFFFFF' : color),
+      life: 0.5 + Math.random() * 0.3,
+      size: 4 + Math.random() * 5,
+    });
+  }
+  // Texte flottant "POW!" qui monte
+  if (!runner.floatingText) runner.floatingText = [];
+  runner.floatingText.push({
+    x: o.x,
+    y: y - 10,
+    vy: -180,
+    text: ['POW!', 'BAM!', 'BOUM!', 'PAF!'][Math.floor(Math.random() * 4)],
+    color: '#FF6B6B',
+    life: 0.7,
+    born: performance.now(),
+  });
+}
+
 function runnerSpawnLevelUpParticles() {
   // Petit feu d'artifice quand un niveau passe
   for (let i = 0; i < 30; i++) {
@@ -5850,7 +5962,7 @@ function runnerLoseLife(reason, obstacle) {
   }
 }
 
-function runnerTap(laneId) {
+function runnerTap(laneId, velocity = 95) {
   if (!runner.active) return;
   // Trouve l'obstacle le plus proche AHEAD de Boumbi (entre AHEAD_START et
   // AHEAD_END pixels devant lui). On veut taper AVANT que ca arrive.
@@ -5868,8 +5980,16 @@ function runnerTap(laneId) {
     return;
   }
   if (best.lane === laneId) {
-    // Bon pad ! Boumbi saute (ou ducks) pour eviter. L'obstacle continue
-    // a glisser vers la gauche et passera sous Boumbi.
+    // Bon pad ! Boumbi saute pour aller TAPER l'obstacle en l'air.
+    // Hauteur depend de la velocity (force de frappe) — douce pour kids.
+    const velNorm = Math.max(0.35, Math.min(1, velocity / 110));
+    runner.boumbi.jumpHeight = 85 + velNorm * 65;  // 85 → 150 px
+    // Duree du saut adaptee : on veut que le peak de Boumbi tombe pile au
+    // moment ou l'obstacle arrive sur lui. travelTime = dx / speed.
+    // Avec un parabole pure (sin), peak = duration/2 → duration = 2 * travel.
+    const cfg = runnerCurrentLevelCfg();
+    const travelMs = (bestDist / cfg.speed) * 1000;
+    runner.boumbi.jumpDuration = Math.max(450, Math.min(1100, travelMs * 2));
     best.avoided = true;
     best.avoidedT = performance.now();
     runner.obstaclesPassed++;
@@ -5927,21 +6047,49 @@ function runnerDraw() {
   if (rW === 0 || rH === 0) return;
   const ctx = runnerCtx;
   ctx.clearRect(0, 0, rW, rH);
+  const decor = runnerCurrentDecor();
 
-  // === Ciel : gradient déjà sur le background CSS, mais on rajoute du depth ===
-  // Soleil
-  const sunY = rH * 0.18;
-  ctx.fillStyle = 'rgba(255, 255, 200, 0.9)';
+  // === Ciel : gradient peint sur le canvas (varie selon decor) ===
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, rH);
+  const stops = decor.sky;
+  for (let i = 0; i < stops.length; i++) {
+    skyGrad.addColorStop(i / (stops.length - 1), stops[i]);
+  }
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, rW, rH);
+
+  // === Etoiles (seulement nuit/espace) ===
+  if (decor.stars) {
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    // Etoiles fixes (seed deterministe pour ne pas scintiller a chaque frame)
+    const starSeed = decor.name.length;
+    for (let i = 0; i < 60; i++) {
+      const sx = ((Math.sin(i * 7.3 + starSeed) + 1) / 2) * rW;
+      const sy = ((Math.sin(i * 13.7 + starSeed * 2) + 1) / 2) * rH * 0.6;
+      const sr = 1 + ((Math.sin(i * 17.1) + 1) / 2) * 1.5;
+      // Subtil scintillement
+      const a = 0.5 + 0.5 * Math.sin(performance.now() / 800 + i);
+      ctx.globalAlpha = a * 0.8;
+      ctx.beginPath();
+      ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // === Soleil / lune ===
+  const sun = decor.sun;
+  ctx.fillStyle = sun.color;
   ctx.beginPath();
-  ctx.arc(rW * 0.82, sunY, 40, 0, Math.PI * 2);
+  ctx.arc(rW * sun.x, rH * sun.y, sun.r, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = 'rgba(255, 255, 200, 0.3)';
+  ctx.fillStyle = sun.glow;
   ctx.beginPath();
-  ctx.arc(rW * 0.82, sunY, 60, 0, Math.PI * 2);
+  ctx.arc(rW * sun.x, rH * sun.y, sun.r * 1.5, 0, Math.PI * 2);
   ctx.fill();
 
   // === Nuages (parallax slow) ===
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+  ctx.fillStyle = decor.cloud;
   const cloudPositions = [0.15, 0.45, 0.7, 1.1];
   for (const cx of cloudPositions) {
     const x = ((cx * rW - runner.cloudsX) % (rW + 200) + (rW + 200)) % (rW + 200) - 100;
@@ -5950,7 +6098,7 @@ function runnerDraw() {
   }
 
   // === Collines (parallax medium) ===
-  ctx.fillStyle = '#6BCB77';
+  ctx.fillStyle = decor.hills;
   for (let i = 0; i < 4; i++) {
     const hx = ((i * rW * 0.4 - runner.hillsX) % (rW * 1.6) + rW * 1.6) % (rW * 1.6) - rW * 0.2;
     ctx.beginPath();
@@ -5960,10 +6108,10 @@ function runnerDraw() {
 
   // === Sol ===
   const groundY = rH * 0.78;
-  ctx.fillStyle = '#8B5A2B';
+  ctx.fillStyle = decor.ground;
   ctx.fillRect(0, groundY, rW, rH - groundY);
   // Herbe au sommet du sol
-  ctx.fillStyle = '#6BCB77';
+  ctx.fillStyle = decor.grass;
   ctx.fillRect(0, groundY, rW, 8);
   // Tirets sol (donnent l'impression de scroll)
   ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
@@ -6004,7 +6152,14 @@ function runnerDraw() {
     let bgColor = cfg.color;
     let borderColor = 'rgba(255,255,255,0.85)';
     let scale = 1;
-    if (o.collided) {
+    if (o.punched) {
+      // Pop visuel : grandit + fade rapidement
+      const elapsed = (performance.now() - (o.punchedT || performance.now())) / 300;
+      if (elapsed >= 1) continue;
+      alpha = 1 - elapsed;
+      scale = 1 + elapsed * 1.2;  // explose
+      borderColor = 'rgba(255,255,255,0.95)';
+    } else if (o.collided) {
       // Fade-out après collision
       const elapsed = (performance.now() - (o.collidedT || performance.now())) / 500;
       if (elapsed >= 1) continue;
@@ -6056,6 +6211,31 @@ function runnerDraw() {
     ctx.fill();
   }
   ctx.globalAlpha = 1;
+
+  // === Textes flottants (POW! BOUM! etc.) ===
+  if (runner.floatingText && runner.floatingText.length) {
+    ctx.font = 'bold 38px "Comic Sans MS", "Marker Felt", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const t of runner.floatingText) {
+      const age = (performance.now() - t.born) / 1000;
+      const alpha = Math.max(0, 1 - age / t.life);
+      if (alpha <= 0) continue;
+      const scale = 1 + Math.min(1, age * 4) * 0.4;
+      ctx.save();
+      ctx.translate(t.x, t.y);
+      ctx.scale(scale, scale);
+      ctx.globalAlpha = alpha;
+      // Halo blanc derriere pour lisibilite
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 6;
+      ctx.strokeText(t.text, 0, 0);
+      ctx.fillStyle = t.color;
+      ctx.fillText(t.text, 0, 0);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
 }
 
 function runnerDrawCloud(ctx, x, y, size) {
@@ -6070,8 +6250,9 @@ function runnerDrawCloud(ctx, x, y, size) {
 function runnerDrawBoumbi(ctx, x, groundY) {
   // Animation
   const now = performance.now();
+  const jumpMs = runner.boumbi.jumpDuration || RUNNER_JUMP_MS;
   const animProgress = runner.boumbi.anim
-    ? (now - runner.boumbi.animT) / RUNNER_JUMP_MS
+    ? (now - runner.boumbi.animT) / jumpMs
     : 0;
   let yOffset = 0;
   let scaleX = 1, scaleY = 1;
@@ -6081,31 +6262,30 @@ function runnerDrawBoumbi(ctx, x, groundY) {
   const bob = Math.sin(t) * 3;
 
   if (runner.boumbi.anim === 'jump' && animProgress < 1) {
-    // Saut parabolique plus haut + reste en l'air longtemps pour laisser
-    // l'obstacle passer dessous, puis retombe progressivement.
+    // Saut purement parabolique (sin) — pas de plateau collant.
+    // La hauteur depend de la velocity de la frappe (stocke dans jumpHeight).
     const p = animProgress;
-    // Asymetrique : monte vite (0 → 0.3), reste haut (0.3 → 0.7), descend (0.7 → 1)
-    let h;
-    if (p < 0.3) h = (p / 0.3);                       // 0 → 1 (montée)
-    else if (p < 0.7) h = 1;                          // 1 (plateau)
-    else h = 1 - ((p - 0.7) / 0.3);                   // 1 → 0 (chute)
-    yOffset = -140 * h;
-    // Petit squish à l'atterrissage
-    if (p > 0.85) {
-      const land = (p - 0.85) / 0.15;
+    const h = runner.boumbi.jumpHeight || 110;
+    // sin(0)=0 → sin(π/2)=1 (peak au milieu) → sin(π)=0 — pur arc
+    yOffset = -h * Math.sin(p * Math.PI);
+    // Petit anticip squish au depart (boumbi prend de l'elan) + atterrissage
+    if (p < 0.06) {
+      const sq = (0.06 - p) / 0.06;
+      scaleY = 1 - 0.1 * sq;
+      scaleX = 1 + 0.08 * sq;
+    } else if (p > 0.92) {
+      const land = (p - 0.92) / 0.08;
       scaleY = 1 - 0.15 * Math.sin(land * Math.PI);
       scaleX = 1 + 0.1 * Math.sin(land * Math.PI);
     }
   } else if (runner.boumbi.anim === 'duck' && animProgress < 1) {
-    // Se baisse pour passer sous un obstacle aerien : reste baisse un moment
+    // Reste pour les obstacles aeriens : duck rapide (peut etre supprime selon
+    // future iteration). Pour l'instant : crouch bref qui ne colle pas.
     const p = animProgress;
-    let crouch;
-    if (p < 0.2) crouch = p / 0.2;
-    else if (p < 0.8) crouch = 1;
-    else crouch = 1 - (p - 0.8) / 0.2;
-    yOffset = 20 * crouch;
-    scaleY = 1 - 0.25 * crouch;
-    scaleX = 1 + 0.15 * crouch;
+    const crouch = Math.sin(p * Math.PI);
+    yOffset = 18 * crouch;
+    scaleY = 1 - 0.22 * crouch;
+    scaleX = 1 + 0.13 * crouch;
   } else {
     yOffset = bob;
   }
@@ -6516,9 +6696,9 @@ document.getElementById('runner-over-home').addEventListener('click', () => {
 // Si une partie est en cours → runnerTap. Sinon → start si on est sur l'intro,
 // ou rejouer si on est sur le gameover. Permet au kid de demarrer/relancer
 // directement avec sa batterie, sans cliquer.
-function runnerHandlePadOrKey(laneId) {
+function runnerHandlePadOrKey(laneId, velocity = 95) {
   if (runner.active) {
-    runnerTap(laneId);
+    runnerTap(laneId, velocity);
     return;
   }
   const over = document.getElementById('runner-over');
@@ -8731,7 +8911,7 @@ function onMIDI(msg) {
   } else if (currentScreen === 'memo' && memoPhase === 'awaiting') {
     memoUserTap(lane.id);
   } else if (currentScreen === 'runner') {
-    runnerHandlePadOrKey(lane.id);
+    runnerHandlePadOrKey(lane.id, vel);
   } else if (currentScreen === 'echo' && echo.phase === 'listening') {
     echoUserTap(lane.id);
   } else if (currentScreen === 'studio') {
