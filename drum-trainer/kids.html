@@ -901,6 +901,23 @@ button:focus { outline: none; }
   color: black;
   font-weight: 700;
 }
+.play-accomp-btn {
+  background: rgba(0,0,0,0.45);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.15);
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.play-accomp-btn[data-state="on"] {
+  background: linear-gradient(135deg, #4ECDC4 0%, #6BCB77 100%);
+  color: white;
+  border-color: rgba(255,255,255,0.4);
+  box-shadow: 0 0 20px rgba(78,205,196,0.4);
+}
 .play-stop {
   width: 64px; height: 64px;
   border-radius: 50%;
@@ -1296,6 +1313,7 @@ button:focus { outline: none; }
       <span class="play-bpm-val" id="play-bpm-val">80</span>
       <span class="play-bpm-tag" id="play-bpm-tag" style="display:none">×1.0</span>
     </div>
+    <button id="accomp-toggle" class="play-accomp-btn" data-state="off">🎵 Accompagnement OFF</button>
   </div>
   <canvas id="play-canvas"></canvas>
   <div class="play-timeline">
@@ -2789,6 +2807,77 @@ document.getElementById('play-bpm-slider').addEventListener('input', e => {
   setLiveBpm(parseInt(e.target.value, 10));
 });
 
+// =====================================================================
+// ACCOMPAGNEMENT MUSICAL — synthétise basse + accords en sync avec le BPM
+// =====================================================================
+let accompOn = localStorage.getItem('boumbi-accomp') === 'on';
+let lastAccompBeat = -1;
+
+// Progression simple : i-VI-III-VII (en La mineur)
+// Bien pour rock/pop, sonne "complet" même avec juste basse + accord
+const ACCOMP_BASS = [
+  220.00, 220.00, 220.00, 220.00,   // A3 (i)
+  174.61, 174.61, 174.61, 174.61,   // F3 (VI)
+  130.81, 130.81, 130.81, 130.81,   // C3 (III)
+  196.00, 196.00, 196.00, 196.00,   // G3 (VII)
+];
+const ACCOMP_CHORD = [
+  [220, 261.63, 329.63],  // Am (A C E)
+  [174.61, 220, 261.63],  // F  (F A C)
+  [130.81, 164.81, 196],  // C  (C E G)
+  [196, 246.94, 293.66],  // G  (G B D)
+];
+
+function playAccompBeat(beat) {
+  ensureAudio();
+  const t = audioCtx.currentTime;
+  const idx = beat % ACCOMP_BASS.length;
+  const bassFreq = ACCOMP_BASS[idx];
+
+  // Basse pulsée sur chaque temps (triangle)
+  const o1 = audioCtx.createOscillator();
+  const g1 = audioCtx.createGain();
+  o1.type = 'triangle';
+  o1.frequency.value = bassFreq;
+  g1.gain.setValueAtTime(0, t);
+  g1.gain.linearRampToValueAtTime(0.16, t + 0.008);
+  g1.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+  o1.connect(g1).connect(audioCtx.destination);
+  o1.start(t);
+  o1.stop(t + 0.4);
+
+  // Accord sur les temps 1 et 3 (= toutes les 2 temps), plus aigu et doux
+  if (beat % 2 === 0) {
+    const chord = ACCOMP_CHORD[Math.floor(idx / 4)];
+    for (const f of chord) {
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = 'sine';
+      o.frequency.value = f * 2;  // octave au-dessus
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.04, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+      o.connect(g).connect(audioCtx.destination);
+      o.start(t);
+      o.stop(t + 0.65);
+    }
+  }
+}
+
+function toggleAccomp() {
+  accompOn = !accompOn;
+  localStorage.setItem('boumbi-accomp', accompOn ? 'on' : 'off');
+  updateAccompButton();
+  if (!accompOn) lastAccompBeat = -1;
+}
+function updateAccompButton() {
+  const btn = document.getElementById('accomp-toggle');
+  btn.dataset.state = accompOn ? 'on' : 'off';
+  btn.textContent = accompOn ? '🎵 Accompagnement ON' : '🎵 Accompagnement OFF';
+}
+document.getElementById('accomp-toggle').addEventListener('click', toggleAccomp);
+updateAccompButton();
+
 function showAwaitingMessage() {
   const cdEl = document.getElementById('countdown');
   cdEl.style.fontSize = '64px';
@@ -3082,11 +3171,16 @@ function drawPlay() {
     onPatternEnd();
   }
 
-  // Métronome
+  // Métronome (désactivé si accompagnement ON — l'accompagnement donne déjà le tempo)
   const flooredBeat = Math.floor(currentBeat);
   if (flooredBeat > lastClickBeat && flooredBeat >= 0) {
-    playClick(flooredBeat % 4 === 0);
+    if (!accompOn) playClick(flooredBeat % 4 === 0);
     lastClickBeat = flooredBeat;
+  }
+  // Accompagnement : bass + accord sur chaque temps
+  if (accompOn && flooredBeat > lastAccompBeat && flooredBeat >= 0) {
+    playAccompBeat(flooredBeat);
+    lastAccompBeat = flooredBeat;
   }
 }
 function drawRound(c, x, y, w, h, r) {
@@ -3110,6 +3204,7 @@ function startMode(newMode) {
   const leadInMs = LEAD_IN_BEATS / (bpm / 60) * 1000;
   startTime = performance.now() + leadInMs;
   lastClickBeat = -1;
+  lastAccompBeat = -1;
 
   const cdEl = document.getElementById('countdown');
   let n = LEAD_IN_BEATS;
