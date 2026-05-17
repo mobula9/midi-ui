@@ -1214,6 +1214,244 @@ button:focus { outline: none; }
   background: white; color: var(--text); border: 1px solid #ddd;
 }
 
+/* === Boumbi Runner === */
+#screen-runner {
+  background: linear-gradient(180deg, #87CEEB 0%, #FFB6C1 60%, #FFD93D 100%);
+  overflow: hidden;
+  padding: 0;
+}
+#runner-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.runner-hud {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: calc(12px + var(--switcher-w));
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  z-index: 5;
+  pointer-events: none;
+}
+.runner-hud > * { pointer-events: auto; }
+.runner-back {
+  width: 44px; height: 44px;
+  font-size: 22px;
+  background: rgba(255,255,255,0.9);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: var(--shadow);
+}
+.runner-stats {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  background: rgba(255,255,255,0.88);
+  border-radius: 999px;
+  padding: 8px 18px;
+  font-weight: 800;
+  box-shadow: var(--shadow);
+  flex-shrink: 0;
+}
+.runner-lives {
+  font-size: 18px;
+  letter-spacing: 2px;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
+  transition: filter 0.15s;
+}
+.runner-lives.lost { animation: heartLost 0.5s; }
+@keyframes heartLost {
+  0% { filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15)); transform: scale(1); }
+  30% { filter: drop-shadow(0 0 12px #FF6B6B) brightness(2); transform: scale(1.3); }
+  100% { filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15)); transform: scale(1); }
+}
+.runner-distance {
+  font-size: 22px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  min-width: 70px;
+  text-align: right;
+}
+.runner-level {
+  font-size: 13px;
+  color: var(--muted);
+  background: #f5f5f0;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.runner-best {
+  margin-left: auto;
+  background: rgba(255,255,255,0.78);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12px;
+  color: var(--muted);
+  box-shadow: var(--shadow);
+}
+.runner-best strong { color: var(--text); font-size: 13px; }
+
+/* Légende basse : rappel pad ↔ obstacle */
+.runner-legend {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  background: rgba(0,0,0,0.5);
+  padding: 6px 14px;
+  border-radius: 999px;
+  z-index: 4;
+  font-size: 12px;
+  color: white;
+  font-weight: 700;
+  backdrop-filter: blur(6px);
+}
+.runner-legend .leg-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.runner-legend .leg-emoji { font-size: 16px; }
+
+/* Intro */
+.runner-intro {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+.runner-intro.hidden { display: none; }
+.runner-intro-content {
+  background: var(--panel);
+  padding: 32px 40px;
+  border-radius: 28px;
+  text-align: center;
+  max-width: 560px;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.4);
+}
+.runner-intro-content h2 { margin: 12px 0 8px; font-size: 28px; }
+.runner-intro-content p { color: var(--muted); margin: 0 0 16px; line-height: 1.5; font-size: 14px; }
+.runner-intro-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin: 16px 0;
+  font-size: 13px;
+}
+.runner-intro-legend .leg-row {
+  background: #f5f5f0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.runner-start-btn {
+  padding: 16px 36px;
+  background: linear-gradient(135deg, #4ECDC4, #6BCB77);
+  color: white;
+  border: none;
+  border-radius: 999px;
+  font-size: 18px;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: var(--shadow);
+  margin-top: 8px;
+}
+.runner-start-btn:hover { filter: brightness(1.05); }
+
+/* Game over */
+.runner-over {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 15;
+}
+.runner-over.active { display: flex; }
+.runner-over-content {
+  background: var(--panel);
+  padding: 32px 48px;
+  border-radius: 24px;
+  text-align: center;
+  max-width: 520px;
+}
+.runner-over-content h2 { margin: 8px 0; font-size: 28px; }
+.runner-over-record {
+  display: none;
+  background: linear-gradient(135deg, #FFD93D, #FFA94D);
+  color: white;
+  font-weight: 700;
+  padding: 8px 18px;
+  border-radius: 999px;
+  margin-bottom: 14px;
+  font-size: 14px;
+  letter-spacing: 1px;
+}
+.runner-over-record.show { display: inline-block; }
+.runner-over-stars {
+  font-size: 48px;
+  letter-spacing: 8px;
+  margin: 16px 0;
+}
+.runner-over-content .actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 18px;
+}
+.runner-over-content .actions button {
+  padding: 12px 22px;
+  border-radius: 999px;
+  border: none;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+}
+.runner-over-content .actions .primary {
+  background: var(--accent); color: white;
+}
+.runner-over-content .actions .secondary {
+  background: white; color: var(--text); border: 1px solid #ddd;
+}
+
+/* Countdown 3-2-1-GO */
+.runner-countdown {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 180px;
+  font-weight: 900;
+  color: white;
+  text-shadow: 0 0 40px rgba(78,205,196,0.8), 0 0 80px rgba(78,205,196,0.4);
+  z-index: 12;
+  display: none;
+  font-variant-numeric: tabular-nums;
+}
+.runner-countdown.active { display: block; animation: countPulse 0.6s; }
+@keyframes countPulse {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+  20% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+}
+
 /* === Top bar du Mode Apprendre — 2 rangées propres === */
 .play-topbar {
   position: absolute;
@@ -1647,6 +1885,11 @@ button:focus { outline: none; }
       <div class="card-title">Mémo Boumbi</div>
       <div class="card-sub">retiens la séquence</div>
     </button>
+    <button class="card" data-goto="runner">
+      <div class="card-emoji">🦖</div>
+      <div class="card-title">Boumbi court</div>
+      <div class="card-sub">tape pour sauter les obstacles</div>
+    </button>
     <button class="card" data-goto="spotify">
       <div class="card-emoji">🎵</div>
       <div class="card-title">Spotify</div>
@@ -1908,6 +2151,54 @@ button:focus { outline: none; }
       </div>
     </div>
   </div>
+</section>
+
+<!-- =================================================================== -->
+<!-- BOUMBI RUNNER (dino-style, drum control) -->
+<!-- =================================================================== -->
+<section id="screen-runner" class="screen">
+  <canvas id="runner-canvas"></canvas>
+  <!-- HUD overlay -->
+  <div class="runner-hud">
+    <button class="btn-back runner-back" data-goto="home">←</button>
+    <div class="runner-stats">
+      <div class="runner-lives" id="runner-lives">❤️❤️❤️</div>
+      <div class="runner-distance"><span id="runner-distance">0</span>m</div>
+      <div class="runner-level">Niv <span id="runner-level">1</span></div>
+    </div>
+    <div class="runner-best" id="runner-best-hud">Best : <strong>0</strong>m</div>
+  </div>
+  <!-- Légende des pads en bas (rappel visuel des obstacles → pads) -->
+  <div class="runner-legend" id="runner-legend"></div>
+  <!-- Countdown / start screen -->
+  <div class="runner-intro" id="runner-intro">
+    <div class="runner-intro-content">
+      <div style="font-size:88px;line-height:1;">🦖</div>
+      <h2 data-title-tpl="{name}, prêt à courir ?">Prêt à courir ?</h2>
+      <p>Tape le bon pad au bon moment pour éviter les obstacles.<br/>3 vies. Vas le plus loin possible !</p>
+      <div class="runner-intro-legend" id="runner-intro-legend"></div>
+      <button class="runner-start-btn" id="runner-start-btn">▶ Démarrer</button>
+    </div>
+  </div>
+  <!-- Game over -->
+  <div class="runner-over" id="runner-over">
+    <div class="runner-over-content">
+      <div class="runner-over-record" id="runner-over-record">🏆 NOUVEAU RECORD !</div>
+      <div style="font-size:80px;line-height:1;" id="runner-over-emoji">🦖</div>
+      <h2 id="runner-over-title">Bien couru !</h2>
+      <div style="color:var(--muted);font-size:14px;">Tu as parcouru</div>
+      <div style="font-size:64px;font-weight:800;line-height:1;color:var(--accent);"><span id="runner-over-dist">0</span><span style="font-size:30px;opacity:0.6">m</span></div>
+      <div style="color:var(--muted);font-size:14px;">Niveau atteint : <strong id="runner-over-level">1</strong></div>
+      <div class="runner-over-stars" id="runner-over-stars">⭐</div>
+      <div id="runner-over-prev" style="margin-top:8px;font-size:13px;color:var(--muted);"></div>
+      <div class="actions">
+        <button class="primary" id="runner-over-again">🔁 Rejouer</button>
+        <button class="secondary" id="runner-over-home">🏠 Maison</button>
+      </div>
+    </div>
+  </div>
+  <!-- Countdown 3-2-1-GO -->
+  <div class="runner-countdown" id="runner-countdown"></div>
 </section>
 
 <!-- =================================================================== -->
@@ -2386,7 +2677,7 @@ function spawnFloatingEmoji(laneId, emoji, size = 64) {
 // Navigation entre écrans
 // =====================================================================
 // Écrans qu'on persiste à travers les refresh (pas play/done : transient)
-const PERSISTED_SCREENS = new Set(['home', 'free', 'learn-select', 'reflex', 'memo', 'progress', 'spotify']);
+const PERSISTED_SCREENS = new Set(['home', 'free', 'learn-select', 'reflex', 'memo', 'runner', 'progress', 'spotify']);
 
 function goto(screen) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -2410,6 +2701,7 @@ function goto(screen) {
     document.getElementById('memo-start').style.display = '';
     document.getElementById('memo-over').classList.remove('active');
   }
+  if (screen === 'runner') runnerOpen();
   if (screen === 'spotify') {
     spUpdateUI();
     if (!spCanvas) {
@@ -2437,6 +2729,10 @@ function goto(screen) {
     memoStopAll();
     const mo = document.getElementById('memo-over');
     if (mo) mo.classList.remove('active');
+  }
+  // Quitte Boumbi Runner → stop la boucle + reset
+  if (screen !== 'runner') {
+    runnerStopAll();
   }
   if (screen === 'home') stop();
 }
@@ -2716,6 +3012,9 @@ function renderProfileDropdown() {
           memoSetStatus('▶ Démarrer pour jouer');
           document.getElementById('memo-start').style.display = '';
           document.getElementById('memo-over').classList.remove('active');
+        }
+        if (currentScreen === 'runner') {
+          runnerOpen();
         }
       }
       closeProfileDropdown();
@@ -3764,6 +4063,640 @@ document.getElementById('memo-difficulty').addEventListener('click', e => {
   const btn = e.target.closest('button[data-diff]');
   if (!btn) return;
   memoSetDifficulty(btn.dataset.diff);
+});
+
+// =====================================================================
+// Boumbi Runner — dino-style avec contrôle batterie
+// =====================================================================
+const RUNNER_OBS = {
+  // Mapping pad → obstacle. y = position verticale (g=ground / a=air / m=mid)
+  kick:  { emoji: '🌵', name: 'Cactus',  y: 'g', color: '#FF6B6B', anim: 'jump' },
+  snare: { emoji: '🌿', name: 'Buisson', y: 'g', color: '#FFD93D', anim: 'smash' },
+  crash: { emoji: '🦅', name: 'Oiseau',  y: 'a', color: '#C77DFF', anim: 'duck' },
+  tomL:  { emoji: '🪨', name: 'Caillou', y: 'g', color: '#FFA94D', anim: 'slide' },
+  hihat: { emoji: '☁️',  name: 'Nuage',  y: 'm', color: '#6BCB77', anim: 'spin' },
+};
+const RUNNER_LEVELS = [
+  { lv: 1, threshold:   0, pool: ['kick'],                                  speed: 230, spawnMs: 1500 },
+  { lv: 2, threshold:  80, pool: ['kick', 'snare'],                         speed: 260, spawnMs: 1300 },
+  { lv: 3, threshold: 180, pool: ['kick', 'snare', 'crash'],                speed: 290, spawnMs: 1150 },
+  { lv: 4, threshold: 300, pool: ['kick', 'snare', 'crash', 'tomL'],        speed: 320, spawnMs: 1050 },
+  { lv: 5, threshold: 450, pool: ['kick', 'snare', 'crash', 'tomL', 'hihat'], speed: 350, spawnMs: 950 },
+  { lv: 6, threshold: 650, pool: ['kick', 'snare', 'crash', 'tomL', 'hihat'], speed: 390, spawnMs: 850 },
+  { lv: 7, threshold: 900, pool: ['kick', 'snare', 'crash', 'tomL', 'hihat'], speed: 440, spawnMs: 780 },
+];
+const RUNNER_HIT_PX = 80;       // demi-fenêtre de hit en pixels canvas
+const RUNNER_M_PER_PX = 0.018;  // 1 px ≈ 1.8 cm — donne ~m/s honnêtes
+const RUNNER_JUMP_MS = 520;     // durée de l'animation jump
+const RUNNER_LIVES = 3;
+
+const runnerCanvas = document.getElementById('runner-canvas');
+const runnerCtx = runnerCanvas.getContext('2d');
+let rW = 0, rH = 0;
+let runnerRO = null;
+function resizeRunner() {
+  const r = runnerCanvas.getBoundingClientRect();
+  rW = r.width; rH = r.height;
+  runnerCanvas.width = rW * devicePixelRatio;
+  runnerCanvas.height = rH * devicePixelRatio;
+  runnerCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+}
+
+const runner = {
+  active: false,
+  startedAt: 0,
+  lastT: 0,
+  distance: 0,
+  lives: RUNNER_LIVES,
+  level: 1,
+  obstacles: [],
+  particles: [],
+  scrollX: 0,           // décor scrolling
+  cloudsX: 0,
+  hillsX: 0,
+  nextSpawnAt: 0,
+  // Boumbi anim
+  boumbi: { y: 0, vy: 0, anim: null, animT: 0 },
+  // Timers
+  rafId: 0,
+  // Stats
+  obstaclesPassed: 0,
+};
+
+function runnerCurrentLevelCfg() {
+  // Plus haut threshold <= distance
+  let cfg = RUNNER_LEVELS[0];
+  for (const l of RUNNER_LEVELS) if (runner.distance >= l.threshold) cfg = l;
+  return cfg;
+}
+function runnerLevelByDistance(d) {
+  let cfg = RUNNER_LEVELS[0];
+  for (const l of RUNNER_LEVELS) if (d >= l.threshold) cfg = l;
+  return cfg.lv;
+}
+
+function runnerBestKey() { return pkey('runner-best'); }
+function runnerGetBest() { return parseInt(localStorage.getItem(runnerBestKey()) || '0', 10); }
+
+function runnerStarsForDistance(d) {
+  if (d >= 500) return 3;
+  if (d >= 250) return 2;
+  if (d >= 100) return 1;
+  return 0;
+}
+
+function runnerRenderLegend() {
+  // Légende compact (uniquement les pads du niveau actuel)
+  const cfg = runnerCurrentLevelCfg();
+  const root = document.getElementById('runner-legend');
+  root.innerHTML = '';
+  cfg.pool.forEach(laneId => {
+    const o = RUNNER_OBS[laneId];
+    const lane = LANES.find(l => l.id === laneId);
+    const it = document.createElement('span');
+    it.className = 'leg-item';
+    it.innerHTML = `<span class="leg-emoji">${o.emoji}</span>= <span style="color:${o.color}">${lane.name}</span>`;
+    root.appendChild(it);
+  });
+}
+
+function runnerRenderIntroLegend() {
+  // Légende détaillée pour l'écran d'intro (tous les pads possibles à niveau max)
+  const root = document.getElementById('runner-intro-legend');
+  root.innerHTML = '';
+  const pool = ['kick', 'snare', 'crash', 'tomL', 'hihat'];
+  pool.forEach(laneId => {
+    const o = RUNNER_OBS[laneId];
+    const lane = LANES.find(l => l.id === laneId);
+    const row = document.createElement('span');
+    row.className = 'leg-row';
+    row.innerHTML = `<span style="font-size:18px">${o.emoji}</span> = <strong style="color:${o.color}">${lane.name}</strong>`;
+    root.appendChild(row);
+  });
+}
+
+function runnerOpen() {
+  // Reset
+  runnerStopAll();
+  runner.active = false;
+  runner.distance = 0;
+  runner.lives = RUNNER_LIVES;
+  runner.level = 1;
+  runner.obstacles = [];
+  runner.particles = [];
+  runner.scrollX = 0;
+  runner.cloudsX = 0;
+  runner.hillsX = 0;
+  runner.obstaclesPassed = 0;
+  runner.boumbi = { y: 0, vy: 0, anim: null, animT: 0 };
+  // HUD reset
+  document.getElementById('runner-distance').textContent = '0';
+  document.getElementById('runner-level').textContent = '1';
+  document.getElementById('runner-lives').textContent = '❤️'.repeat(RUNNER_LIVES);
+  document.getElementById('runner-best-hud').innerHTML = `Best : <strong>${runnerGetBest()}</strong>m`;
+  document.getElementById('runner-intro').classList.remove('hidden');
+  document.getElementById('runner-over').classList.remove('active');
+  // Init canvas size
+  resizeRunner();
+  if (runnerRO) runnerRO.disconnect();
+  runnerRO = new ResizeObserver(resizeRunner);
+  runnerRO.observe(runnerCanvas);
+  // Legend
+  runnerRenderIntroLegend();
+  runnerRenderLegend();
+  // Dessine un frame static pour que le canvas ne soit pas vide derrière l'intro
+  runnerDraw();
+}
+
+function runnerCountdown(then) {
+  const cd = document.getElementById('runner-countdown');
+  const seq = ['3', '2', '1', 'GO !'];
+  let i = 0;
+  function step() {
+    if (currentScreen !== 'runner') return;
+    cd.textContent = seq[i];
+    cd.classList.remove('active');
+    void cd.offsetWidth;
+    cd.classList.add('active');
+    i++;
+    if (i < seq.length) {
+      setTimeout(step, 600);
+    } else {
+      setTimeout(() => {
+        cd.classList.remove('active');
+        cd.style.display = 'none';
+        then();
+      }, 500);
+    }
+  }
+  cd.style.display = 'block';
+  step();
+}
+
+function runnerStart() {
+  document.getElementById('runner-intro').classList.add('hidden');
+  document.getElementById('runner-over').classList.remove('active');
+  // Reset state
+  runner.distance = 0;
+  runner.lives = RUNNER_LIVES;
+  runner.level = 1;
+  runner.obstacles = [];
+  runner.particles = [];
+  runner.scrollX = 0;
+  runner.obstaclesPassed = 0;
+  runner.boumbi = { y: 0, vy: 0, anim: null, animT: 0 };
+  document.getElementById('runner-distance').textContent = '0';
+  document.getElementById('runner-level').textContent = '1';
+  document.getElementById('runner-lives').textContent = '❤️'.repeat(RUNNER_LIVES);
+  runnerRenderLegend();
+  runnerCountdown(() => {
+    runner.active = true;
+    runner.startedAt = performance.now();
+    runner.lastT = performance.now();
+    runner.nextSpawnAt = performance.now() + 800;  // premier obstacle un peu après le GO
+    runnerStartLoop();
+  });
+}
+
+function runnerStartLoop() {
+  if (runner.rafId) cancelAnimationFrame(runner.rafId);
+  const tick = (t) => {
+    if (currentScreen !== 'runner') { runner.rafId = 0; return; }
+    runnerLoop(t);
+    runner.rafId = requestAnimationFrame(tick);
+  };
+  runner.rafId = requestAnimationFrame(tick);
+}
+
+function runnerLoop(t) {
+  const dt = Math.min(50, t - runner.lastT) / 1000;  // s, cap pour éviter sauts si tab off
+  runner.lastT = t;
+  if (runner.active) runnerUpdate(dt, t);
+  runnerDraw();
+}
+
+function runnerUpdate(dt, now) {
+  const cfg = runnerCurrentLevelCfg();
+  const speedPx = cfg.speed;
+  // Distance + level
+  const advance = speedPx * dt;
+  runner.distance += advance * RUNNER_M_PER_PX;
+  const newLvl = runnerLevelByDistance(runner.distance);
+  if (newLvl !== runner.level) {
+    runner.level = newLvl;
+    document.getElementById('runner-level').textContent = newLvl;
+    runnerRenderLegend();
+    runnerSpawnLevelUpParticles();
+  }
+  // Avance le scroll
+  runner.scrollX = (runner.scrollX + advance) % 100;
+  runner.cloudsX = (runner.cloudsX + advance * 0.15) % rW;
+  runner.hillsX = (runner.hillsX + advance * 0.4) % rW;
+  // Avance les obstacles
+  for (const o of runner.obstacles) {
+    o.x -= advance;
+  }
+  // Détecte les misses (obstacles qui sortent à gauche sans être hits)
+  const boumbiX = rW * 0.18;
+  for (const o of runner.obstacles) {
+    if (!o.hit && !o.missed && o.x < boumbiX - RUNNER_HIT_PX) {
+      o.missed = true;
+      runnerLoseLife('miss', o);
+    }
+  }
+  // Cleanup off-screen
+  runner.obstacles = runner.obstacles.filter(o => o.x > -120 && (now - o.spawnTime) < 30000);
+  // Spawn
+  if (now >= runner.nextSpawnAt) {
+    runnerSpawn(cfg, now);
+    runner.nextSpawnAt = now + cfg.spawnMs * (0.85 + Math.random() * 0.3);
+  }
+  // Boumbi anim cooldown
+  if (runner.boumbi.anim && now - runner.boumbi.animT > RUNNER_JUMP_MS) {
+    runner.boumbi.anim = null;
+  }
+  // Particles
+  runner.particles.forEach(p => {
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vy += 600 * dt;  // gravity
+    p.life -= dt;
+  });
+  runner.particles = runner.particles.filter(p => p.life > 0);
+  // HUD
+  document.getElementById('runner-distance').textContent = Math.floor(runner.distance);
+}
+
+function runnerSpawn(cfg, now) {
+  // Évite de spawn juste devant Boumbi (au moins un peu d'air)
+  // Évite aussi de spawn 2x la même lane d'affilée pour la variété
+  let pool = cfg.pool.slice();
+  const last = runner.obstacles[runner.obstacles.length - 1];
+  if (last && pool.length > 1 && Math.random() < 0.7) {
+    pool = pool.filter(p => p !== last.lane);
+  }
+  const laneId = pool[Math.floor(Math.random() * pool.length)];
+  runner.obstacles.push({
+    lane: laneId,
+    x: rW + 60,
+    spawnTime: now,
+    hit: false,
+    missed: false,
+    hitT: 0,
+  });
+}
+
+function runnerSpawnLevelUpParticles() {
+  // Petit feu d'artifice quand un niveau passe
+  for (let i = 0; i < 30; i++) {
+    runner.particles.push({
+      x: rW * 0.5 + (Math.random() - 0.5) * 40,
+      y: rH * 0.3,
+      vx: (Math.random() - 0.5) * 400,
+      vy: -100 - Math.random() * 200,
+      color: ['#FFD93D', '#FF6B6B', '#4ECDC4', '#6BCB77'][Math.floor(Math.random() * 4)],
+      life: 1.4,
+      size: 4 + Math.random() * 4,
+    });
+  }
+}
+
+function runnerLoseLife(reason, obstacle) {
+  if (!runner.active) return;
+  runner.lives--;
+  // Feedback visuel
+  const livesEl = document.getElementById('runner-lives');
+  livesEl.textContent = '❤️'.repeat(Math.max(0, runner.lives)) + '🖤'.repeat(RUNNER_LIVES - Math.max(0, runner.lives));
+  livesEl.classList.remove('lost');
+  void livesEl.offsetWidth;
+  livesEl.classList.add('lost');
+  // Particules de poussière sur Boumbi
+  const bx = rW * 0.18, by = rH * 0.78;
+  for (let i = 0; i < 20; i++) {
+    runner.particles.push({
+      x: bx,
+      y: by,
+      vx: (Math.random() - 0.5) * 300,
+      vy: -50 - Math.random() * 200,
+      color: '#FF6B6B',
+      life: 0.8,
+      size: 3 + Math.random() * 3,
+    });
+  }
+  // Si game over
+  if (runner.lives <= 0) {
+    runnerGameOver();
+  }
+}
+
+function runnerTap(laneId) {
+  if (!runner.active) return;
+  // Trouve l'obstacle le plus proche dans la fenêtre de hit
+  const boumbiX = rW * 0.18;
+  let best = null, bestDist = Infinity;
+  for (const o of runner.obstacles) {
+    if (o.hit || o.missed) continue;
+    const d = Math.abs(o.x - boumbiX);
+    if (d <= RUNNER_HIT_PX && d < bestDist) { best = o; bestDist = d; }
+  }
+  if (!best) {
+    // Aucun obstacle dans la fenêtre → "tap dans le vide", on ignore (pas de pénalité, kid-friendly)
+    return;
+  }
+  if (best.lane === laneId) {
+    //
+    best.hit = true;
+    best.hitT = performance.now();
+    runner.obstaclesPassed++;
+    runner.boumbi.anim = RUNNER_OBS[laneId].anim;
+    runner.boumbi.animT = performance.now();
+    // Joue le son
+    const note = LANE_TO_NOTE[laneId];
+    if (midiOutput && note != null) {
+      midiOutput.send([0x99, note, 100]);
+      setTimeout(() => midiOutput.send([0x89, note, 0]), 60);
+    }
+    // Particules d'explosion
+    const obsColor = RUNNER_OBS[laneId].color;
+    for (let i = 0; i < 14; i++) {
+      runner.particles.push({
+        x: best.x,
+        y: runnerObstacleY(best),
+        vx: (Math.random() - 0.5) * 400,
+        vy: -100 - Math.random() * 200,
+        color: obsColor,
+        life: 0.7,
+        size: 4 + Math.random() * 4,
+      });
+    }
+  } else {
+    // Mauvais pad → −1 vie + feedback
+    best.missed = true;
+    runnerLoseLife('wrong', best);
+  }
+}
+
+function runnerObstacleY(o) {
+  const groundY = rH * 0.78;
+  const yKind = RUNNER_OBS[o.lane].y;
+  if (yKind === 'g') return groundY;
+  if (yKind === 'a') return rH * 0.42;
+  if (yKind === 'm') return rH * 0.6;
+  return groundY;
+}
+
+function runnerDraw() {
+  if (rW === 0 || rH === 0) return;
+  const ctx = runnerCtx;
+  ctx.clearRect(0, 0, rW, rH);
+
+  // === Ciel : gradient déjà sur le background CSS, mais on rajoute du depth ===
+  // Soleil
+  const sunY = rH * 0.18;
+  ctx.fillStyle = 'rgba(255, 255, 200, 0.9)';
+  ctx.beginPath();
+  ctx.arc(rW * 0.82, sunY, 40, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255, 255, 200, 0.3)';
+  ctx.beginPath();
+  ctx.arc(rW * 0.82, sunY, 60, 0, Math.PI * 2);
+  ctx.fill();
+
+  // === Nuages (parallax slow) ===
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+  const cloudPositions = [0.15, 0.45, 0.7, 1.1];
+  for (const cx of cloudPositions) {
+    const x = ((cx * rW - runner.cloudsX) % (rW + 200) + (rW + 200)) % (rW + 200) - 100;
+    const y = rH * (0.12 + (cx * 0.3 % 0.15));
+    runnerDrawCloud(ctx, x, y, 60);
+  }
+
+  // === Collines (parallax medium) ===
+  ctx.fillStyle = '#6BCB77';
+  for (let i = 0; i < 4; i++) {
+    const hx = ((i * rW * 0.4 - runner.hillsX) % (rW * 1.6) + rW * 1.6) % (rW * 1.6) - rW * 0.2;
+    ctx.beginPath();
+    ctx.ellipse(hx, rH * 0.78, 200, 50, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // === Sol ===
+  const groundY = rH * 0.78;
+  ctx.fillStyle = '#8B5A2B';
+  ctx.fillRect(0, groundY, rW, rH - groundY);
+  // Herbe au sommet du sol
+  ctx.fillStyle = '#6BCB77';
+  ctx.fillRect(0, groundY, rW, 8);
+  // Tirets sol (donnent l'impression de scroll)
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+  for (let x = -100 + runner.scrollX; x < rW; x += 60) {
+    ctx.fillRect(x, groundY + 24, 30, 4);
+  }
+
+  // === Zone de hit (subtile) ===
+  const boumbiX = rW * 0.18;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 6]);
+  ctx.strokeRect(boumbiX - RUNNER_HIT_PX, rH * 0.35, RUNNER_HIT_PX * 2, groundY - rH * 0.35 + 4);
+  ctx.setLineDash([]);
+
+  // === Obstacles ===
+  ctx.font = 'bold 56px system-ui, -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  for (const o of runner.obstacles) {
+    if (o.hit) {
+      // Hit obstacles : on les fait fade out / pop
+      const elapsed = (performance.now() - o.hitT) / 300;
+      if (elapsed >= 1) continue;
+      ctx.globalAlpha = 1 - elapsed;
+      const scale = 1 + elapsed * 0.8;
+      const y = runnerObstacleY(o);
+      ctx.save();
+      ctx.translate(o.x, y);
+      ctx.scale(scale, scale);
+      ctx.fillText(RUNNER_OBS[o.lane].emoji, 0, 0);
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    } else if (o.missed) {
+      ctx.globalAlpha = 0.4;
+      ctx.fillText(RUNNER_OBS[o.lane].emoji, o.x, runnerObstacleY(o));
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.fillText(RUNNER_OBS[o.lane].emoji, o.x, runnerObstacleY(o));
+    }
+  }
+
+  // === Boumbi ===
+  runnerDrawBoumbi(ctx, boumbiX, groundY);
+
+  // === Particules ===
+  for (const p of runner.particles) {
+    ctx.fillStyle = p.color;
+    ctx.globalAlpha = Math.min(1, p.life);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function runnerDrawCloud(ctx, x, y, size) {
+  ctx.beginPath();
+  ctx.arc(x, y, size * 0.5, 0, Math.PI * 2);
+  ctx.arc(x + size * 0.4, y - size * 0.15, size * 0.45, 0, Math.PI * 2);
+  ctx.arc(x + size * 0.8, y, size * 0.5, 0, Math.PI * 2);
+  ctx.arc(x + size * 0.3, y + size * 0.1, size * 0.4, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function runnerDrawBoumbi(ctx, x, groundY) {
+  // Animation
+  const now = performance.now();
+  const animProgress = runner.boumbi.anim
+    ? (now - runner.boumbi.animT) / RUNNER_JUMP_MS
+    : 0;
+  let yOffset = 0;
+  let scaleX = 1, scaleY = 1;
+  let rot = 0;
+  // Petite bobine de course en continu
+  const t = now / 200;
+  const bob = Math.sin(t) * 3;
+
+  if (runner.boumbi.anim === 'jump' && animProgress < 1) {
+    // Saut parabolique
+    const p = animProgress;
+    yOffset = -90 * Math.sin(p * Math.PI);
+  } else if (runner.boumbi.anim === 'smash' && animProgress < 1) {
+    // Squish down
+    const p = animProgress;
+    scaleY = 1 - 0.3 * Math.sin(p * Math.PI);
+    scaleX = 1 + 0.2 * Math.sin(p * Math.PI);
+  } else if (runner.boumbi.anim === 'duck' && animProgress < 1) {
+    // Se baisse
+    const p = animProgress;
+    yOffset = 15 * Math.sin(p * Math.PI);
+    scaleY = 1 - 0.15 * Math.sin(p * Math.PI);
+  } else if (runner.boumbi.anim === 'slide' && animProgress < 1) {
+    // Glisse en avant
+    const p = animProgress;
+    yOffset = 10 * Math.sin(p * Math.PI);
+    scaleX = 1 + 0.15 * Math.sin(p * Math.PI);
+  } else if (runner.boumbi.anim === 'spin' && animProgress < 1) {
+    // Tourne sur lui-même
+    rot = animProgress * Math.PI * 2;
+  } else {
+    yOffset = bob;
+  }
+
+  ctx.save();
+  ctx.translate(x, groundY - 4 + yOffset);
+  ctx.scale(scaleX, scaleY);
+  ctx.rotate(rot);
+
+  // Boumbi en emoji simple — c'est rapide à rendre et reconnaissable
+  ctx.font = 'bold 72px system-ui, -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('🦉', 0, 0);
+  ctx.restore();
+}
+
+function runnerGameOver() {
+  runner.active = false;
+  // Persist
+  const final = Math.floor(runner.distance);
+  const prevBest = runnerGetBest();
+  const isNewBest = final > prevBest;
+  if (isNewBest) localStorage.setItem(runnerBestKey(), String(final));
+  const stars = runnerStarsForDistance(final);
+  if (stars > 0) addStarsFor('runner', stars);
+  // Save dans l'historique
+  try {
+    const hKey = pkey('runner-history');
+    const arr = JSON.parse(localStorage.getItem(hKey) || '[]');
+    arr.push({
+      ts: Date.now(),
+      distance: final,
+      level: runner.level,
+      stars,
+      record: isNewBest,
+    });
+    if (arr.length > 100) arr.splice(0, arr.length - 100);
+    localStorage.setItem(hKey, JSON.stringify(arr));
+  } catch {}
+
+  // Overlay
+  const overlay = document.getElementById('runner-over');
+  document.getElementById('runner-over-dist').textContent = final;
+  document.getElementById('runner-over-level').textContent = runner.level;
+  const starsEl = document.getElementById('runner-over-stars');
+  starsEl.textContent = stars > 0 ? '⭐'.repeat(stars) : '✨';
+  starsEl.style.opacity = stars > 0 ? '1' : '0.4';
+  const recEl = document.getElementById('runner-over-record');
+  if (isNewBest && final > 0) recEl.classList.add('show');
+  else recEl.classList.remove('show');
+  const prevLine = document.getElementById('runner-over-prev');
+  if (isNewBest && prevBest > 0) prevLine.textContent = `Ancien record : ${prevBest}m`;
+  else if (!isNewBest && prevBest > 0) prevLine.textContent = `Ton record : ${prevBest}m`;
+  else prevLine.textContent = '';
+  // Titre selon perf
+  const emojiEl = document.getElementById('runner-over-emoji');
+  const titleEl = document.getElementById('runner-over-title');
+  if (final >= 500) { emojiEl.textContent = '🏆'; titleEl.textContent = 'Champion·ne !'; }
+  else if (final >= 250) { emojiEl.textContent = '🌟'; titleEl.textContent = 'Excellent run !'; }
+  else if (final >= 100) { emojiEl.textContent = '👏'; titleEl.textContent = 'Bien couru !'; }
+  else if (final >= 30) { emojiEl.textContent = '💪'; titleEl.textContent = 'On recommence ?'; }
+  else { emojiEl.textContent = '🦖'; titleEl.textContent = 'Encore un essai !'; }
+  if (isNewBest && final > 0 && typeof playReward === 'function') {
+    playReward();
+    setTimeout(playReward, 350);
+  }
+  overlay.classList.add('active');
+  updateStarsCounter();
+  document.getElementById('runner-best-hud').innerHTML = `Best : <strong>${Math.max(prevBest, final)}</strong>m`;
+}
+
+function runnerStopAll() {
+  runner.active = false;
+  if (runner.rafId) { cancelAnimationFrame(runner.rafId); runner.rafId = 0; }
+  if (runnerRO) { runnerRO.disconnect(); runnerRO = null; }
+  const cd = document.getElementById('runner-countdown');
+  if (cd) { cd.classList.remove('active'); cd.style.display = 'none'; }
+  const ov = document.getElementById('runner-over');
+  if (ov) ov.classList.remove('active');
+}
+
+document.getElementById('runner-start-btn').addEventListener('click', runnerStart);
+document.getElementById('runner-over-again').addEventListener('click', () => {
+  document.getElementById('runner-over').classList.remove('active');
+  runnerStart();
+});
+document.getElementById('runner-over-home').addEventListener('click', () => {
+  document.getElementById('runner-over').classList.remove('active');
+  goto('home');
+});
+
+// Keyboard fallback (pour tester sans MIDI)
+// kick=1, snare=2, crash=3, tomL=4, hihat=5 — Space déclenche kick (jump)
+const RUNNER_KEY_MAP = {
+  '1': 'kick', '2': 'snare', '3': 'crash', '4': 'tomL', '5': 'hihat',
+  ' ': 'kick', 'Spacebar': 'kick',
+};
+document.addEventListener('keydown', e => {
+  if (currentScreen !== 'runner' || !runner.active) return;
+  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+  const laneId = RUNNER_KEY_MAP[e.key];
+  if (laneId) {
+    e.preventDefault();
+    runnerTap(laneId);
+  }
+});
+
+// Click sur canvas → kick (action la plus utile, surtout au niveau 1)
+runnerCanvas.addEventListener('click', () => {
+  if (runner.active) runnerTap('kick');
 });
 
 // =====================================================================
@@ -5029,6 +5962,8 @@ function onMIDI(msg) {
     rfxOnHit(lane.id);
   } else if (currentScreen === 'memo' && memoPhase === 'awaiting') {
     memoUserTap(lane.id);
+  } else if (currentScreen === 'runner' && runner.active) {
+    runnerTap(lane.id);
   } else if (currentScreen === 'spotify' && spSchedule.length) {
     spRegisterHit(lane.id);
   } else if (currentScreen === 'play' && mode !== 'stopped') {
