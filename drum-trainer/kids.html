@@ -784,7 +784,33 @@ button:focus { outline: none; }
   position: absolute;
   top: 16px; left: 16px;
   display: flex; gap: 12px;
+  align-items: center;
   z-index: 4;
+}
+.play-bpm {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(0,0,0,0.45);
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.15);
+  color: white;
+  font-weight: 700;
+}
+.play-bpm-label { font-size: 12px; opacity: 0.7; }
+.play-bpm input[type=range] { width: 140px; accent-color: var(--accent); cursor: pointer; }
+.play-bpm-val {
+  font-size: 18px;
+  min-width: 40px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.play-bpm-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: black;
+  font-weight: 700;
 }
 .play-stop {
   width: 64px; height: 64px;
@@ -1175,6 +1201,12 @@ button:focus { outline: none; }
 <section id="screen-play" class="screen">
   <div class="play-controls">
     <button class="play-stop" id="play-stop">←</button>
+    <div class="play-bpm">
+      <span class="play-bpm-label">BPM</span>
+      <input type="range" id="play-bpm-slider" min="30" max="200" value="80">
+      <span class="play-bpm-val" id="play-bpm-val">80</span>
+      <span class="play-bpm-tag" id="play-bpm-tag" style="display:none">×1.0</span>
+    </div>
   </div>
   <canvas id="play-canvas"></canvas>
   <div class="play-timeline">
@@ -2562,6 +2594,12 @@ function startPattern(pattern, autostart = false) {
   buildPlayPads();
   scheduleNotes();
   hits = 0; totalSeen = 0;
+  // Resynchronise le slider BPM avec le tempo par défaut du pattern
+  const slider = document.getElementById('play-bpm-slider');
+  const val = document.getElementById('play-bpm-val');
+  if (slider) slider.value = pattern.bpm;
+  if (val) val.textContent = pattern.bpm;
+  updateBpmTag();
   if (autostart) {
     awaitingStart = false;
     startMode('play');
@@ -2570,6 +2608,40 @@ function startPattern(pattern, autostart = false) {
     showAwaitingMessage();
   }
 }
+
+// Change le BPM en live tout en conservant la continuité du beat courant
+// (les notes ne sautent pas, elles ralentissent/accélèrent à partir de
+// l'instant t).
+function setLiveBpm(newBpm) {
+  newBpm = Math.max(30, Math.min(200, newBpm));
+  if (newBpm === bpm) return;
+  if (mode !== 'stopped' && startTime > 0) {
+    const elapsed = (performance.now() - startTime) / 1000;
+    const beatsAccumulated = elapsed * (bpm / 60);
+    const newElapsed = beatsAccumulated / (newBpm / 60);
+    startTime = performance.now() - newElapsed * 1000;
+  }
+  bpm = newBpm;
+  document.getElementById('play-bpm-val').textContent = newBpm;
+  updateBpmTag();
+}
+
+function updateBpmTag() {
+  const tag = document.getElementById('play-bpm-tag');
+  if (!tag || !currentPattern) return;
+  const ratio = bpm / currentPattern.bpm;
+  if (Math.abs(ratio - 1) < 0.05) {
+    tag.style.display = 'none';
+  } else {
+    tag.style.display = 'inline-block';
+    tag.textContent = `×${ratio.toFixed(2)}`;
+    tag.style.background = ratio > 1 ? '#FFD93D' : '#94A3B8';
+  }
+}
+
+document.getElementById('play-bpm-slider').addEventListener('input', e => {
+  setLiveBpm(parseInt(e.target.value, 10));
+});
 
 function showAwaitingMessage() {
   const cdEl = document.getElementById('countdown');
@@ -2934,11 +3006,14 @@ function onPatternEnd() {
 }
 
 function showDone(earned) {
-  // Score sur 100 basé sur la précision réelle
+  // Score sur 100 basé sur la précision × le tempo joué.
+  // Tempo plus rapide que par défaut → bonus. Plus lent → malus.
+  // Ex : 100% précision à BPM×2 = 200 pts. 100% précision à BPM×0.5 = 50 pts.
   const total = scheduledNotes.length;
   const hitCount = scheduledNotes.filter(n => n.hit).length;
   const ratio = total > 0 ? hitCount / total : 0;
-  const score = Math.round(ratio * 100);
+  const bpmFactor = currentPattern?.bpm ? (bpm / currentPattern.bpm) : 1;
+  const score = Math.round(ratio * 100 * bpmFactor);
 
   let grade, gradeEmoji;
   if (score >= 90)      { grade = 'Excellent !'; gradeEmoji = '🌟'; }
@@ -2948,7 +3023,13 @@ function showDone(earned) {
   else                  { grade = 'On réessaie ?'; gradeEmoji = '🦉'; }
 
   document.getElementById('done-score-num').textContent = score;
-  document.getElementById('done-title').textContent = grade;
+  // Tooltip / sous-titre : BPM joué vs default
+  const subtitle = document.getElementById('done-title');
+  if (Math.abs(bpmFactor - 1) > 0.05) {
+    subtitle.innerHTML = `${grade} <span style="font-size:18px;color:var(--muted);font-weight:600;display:block;margin-top:6px;">À ${bpm} BPM (×${bpmFactor.toFixed(2)})</span>`;
+  } else {
+    subtitle.textContent = grade;
+  }
   document.getElementById('done-emoji').textContent = gradeEmoji;
   document.getElementById('done-stars').textContent = '⭐'.repeat(earned) + '☆'.repeat(currentPattern.stars - earned);
   addStarsFor(currentPattern.id, earned);
