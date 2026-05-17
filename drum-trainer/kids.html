@@ -869,54 +869,82 @@ button:focus { outline: none; }
 }
 .reflex-start:hover { filter: brightness(1.05); }
 
-.play-controls {
+/* === Top bar du Mode Apprendre — 2 rangées propres === */
+.play-topbar {
   position: absolute;
-  top: 16px; left: 16px;
-  display: flex; gap: 12px;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  gap: 12px;
   align-items: center;
   z-index: 4;
 }
+.play-topbar .btn-back {
+  width: 44px; height: 44px;
+  font-size: 22px;
+  flex-shrink: 0;
+}
 .play-bpm {
-  display: flex; align-items: center; gap: 10px;
-  background: rgba(0,0,0,0.45);
-  padding: 10px 16px;
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(0,0,0,0.5);
+  padding: 7px 14px;
   border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.12);
   color: white;
   font-weight: 700;
+  flex-shrink: 0;
 }
-.play-bpm-label { font-size: 12px; opacity: 0.7; }
-.play-bpm input[type=range] { width: 140px; accent-color: var(--accent); cursor: pointer; }
+.play-bpm-label { font-size: 11px; opacity: 0.65; letter-spacing: 0.5px; }
+.play-bpm input[type=range] { width: 110px; accent-color: var(--accent); cursor: pointer; }
 .play-bpm-val {
-  font-size: 18px;
-  min-width: 40px;
+  font-size: 16px;
+  min-width: 32px;
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
 .play-bpm-tag {
-  font-size: 11px;
-  padding: 2px 8px;
+  font-size: 10px;
+  padding: 2px 7px;
   border-radius: 999px;
   background: var(--accent);
   color: black;
   font-weight: 700;
 }
+
+/* === Row d'accompagnement, sous la top bar === */
+.play-accomp-row {
+  position: absolute;
+  top: 64px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  z-index: 4;
+  flex-wrap: wrap;
+}
 .play-accomp-btn {
-  background: rgba(0,0,0,0.45);
+  background: rgba(0,0,0,0.5);
   color: white;
-  border: 1px solid rgba(255,255,255,0.15);
-  padding: 10px 14px;
+  border: 1px solid rgba(255,255,255,0.12);
+  padding: 7px 14px;
   border-radius: 999px;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   font-family: inherit;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
+.play-accomp-btn:hover { background: rgba(0,0,0,0.65); }
 .play-accomp-btn[data-state="on"] {
   background: linear-gradient(135deg, #4ECDC4 0%, #6BCB77 100%);
-  color: white;
+  color: black;
   border-color: rgba(255,255,255,0.4);
-  box-shadow: 0 0 20px rgba(78,205,196,0.4);
+  box-shadow: 0 0 16px rgba(78,205,196,0.4);
 }
 .play-stop {
   width: 64px; height: 64px;
@@ -938,38 +966,39 @@ button:focus { outline: none; }
   z-index: 3;
 }
 
-/* === Timeline en haut du mode jeu === */
+/* === Timeline INTÉGRÉE dans la top bar (à droite, fills le reste) === */
 .play-timeline {
-  position: absolute;
-  top: 16px; left: 50%;
-  transform: translateX(-50%);
-  width: 60%;
-  max-width: 600px;
-  z-index: 4;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   pointer-events: none;
 }
 .timeline-bar {
-  height: 14px;
+  flex: 1;
+  height: 10px;
   background: rgba(255,255,255,0.18);
-  border-radius: 7px;
+  border-radius: 5px;
   overflow: hidden;
-  box-shadow: inset 0 1px 4px rgba(0,0,0,0.3);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
 }
 #timeline-fill {
   height: 100%;
   background: linear-gradient(90deg, #4ECDC4, #FFD93D, #FF6B6B);
   width: 0%;
-  border-radius: 7px;
+  border-radius: 5px;
   transition: width 0.06s linear;
 }
 #timeline-text {
-  text-align: center;
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 700;
-  color: rgba(255,255,255,0.9);
-  margin-top: 8px;
+  color: rgba(255,255,255,0.85);
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  min-width: 90px;
+  text-align: right;
 }
 
 /* === Mode apprendre — fin === */
@@ -1310,20 +1339,28 @@ button:focus { outline: none; }
 <!-- MODE JEU -->
 <!-- =================================================================== -->
 <section id="screen-play" class="screen">
-  <div class="play-controls">
-    <button class="play-stop" id="play-stop">←</button>
+  <!-- Top bar : retour + BPM + timeline (1 ligne) -->
+  <div class="play-topbar">
+    <button class="btn-back play-stop" id="play-stop">←</button>
     <div class="play-bpm">
       <span class="play-bpm-label">BPM</span>
       <input type="range" id="play-bpm-slider" min="30" max="200" value="80">
       <span class="play-bpm-val" id="play-bpm-val">80</span>
       <span class="play-bpm-tag" id="play-bpm-tag" style="display:none">×1.0</span>
     </div>
-    <button id="accomp-toggle" class="play-accomp-btn" data-state="off">🎵 Accompagnement OFF</button>
+    <div class="play-timeline">
+      <div class="timeline-bar"><div id="timeline-fill"></div></div>
+      <div id="timeline-text">0:00 / 0:00</div>
+    </div>
+  </div>
+  <!-- Row accompagnement (2e ligne, sous la top bar) -->
+  <div class="play-accomp-row">
+    <button id="accomp-toggle" class="play-accomp-btn" data-state="off">🎵 Synthé</button>
     <button id="sp-accomp-btn" class="play-accomp-btn">🎶 Spotify</button>
-    <button id="tap-tempo-btn" class="play-accomp-btn" title="Tape ESPACE en rythme pour caler le BPM">🥁 Tap tempo (espace)</button>
-    <div id="sp-accomp-info" style="display:none;background:linear-gradient(135deg,#1DB95455,#4ECDC433);padding:8px 14px;border-radius:999px;color:white;font-weight:700;font-size:13px;display:none;align-items:center;gap:10px;border:1px solid rgba(255,255,255,0.2);">
-      <span id="sp-accomp-track">—</span>
-      <button id="sp-accomp-stop" style="background:rgba(0,0,0,0.5);color:white;border:none;width:24px;height:24px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1;">×</button>
+    <button id="tap-tempo-btn" class="play-accomp-btn" title="Tape ESPACE en rythme pour caler le BPM">🥁 Tap</button>
+    <div id="sp-accomp-info" style="display:none;background:linear-gradient(135deg,#1DB95455,#4ECDC433);padding:6px 12px;border-radius:999px;color:white;font-weight:700;font-size:12px;align-items:center;gap:8px;border:1px solid rgba(255,255,255,0.2);max-width:380px;overflow:hidden;">
+      <span id="sp-accomp-track" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">—</span>
+      <button id="sp-accomp-stop" style="background:rgba(0,0,0,0.5);color:white;border:none;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:11px;line-height:1;flex-shrink:0;">×</button>
     </div>
   </div>
   <canvas id="play-canvas"></canvas>
@@ -1334,10 +1371,6 @@ button:focus { outline: none; }
       <span id="tap-tempo-bpm">—</span> <span style="font-size:16px;opacity:0.6;">BPM</span>
     </div>
     <div style="font-size:11px;color:rgba(255,255,255,0.7);"><span id="tap-tempo-count">0</span> taps · auto-stop dans <span id="tap-tempo-remaining">10</span>s · Échap pour finir</div>
-  </div>
-  <div class="play-timeline">
-    <div class="timeline-bar"><div id="timeline-fill"></div></div>
-    <div id="timeline-text">0:00 / 0:00</div>
   </div>
   <div class="play-pads" id="play-pads"></div>
   <div class="countdown" id="countdown" style="display:none"></div>
