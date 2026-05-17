@@ -1,0 +1,22 @@
+{
+  "_format": {
+    "x": "horizontal en %. >=0 = depuis la gauche, <0 = depuis la droite",
+    "y": "vertical en %. >=0 = depuis le haut, <0 = depuis le bas",
+    "size": "diamètre du pad rond en % de la largeur du widget",
+    "w_h": "(pédales) largeur et hauteur en %",
+    "aspectRatio": "ratio largeur:hauteur du widget conteneur"
+  },
+  "aspectRatio": "5 / 4",
+  "pads": {
+    "crash":   { "x":  5,  "y":  3,  "size": 17 },
+    "tomL":    { "x": 27,  "y":  9,  "size": 22 },
+    "tomM":    { "x": -27, "y":  9,  "size": 22 },
+    "ridecup": { "x": -5,  "y":  3,  "size": 17 },
+    "hihat":   { "x":  5,  "y": 37,  "size": 17 },
+    "snare":   { "x": 25,  "y": 44,  "size": 24 },
+    "tomH":    { "x": -25, "y": 44,  "size": 24 },
+    "ride":    { "x": -5,  "y": 37,  "size": 17 },
+    "hhpedal": { "x":  7,  "y": -2,  "w": 22, "h": 9 },
+    "kick":    { "x": -7,  "y": -2,  "w": 22, "h": 9 }
+  }
+}

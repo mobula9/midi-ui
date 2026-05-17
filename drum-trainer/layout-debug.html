@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Layout DD-75 — Debug</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%A7%3C/text%3E%3C/svg%3E">
+<style>
+:root {
+  --bg: #FFF8E7;
+  --panel: #FFFFFF;
+  --text: #2A2A3A;
+  --muted: #8A8A99;
+  --accent: #4ECDC4;
+  --good: #16a34a;
+  --bad: #b91c1c;
+  --kick: #FF6B6B;
+  --snare: #FFD93D;
+  --hihat: #6BCB77;
+  --crash: #C77DFF;
+  --tomL: #FFA94D;
+  --tomM: #FFB85C;
+  --tomH: #FFCC70;
+  --ride: #5CC8FF;
+  --ridecup: #A88BFA;
+  --hhpedal: #94A3B8;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: -apple-system, system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  height: 100vh;
+}
+.editor {
+  width: 520px;
+  padding: 20px;
+  background: var(--panel);
+  border-right: 1px solid #e5e3d8;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
+.editor h1 { margin: 0; font-size: 18px; font-weight: 700; }
+.editor h1 small { font-weight: 400; color: var(--muted); font-size: 12px; margin-left: 8px; }
+.toggle-bar {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--muted);
+}
+.toggle-bar input { margin: 0; }
+textarea {
+  flex: 1;
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 12px;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  resize: none;
+  min-height: 0;
+  background: #fafaf5;
+  color: var(--text);
+}
+.status {
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  min-height: 22px;
+}
+.status.ok { color: var(--good); background: #f0fdf4; }
+.status.err { color: var(--bad); background: #fef0f0; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+button {
+  padding: 9px 16px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+}
+button.secondary { background: #e2e2d8; color: #444; }
+button:hover { filter: brightness(1.05); }
+
+.css-block {
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 11px;
+  background: #1a1a25;
+  color: #e8e8f0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  white-space: pre;
+  overflow: auto;
+  max-height: 200px;
+}
+
+.preview {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  position: relative;
+  overflow: auto;
+}
+.widget {
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  aspect-ratio: 5/4;
+  background: #faf5e0;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(40,40,80,0.08);
+}
+.pad {
+  position: absolute;
+  border-radius: 50%;
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 4px solid rgba(0,0,0,0.25);
+  box-shadow: 0 8px 24px rgba(40,40,80,0.10), inset 0 -8px 16px rgba(0,0,0,0.15), inset 0 4px 8px rgba(255,255,255,0.2);
+  font-size: clamp(16px, 2.6vw, 32px);
+  color: rgba(0,0,0,0.7);
+  user-select: none;
+}
+.pad.pedal { border-radius: 10px; aspect-ratio: auto; font-size: clamp(14px, 2vw, 22px); }
+.pad .lbl { font-size: clamp(9px, 0.9vw, 12px); font-weight: 800; color: rgba(0,0,0,0.5); }
+.pad .nm  { font-size: clamp(11px, 1.1vw, 16px); font-weight: 700; }
+
+.pad[data-lane="crash"]   { background: var(--crash); }
+.pad[data-lane="ridecup"] { background: var(--ridecup); }
+.pad[data-lane="tomL"]    { background: var(--tomL); }
+.pad[data-lane="tomM"]    { background: var(--tomM); }
+.pad[data-lane="hihat"]   { background: var(--hihat); }
+.pad[data-lane="snare"]   { background: var(--snare); }
+.pad[data-lane="tomH"]    { background: var(--tomH); }
+.pad[data-lane="ride"]    { background: var(--ride); }
+.pad[data-lane="hhpedal"] { background: var(--hhpedal); }
+.pad[data-lane="kick"]    { background: var(--kick); }
+
+.legend {
+  position: absolute;
+  bottom: 16px; right: 16px;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: right;
+  line-height: 1.5;
+}
+</style>
+</head>
+<body>
+<div class="editor">
+  <h1>🔧 Debug Layout DD-75 <small>édite à gauche → preview à droite</small></h1>
+
+  <div class="toggle-bar">
+    <label><input type="checkbox" id="autopoll" checked> Auto-reload de <code>layout.json</code> toutes les 500 ms</label>
+  </div>
+
+  <textarea id="json" spellcheck="false"></textarea>
+
+  <div class="status" id="status">Charge layout.json…</div>
+
+  <div class="actions">
+    <button id="reload-file">↻ Recharger layout.json</button>
+    <button id="copy-css">📋 Copier le CSS</button>
+    <button id="copy-json" class="secondary">📋 Copier le JSON</button>
+    <button id="reset" class="secondary">Reset défaut</button>
+  </div>
+
+  <div class="css-block" id="css-out">/* le CSS apparaîtra ici après "Copier le CSS" */</div>
+</div>
+
+<div class="preview">
+  <div class="widget" id="widget"></div>
+  <div class="legend">
+    x &lt; 0 = depuis la droite<br>
+    y &lt; 0 = depuis le bas<br>
+    size = % de la largeur du widget
+  </div>
+</div>
+
+<script>
+const LANES = [
+  { id: 'crash',   pad: 'Pad 5',  emoji: '💥', name: 'Crash' },
+  { id: 'tomL',    pad: 'Pad 2',  emoji: '🥁', name: 'Tom L' },
+  { id: 'tomM',    pad: 'Pad 3',  emoji: '🥁', name: 'Tom M' },
+  { id: 'ridecup', pad: 'Pad 7',  emoji: '🔔', name: 'Ride Cup' },
+  { id: 'hihat',   pad: 'Pad 6',  emoji: '🎩', name: 'Hi-Hat' },
+  { id: 'snare',   pad: 'Pad 1',  emoji: '🥁', name: 'Snare' },
+  { id: 'tomH',    pad: 'Pad 4',  emoji: '🥁', name: 'Tom H' },
+  { id: 'ride',    pad: 'Pad 8',  emoji: '🪙', name: 'Ride' },
+  { id: 'hhpedal', pad: 'Pedal 2', emoji: '🦶', name: 'HH foot' },
+  { id: 'kick',    pad: 'Pedal 1', emoji: '🦶', name: 'Kick' },
+];
+
+const DEFAULTS = {
+  aspectRatio: '5 / 4',
+  pads: {
+    crash:   { x:  5,  y:  3,  size: 17 },
+    tomL:    { x: 27,  y:  9,  size: 22 },
+    tomM:    { x: -27, y:  9,  size: 22 },
+    ridecup: { x: -5,  y:  3,  size: 17 },
+    hihat:   { x:  5,  y: 37,  size: 17 },
+    snare:   { x: 25,  y: 44,  size: 24 },
+    tomH:    { x: -25, y: 44,  size: 24 },
+    ride:    { x: -5,  y: 37,  size: 17 },
+    hhpedal: { x:  7,  y: -2,  w: 22, h: 9 },
+    kick:    { x: -7,  y: -2,  w: 22, h: 9 },
+  }
+};
+
+const widget = document.getElementById('widget');
+const json = document.getElementById('json');
+const status = document.getElementById('status');
+const cssOut = document.getElementById('css-out');
+
+function buildPads() {
+  widget.innerHTML = '';
+  for (const l of LANES) {
+    const el = document.createElement('div');
+    el.className = 'pad';
+    el.dataset.lane = l.id;
+    if (l.pad.startsWith('Pedal')) el.classList.add('pedal');
+    el.innerHTML = `
+      <div class="lbl">${l.pad}</div>
+      <div>${l.emoji}</div>
+      <div class="nm">${l.name}</div>
+    `;
+    widget.appendChild(el);
+  }
+}
+
+function apply(data) {
+  if (data.aspectRatio) widget.style.aspectRatio = data.aspectRatio;
+  const pads = data.pads || {};
+  for (const l of LANES) {
+    const p = pads[l.id];
+    const el = widget.querySelector(`.pad[data-lane="${l.id}"]`);
+    if (!el) continue;
+    el.style.cssText = '';
+    if (!p) continue;
+    if (p.x >= 0) el.style.left = p.x + '%';
+    else el.style.right = (-p.x) + '%';
+    if (p.y >= 0) el.style.top = p.y + '%';
+    else el.style.bottom = (-p.y) + '%';
+    if (p.size !== undefined) el.style.width = p.size + '%';
+    if (p.w !== undefined) el.style.width = p.w + '%';
+    if (p.h !== undefined) { el.style.height = p.h + '%'; el.style.aspectRatio = 'auto'; }
+  }
+}
+
+function generateCSS(data) {
+  const pads = data.pads || {};
+  let s = `/* === SOCLE COMMUN DD-75 — généré depuis layout.json === */\n`;
+  s += `.dd75-layout { position: relative; aspect-ratio: ${data.aspectRatio || '5/4'}; }\n`;
+  s += `.dd75-layout > [data-lane] { position: absolute; aspect-ratio: 1; border-radius: 50%; }\n`;
+  for (const l of LANES) {
+    const p = pads[l.id];
+    if (!p) continue;
+    const xKey = p.x >= 0 ? 'left' : 'right';
+    const xVal = Math.abs(p.x);
+    const yKey = p.y >= 0 ? 'top' : 'bottom';
+    const yVal = Math.abs(p.y);
+    let rules;
+    if (p.size !== undefined) {
+      rules = `${yKey}: ${yVal}%; ${xKey}: ${xVal}%; width: ${p.size}%;`;
+    } else {
+      rules = `${yKey}: ${yVal}%; ${xKey}: ${xVal}%; width: ${p.w}%; height: ${p.h}%; aspect-ratio: auto; border-radius: 8px;`;
+    }
+    s += `.dd75-layout > [data-lane="${l.id}"] { ${rules} }\n`;
+  }
+  return s;
+}
+
+function setStatus(msg, ok) {
+  status.textContent = msg;
+  status.className = 'status ' + (ok ? 'ok' : 'err');
+}
+
+function parseAndApply(text, fromFile = false) {
+  try {
+    const data = JSON.parse(text);
+    apply(data);
+    setStatus(fromFile ? '✓ layout.json chargé' : '✓ JSON valide — preview à jour', true);
+    return data;
+  } catch (e) {
+    setStatus('✗ Erreur JSON : ' + e.message, false);
+    return null;
+  }
+}
+
+json.addEventListener('input', () => parseAndApply(json.value));
+
+async function loadFromFile() {
+  try {
+    const r = await fetch('./layout.json?t=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) return null;
+    return await r.text();
+  } catch { return null; }
+}
+
+document.getElementById('reload-file').addEventListener('click', async () => {
+  const t = await loadFromFile();
+  if (t) {
+    json.value = t;
+    parseAndApply(t, true);
+  } else {
+    setStatus('layout.json introuvable', false);
+  }
+});
+
+document.getElementById('reset').addEventListener('click', () => {
+  json.value = JSON.stringify(DEFAULTS, null, 2);
+  parseAndApply(json.value);
+});
+
+document.getElementById('copy-css').addEventListener('click', async () => {
+  const data = JSON.parse(json.value);
+  const css = generateCSS(data);
+  cssOut.textContent = css;
+  await navigator.clipboard.writeText(css);
+  const old = status.textContent;
+  setStatus('📋 CSS copié dans le presse-papier', true);
+  setTimeout(() => parseAndApply(json.value), 1500);
+});
+
+document.getElementById('copy-json').addEventListener('click', async () => {
+  await navigator.clipboard.writeText(json.value);
+  setStatus('📋 JSON copié dans le presse-papier', true);
+  setTimeout(() => parseAndApply(json.value), 1500);
+});
+
+// Auto-reload de layout.json
+let lastFileText = '';
+async function pollFile() {
+  if (!document.getElementById('autopoll').checked) return;
+  const t = await loadFromFile();
+  if (!t || t === lastFileText) return;
+  lastFileText = t;
+  // Évite d'écraser si l'utilisateur est en train de taper dans le textarea
+  if (document.activeElement !== json) {
+    json.value = t;
+    parseAndApply(t, true);
+  }
+}
+setInterval(pollFile, 500);
+
+// Init
+buildPads();
+(async () => {
+  const t = await loadFromFile();
+  if (t) {
+    json.value = t;
+    lastFileText = t;
+    parseAndApply(t, true);
+  } else {
+    json.value = JSON.stringify(DEFAULTS, null, 2);
+    parseAndApply(json.value);
+  }
+})();
+</script>
+</body>
+</html>
