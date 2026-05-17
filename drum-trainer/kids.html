@@ -2452,6 +2452,35 @@ button:focus { outline: none; }
   font-size: 22px;
 }
 
+/* Liste des motifs Studio dans la carte progress */
+.studio-progress-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.studio-progress-item {
+  background: #f5f5f0;
+  border-radius: 10px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+.studio-progress-item strong {
+  font-size: 14px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.studio-progress-item span { color: var(--muted); }
+.studio-progress-item .spi-date {
+  font-size: 11px;
+  font-style: italic;
+}
+
 /* === Settings (caché) === */
 #settings-modal {
   position: fixed; inset: 0;
@@ -4313,53 +4342,28 @@ function bucketOf(ts) {
   return 'Il y a plus longtemps';
 }
 
-function renderProgress() {
-  const list = document.getElementById('progress-list');
-  list.innerHTML = '';
-  const history = getHistory();
-  const played = PATTERNS.filter(p => history[p.id]?.length > 0);
-  if (played.length === 0) {
-    list.innerHTML = '<div class="no-progress">Joue un rythme pour commencer ta progression 🎵</div>';
-    return;
-  }
+// Construit la liste unifiee de "progression items" en combinant les patterns
+// existants (Apprendre + Reflexes) + les 4 nouveaux modes (Memo/Runner/Echo/Studio).
+// Chaque item a la forme {id, name, emoji, attempts:[{ts,score,stars}], maxScore, unit, onPlay}.
+function getAllProgressItems() {
+  const items = [];
 
-  // Bucket par période (basé sur le DERNIER essai du pattern)
-  const buckets = { "Aujourd'hui": [], 'Hier': [], 'Cette semaine': [], 'Il y a plus longtemps': [] };
-  for (const p of played) {
+  // 1) Patterns existants (Apprendre + Reflexes)
+  const history = getHistory();
+  for (const p of PATTERNS) {
     const att = history[p.id];
-    const last = att[att.length - 1];
-    buckets[bucketOf(last.ts)].push({ pattern: p, attempts: att, last });
-  }
-  for (const bk of Object.keys(buckets)) {
-    if (buckets[bk].length === 0) continue;
-    const section = document.createElement('div');
-    section.style.gridColumn = '1 / -1';
-    section.innerHTML = `<h3 style="margin:24px 0 8px 0;color:var(--muted);font-size:14px;letter-spacing:1px;text-transform:uppercase;">${bk}</h3>`;
-    list.appendChild(section);
-    for (const { pattern: p, attempts: att, last } of buckets[bk]) {
-      const best = Math.max(...att.map(a => a.score));
-      const avg = Math.round(att.reduce((s, a) => s + a.score, 0) / att.length);
-      const scale = p.isReflex ? (p.maxScale || 50) : 100;
-      const unit = p.isReflex ? '' : '/100';
-      const card = document.createElement('div');
-      card.className = 'progress-card';
-      card.innerHTML = `
-        <button class="progress-header" style="background:none;border:none;cursor:pointer;width:100%;text-align:left;padding:0;" data-play="${p.id}">
-          <div class="progress-emoji">${p.emoji}</div>
-          <div class="progress-name">${p.name} <span style="font-size:13px;color:var(--accent);font-weight:600;">▶ challenger</span></div>
-          <div class="progress-best">Best ${best}${unit}</div>
-        </button>
-        ${renderSparkline(att, scale)}
-        <div class="progress-stats">
-          <span>${att.length} essai${att.length > 1 ? 's' : ''}</span>
-          <span>Moyenne ${avg}</span>
-          <span title="${absoluteDate(last.ts)}">Dernier ${last.score} · ${relativeDate(last.ts)}</span>
-        </div>
-      `;
-      const btn = card.querySelector('[data-play]');
-      btn.addEventListener('click', () => {
+    if (!att || att.length === 0) continue;
+    const scale = p.isReflex ? (p.maxScale || 50) : 100;
+    const unit = p.isReflex ? '' : '/100';
+    items.push({
+      id: p.id,
+      name: p.name,
+      emoji: p.emoji,
+      attempts: att,
+      maxScore: scale,
+      unit,
+      onPlay: () => {
         if (p.isReflex) {
-          // Pré-sélectionne la difficulté + va au mode Réflexes
           reflexDiff = p.diff;
           goto('reflex');
           document.querySelectorAll('#rfx-difficulty button').forEach(b => {
@@ -4368,9 +4372,160 @@ function renderProgress() {
         } else {
           startPattern(p);
         }
-      });
+      },
+    });
+  }
+
+  // 2) Memo Boumbi (1 carte par difficulte qui a au moins 1 essai)
+  let memoHist = [];
+  try { memoHist = JSON.parse(localStorage.getItem(pkey('memo-history')) || '[]'); } catch {}
+  ['easy', 'medium', 'hard'].forEach(diff => {
+    const hist = memoHist.filter(h => (h.diff || 'medium') === diff);
+    if (hist.length === 0) return;
+    items.push({
+      id: `memo-${diff}`,
+      name: `Mémo ${MEMO_DIFF_LABEL[diff]}`,
+      emoji: '🦉',
+      tag: MEMO_DIFF_EMOJI[diff],
+      attempts: hist.map(h => ({ ts: h.ts, score: h.round || 0, stars: h.stars || 0 })),
+      maxScore: 12,  // ~12 rounds = "champion" sparkline scale
+      unit: ' rounds',
+      onPlay: () => {
+        memoDifficulty = diff;
+        localStorage.setItem(pkey('memo-difficulty'), diff);
+        goto('memo');
+      },
+    });
+  });
+
+  // 3) Runner (1 carte globale)
+  let runnerHist = [];
+  try { runnerHist = JSON.parse(localStorage.getItem(pkey('runner-history')) || '[]'); } catch {}
+  if (runnerHist.length > 0) {
+    items.push({
+      id: 'runner',
+      name: 'Boumbi court',
+      emoji: '🦖',
+      attempts: runnerHist.map(h => ({ ts: h.ts, score: h.distance || 0, stars: h.stars || 0, level: h.level })),
+      maxScore: 500,
+      unit: 'm',
+      extraStat: (att) => {
+        const maxLvl = Math.max(...att.map(a => a.level || 1));
+        return `Niveau max ${maxLvl}`;
+      },
+      onPlay: () => goto('runner'),
+    });
+  }
+
+  // 4) Echo (1 carte par niveau qui a au moins 1 essai)
+  let echoHist = [];
+  try { echoHist = JSON.parse(localStorage.getItem(pkey('echo-history')) || '[]'); } catch {}
+  for (let lv = 1; lv <= 6; lv++) {
+    const hist = echoHist.filter(h => (h.level || 1) === lv);
+    if (hist.length === 0) continue;
+    items.push({
+      id: `echo-lv${lv}`,
+      name: `Echo Niv ${lv}`,
+      emoji: '🔁',
+      attempts: hist.map(h => ({ ts: h.ts, score: h.score || 0, stars: h.stars || 0 })),
+      maxScore: 100,
+      unit: '%',
+      onPlay: () => {
+        echo.level = lv;
+        localStorage.setItem(pkey('echo-level'), String(lv));
+        goto('echo');
+      },
+    });
+  }
+
+  return items;
+}
+
+// Studio est creatif (pas de "score"), on le rend separement avec liste des motifs.
+function getStudioProgress() {
+  let lib = [];
+  try { lib = JSON.parse(localStorage.getItem(pkey('studio-library')) || '[]'); } catch {}
+  return lib;
+}
+
+function renderProgress() {
+  const list = document.getElementById('progress-list');
+  list.innerHTML = '';
+
+  const items = getAllProgressItems();
+  const studioLib = getStudioProgress();
+
+  if (items.length === 0 && studioLib.length === 0) {
+    list.innerHTML = '<div class="no-progress">Joue pour commencer ta progression 🎵</div>';
+    return;
+  }
+
+  // Bucket par période sur les items (basé sur le DERNIER essai)
+  const buckets = { "Aujourd'hui": [], 'Hier': [], 'Cette semaine': [], 'Il y a plus longtemps': [] };
+  for (const it of items) {
+    const last = it.attempts[it.attempts.length - 1];
+    buckets[bucketOf(last.ts)].push({ item: it, last });
+  }
+
+  for (const bk of Object.keys(buckets)) {
+    if (buckets[bk].length === 0) continue;
+    const section = document.createElement('div');
+    section.style.gridColumn = '1 / -1';
+    section.innerHTML = `<h3 style="margin:24px 0 8px 0;color:var(--muted);font-size:14px;letter-spacing:1px;text-transform:uppercase;">${bk}</h3>`;
+    list.appendChild(section);
+    for (const { item: it, last } of buckets[bk]) {
+      const best = Math.max(...it.attempts.map(a => a.score));
+      const avg = Math.round(it.attempts.reduce((s, a) => s + a.score, 0) / it.attempts.length);
+      const card = document.createElement('div');
+      card.className = 'progress-card';
+      card.innerHTML = `
+        <button class="progress-header" style="background:none;border:none;cursor:pointer;width:100%;text-align:left;padding:0;" data-play="${it.id}">
+          <div class="progress-emoji">${it.emoji}${it.tag ? `<span style="font-size:18px;margin-left:4px">${it.tag}</span>` : ''}</div>
+          <div class="progress-name">${it.name} <span style="font-size:13px;color:var(--accent);font-weight:600;">▶ rejouer</span></div>
+          <div class="progress-best">Best ${best}${it.unit || ''}</div>
+        </button>
+        ${renderSparkline(it.attempts, it.maxScore)}
+        <div class="progress-stats">
+          <span>${it.attempts.length} essai${it.attempts.length > 1 ? 's' : ''}</span>
+          <span>Moyenne ${avg}${it.unit || ''}</span>
+          ${it.extraStat ? `<span>${it.extraStat(it.attempts)}</span>` : ''}
+          <span title="${absoluteDate(last.ts)}">Dernier ${last.score}${it.unit || ''} · ${relativeDate(last.ts)}</span>
+        </div>
+      `;
+      const btn = card.querySelector('[data-play]');
+      btn.addEventListener('click', () => it.onPlay());
       list.appendChild(card);
     }
+  }
+
+  // Section Studio (creatif, pas de score)
+  if (studioLib.length > 0) {
+    const section = document.createElement('div');
+    section.style.gridColumn = '1 / -1';
+    section.innerHTML = `<h3 style="margin:24px 0 8px 0;color:var(--muted);font-size:14px;letter-spacing:1px;text-transform:uppercase;">🎨 Studio · tes motifs</h3>`;
+    list.appendChild(section);
+    const studioCard = document.createElement('div');
+    studioCard.className = 'progress-card';
+    studioCard.style.gridColumn = '1 / -1';
+    const sorted = studioLib.slice().sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
+    studioCard.innerHTML = `
+      <button class="progress-header" style="background:none;border:none;cursor:pointer;width:100%;text-align:left;padding:0;" data-play="studio">
+        <div class="progress-emoji">🎨</div>
+        <div class="progress-name">Studio Boumbi <span style="font-size:13px;color:var(--accent);font-weight:600;">▶ ouvrir</span></div>
+        <div class="progress-best">${studioLib.length} motif${studioLib.length > 1 ? 's' : ''}</div>
+      </button>
+      <div class="studio-progress-list">
+        ${sorted.slice(0, 6).map(m => `
+          <div class="studio-progress-item" title="${absoluteDate(m.updatedAt || m.createdAt || 0)}">
+            <strong>${m.name}</strong>
+            <span>${m.bpm} BPM · ${(m.lanes || []).length} lanes</span>
+            <span class="spi-date">${relativeDate(m.updatedAt || m.createdAt || 0)}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    studioCard.querySelector('[data-play]').addEventListener('click', () => goto('studio'));
+    list.appendChild(studioCard);
   }
 }
 
