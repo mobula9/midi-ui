@@ -1630,7 +1630,7 @@ button:focus { outline: none; }
 <section id="screen-free" class="screen">
   <div class="screen-title">
     <button class="btn-back" data-goto="home">←</button>
-    <h2 style="margin:0">🥁 Joue ce que tu veux !</h2>
+    <h2 style="margin:0" data-title-tpl="🥁 {name}, joue ce que tu veux !">🥁 Joue ce que tu veux !</h2>
     <span style="margin-left:auto;color:var(--muted);font-size:13px;">Dispo Yamaha DD-75 · Kit 1</span>
   </div>
   <div class="free-body">
@@ -1651,7 +1651,7 @@ button:focus { outline: none; }
 <section id="screen-learn-select" class="screen">
   <div class="screen-title">
     <button class="btn-back" data-goto="home">←</button>
-    <h2 style="margin:0">🎓 Choisis un rythme</h2>
+    <h2 style="margin:0" data-title-tpl="🎓 {name}, choisis un rythme à apprendre">🎓 Choisis un rythme</h2>
   </div>
   <div class="pattern-list" id="pattern-list"></div>
 </section>
@@ -1711,7 +1711,7 @@ button:focus { outline: none; }
 <section id="screen-spotify" class="screen">
   <div class="screen-title">
     <button class="btn-back" data-goto="home">←</button>
-    <h2 style="margin:0">🎵 Joue sur ta musique Spotify</h2>
+    <h2 style="margin:0" data-title-tpl="🎵 {name}, joue sur ta musique Spotify">🎵 Joue sur ta musique Spotify</h2>
     <span id="sp-status" style="margin-left:auto;font-size:13px;color:var(--muted)"></span>
   </div>
 
@@ -1775,7 +1775,7 @@ button:focus { outline: none; }
 <section id="screen-reflex" class="screen">
   <div class="screen-title">
     <button class="btn-back" data-goto="home">←</button>
-    <h2 style="margin:0">⚡ Tape avant que ça remplisse !</h2>
+    <h2 style="margin:0" data-title-tpl="⚡ {name}, tape avant que ça remplisse !">⚡ Tape avant que ça remplisse !</h2>
     <span style="margin-left:auto;color:var(--muted);font-size:13px;" id="reflex-kit-label"></span>
   </div>
   <div class="reflex-time-label" id="rfx-gauge-label">TEMPS</div>
@@ -1828,7 +1828,7 @@ button:focus { outline: none; }
 <section id="screen-memo" class="screen">
   <div class="screen-title">
     <button class="btn-back" data-goto="home">←</button>
-    <h2 style="margin:0">🦉 Mémo Boumbi</h2>
+    <h2 style="margin:0" data-title-tpl="🦉 {name}, retiens la séquence !">🦉 Mémo Boumbi</h2>
     <span style="margin-left:auto;color:var(--muted);font-size:13px;">Regarde, retiens, rejoue</span>
   </div>
   <div class="memo-stats">
@@ -1865,7 +1865,7 @@ button:focus { outline: none; }
 <section id="screen-progress" class="screen">
   <div class="screen-title">
     <button class="btn-back" data-goto="home">←</button>
-    <h2 style="margin:0">📈 Mes progrès</h2>
+    <h2 style="margin:0" data-title-tpl="📈 {name}, voici tes progrès">📈 Mes progrès</h2>
   </div>
   <div class="progress-list" id="progress-list"></div>
 </section>
@@ -2509,6 +2509,10 @@ function updateProfileDisplay() {
   const psName = document.getElementById('ps-name');
   if (psEmoji) psEmoji.textContent = p.emoji;
   if (psName) psName.textContent = p.name;
+  // Préfixe le nom dans tous les titres d'écran (data-title-tpl)
+  document.querySelectorAll('[data-title-tpl]').forEach(el => {
+    el.textContent = el.getAttribute('data-title-tpl').replace('{name}', p.name);
+  });
 }
 
 function profileStats(profileName) {
