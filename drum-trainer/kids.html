@@ -2907,40 +2907,93 @@ const ACCOMP_CHORD = [
   [196, 246.94, 293.66],  // G  (G B D)
 ];
 
+// Synthés du backing band — chaque instrument est un mini-patch séparé
+function spSubBass(freq, t, dur) {
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = 'sine'; o.frequency.value = freq;
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(0.16, t + 0.04);
+  g.gain.setValueAtTime(0.13, t + dur - 0.2);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(g).connect(audioCtx.destination);
+  o.start(t); o.stop(t + dur + 0.1);
+}
+function spBassPulse(freq, t) {
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = 'triangle'; o.frequency.value = freq;
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(0.13, t + 0.005);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+  o.connect(g).connect(audioCtx.destination);
+  o.start(t); o.stop(t + 0.32);
+}
+function spPad(chord, t, dur) {
+  for (const f of chord) {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain(), f1 = audioCtx.createBiquadFilter();
+    f1.type = 'lowpass'; f1.frequency.value = 1400; f1.Q.value = 0.7;
+    o.type = 'sawtooth'; o.frequency.value = f * 2;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.025, t + 0.35);  // slow attack pad
+    g.gain.setValueAtTime(0.025, t + dur - 0.35);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(f1).connect(g).connect(audioCtx.destination);
+    o.start(t); o.stop(t + dur + 0.1);
+  }
+}
+function spArpNote(freq, t, dur) {
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain(), f1 = audioCtx.createBiquadFilter();
+  f1.type = 'lowpass'; f1.frequency.value = 4500;
+  o.type = 'square'; o.frequency.value = freq * 4;  // 2 octaves up
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(0.028, t + 0.005);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(f1).connect(g).connect(audioCtx.destination);
+  o.start(t); o.stop(t + dur + 0.05);
+}
+function spShaker(t) {
+  // Petit shaker high-pass pour donner du groove sur les croches off
+  const sr = audioCtx.sampleRate, len = sr * 0.04;
+  const buf = audioCtx.createBuffer(1, len, sr);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1);
+  const src = audioCtx.createBufferSource();
+  src.buffer = buf;
+  const f1 = audioCtx.createBiquadFilter();
+  f1.type = 'highpass'; f1.frequency.value = 7000;
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(0.05, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+  src.connect(f1).connect(g).connect(audioCtx.destination);
+  src.start(t); src.stop(t + 0.05);
+}
+
 function playAccompBeat(beat) {
   ensureAudio();
   const t = audioCtx.currentTime;
   const idx = beat % ACCOMP_BASS.length;
   const bassFreq = ACCOMP_BASS[idx];
+  const chord = ACCOMP_CHORD[Math.floor(idx / 4)];
+  const beatDur = 60 / bpm;
 
-  // Basse pulsée sur chaque temps (triangle)
-  const o1 = audioCtx.createOscillator();
-  const g1 = audioCtx.createGain();
-  o1.type = 'triangle';
-  o1.frequency.value = bassFreq;
-  g1.gain.setValueAtTime(0, t);
-  g1.gain.linearRampToValueAtTime(0.16, t + 0.008);
-  g1.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
-  o1.connect(g1).connect(audioCtx.destination);
-  o1.start(t);
-  o1.stop(t + 0.4);
-
-  // Accord sur les temps 1 et 3 (= toutes les 2 temps), plus aigu et doux
-  if (beat % 2 === 0) {
-    const chord = ACCOMP_CHORD[Math.floor(idx / 4)];
-    for (const f of chord) {
-      const o = audioCtx.createOscillator();
-      const g = audioCtx.createGain();
-      o.type = 'sine';
-      o.frequency.value = f * 2;  // octave au-dessus
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.04, t + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
-      o.connect(g).connect(audioCtx.destination);
-      o.start(t);
-      o.stop(t + 0.65);
-    }
+  // Sub bass + pad sustained sur 4 temps (la couleur harmonique)
+  if (idx % 4 === 0) {
+    spSubBass(bassFreq / 2, t, beatDur * 4 - 0.05);
+    spPad(chord, t, beatDur * 4 - 0.05);
   }
+
+  // Basse pulsée sur chaque temps (le pouls)
+  spBassPulse(bassFreq, t);
+
+  // Arpège : 2 notes par temps (croches) qui parcourent l'accord
+  // Pattern : root, 3rd, 5th, 3rd → boucle
+  const arpPattern = [chord[0], chord[1], chord[2], chord[1]];
+  const n1 = (beat * 2) % 4;
+  const n2 = (beat * 2 + 1) % 4;
+  spArpNote(arpPattern[n1], t, beatDur * 0.45);
+  spArpNote(arpPattern[n2], t + beatDur / 2, beatDur * 0.45);
+
+  // Shaker sur les croches off pour le groove
+  spShaker(t + beatDur / 2);
 }
 
 function toggleAccomp() {
