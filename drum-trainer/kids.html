@@ -1320,12 +1320,21 @@ button:focus { outline: none; }
     </div>
     <button id="accomp-toggle" class="play-accomp-btn" data-state="off">🎵 Accompagnement OFF</button>
     <button id="sp-accomp-btn" class="play-accomp-btn">🎶 Spotify</button>
+    <button id="tap-tempo-btn" class="play-accomp-btn" title="Tape ESPACE en rythme pour caler le BPM">🥁 Tap tempo (espace)</button>
     <div id="sp-accomp-info" style="display:none;background:linear-gradient(135deg,#1DB95455,#4ECDC433);padding:8px 14px;border-radius:999px;color:white;font-weight:700;font-size:13px;display:none;align-items:center;gap:10px;border:1px solid rgba(255,255,255,0.2);">
       <span id="sp-accomp-track">—</span>
       <button id="sp-accomp-stop" style="background:rgba(0,0,0,0.5);color:white;border:none;width:24px;height:24px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1;">×</button>
     </div>
   </div>
   <canvas id="play-canvas"></canvas>
+  <!-- Tap tempo overlay -->
+  <div id="tap-tempo-bar" style="display:none;position:absolute;top:90px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:white;padding:16px 32px;border-radius:16px;z-index:10;flex-direction:column;align-items:center;gap:6px;border:2px solid var(--accent);box-shadow:0 0 30px rgba(78,205,196,0.5);">
+    <div style="font-size:13px;font-weight:700;color:var(--accent);letter-spacing:1px;">TAPE ESPACE EN RYTHME</div>
+    <div style="font-size:42px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;">
+      <span id="tap-tempo-bpm">—</span> <span style="font-size:16px;opacity:0.6;">BPM</span>
+    </div>
+    <div style="font-size:11px;color:rgba(255,255,255,0.7);"><span id="tap-tempo-count">0</span> taps · auto-stop dans <span id="tap-tempo-remaining">10</span>s · Échap pour finir</div>
+  </div>
   <div class="play-timeline">
     <div class="timeline-bar"><div id="timeline-fill"></div></div>
     <div id="timeline-text">0:00 / 0:00</div>
@@ -3137,6 +3146,95 @@ document.getElementById('sp-picker-close').addEventListener('click', closeSpotif
 document.getElementById('sp-accomp-stop').addEventListener('click', stopSpotifyAccomp);
 document.getElementById('sp-picker-overlay').addEventListener('click', e => {
   if (e.target.id === 'sp-picker-overlay') closeSpotifyAccompPicker();
+});
+
+// =====================================================================
+// TAP TEMPO — tape espace en rythme, on calcule le BPM + l'offset
+// =====================================================================
+const TAP_WINDOW_MS = 10000;  // fenêtre d'enregistrement
+let tapTimes = [];
+let tapActive = false;
+let tapEndTimer = null;
+let tapRemainingTimer = null;
+
+function tapTempoStart() {
+  tapTimes = [];
+  tapActive = true;
+  document.getElementById('tap-tempo-bar').style.display = 'flex';
+  document.getElementById('tap-tempo-count').textContent = '0';
+  document.getElementById('tap-tempo-bpm').textContent = '—';
+  let remaining = 10;
+  document.getElementById('tap-tempo-remaining').textContent = remaining;
+  if (tapEndTimer) clearTimeout(tapEndTimer);
+  if (tapRemainingTimer) clearInterval(tapRemainingTimer);
+  tapRemainingTimer = setInterval(() => {
+    remaining--;
+    document.getElementById('tap-tempo-remaining').textContent = Math.max(0, remaining);
+  }, 1000);
+  tapEndTimer = setTimeout(tapTempoFinish, TAP_WINDOW_MS);
+}
+
+function tapTempoTap() {
+  // 1er tap démarre la session ; si déjà active on ajoute juste
+  if (!tapActive) {
+    tapTempoStart();
+  }
+  const now = performance.now();
+  tapTimes.push(now);
+  document.getElementById('tap-tempo-count').textContent = tapTimes.length;
+  // BPM live (basé sur les 5 derniers intervalles, moyenne)
+  if (tapTimes.length >= 2) {
+    const recent = tapTimes.slice(-6);
+    const intervals = [];
+    for (let i = 1; i < recent.length; i++) intervals.push(recent[i] - recent[i-1]);
+    const avg = intervals.reduce((s, x) => s + x, 0) / intervals.length;
+    if (avg > 0) {
+      document.getElementById('tap-tempo-bpm').textContent = Math.round(60000 / avg);
+    }
+  }
+}
+
+function tapTempoFinish() {
+  tapActive = false;
+  if (tapEndTimer) { clearTimeout(tapEndTimer); tapEndTimer = null; }
+  if (tapRemainingTimer) { clearInterval(tapRemainingTimer); tapRemainingTimer = null; }
+  document.getElementById('tap-tempo-bar').style.display = 'none';
+  if (tapTimes.length < 3) return;
+  // BPM final = médiane des intervalles (robuste aux taps ratés)
+  const intervals = [];
+  for (let i = 1; i < tapTimes.length; i++) intervals.push(tapTimes[i] - tapTimes[i-1]);
+  intervals.sort((a, b) => a - b);
+  const median = intervals[Math.floor(intervals.length / 2)];
+  const bpmComputed = Math.round(60000 / median);
+  setLiveBpm(bpmComputed);
+  // Sync de l'offset : si on joue déjà, on aligne beat 0 sur le 1er tap
+  // (le motif tombe désormais "en phase" avec les taps)
+  if (mode !== 'stopped') {
+    startTime = tapTimes[0];
+    lastClickBeat = -1;
+    lastAccompBeat = -1;
+  }
+  // Feedback dans le badge Spotify si actif
+  if (apprSpotifyTrack) {
+    document.getElementById('sp-accomp-track').textContent =
+      `${apprSpotifyTrack.name} — ${bpmComputed} BPM (tap tempo)`;
+  }
+}
+
+// Écoute la touche espace globalement sur l'écran Apprendre
+document.addEventListener('keydown', e => {
+  if (currentScreen !== 'play') return;
+  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+  if (e.code === 'Space' || e.key === ' ') {
+    e.preventDefault();
+    tapTempoTap();
+  } else if (e.key === 'Escape' && tapActive) {
+    tapTempoFinish();
+  }
+});
+document.getElementById('tap-tempo-btn').addEventListener('click', () => {
+  if (tapActive) tapTempoFinish();
+  else tapTempoStart();
 });
 
 let spPickerTimer = null;
