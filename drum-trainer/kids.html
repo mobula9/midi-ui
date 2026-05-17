@@ -7477,8 +7477,8 @@ function ensurePadSynth() {
 
 // Joue le son du pad correspondant au lane.id (synthetise en Web Audio).
 function playPadSound(laneId, velocity) {
+  ensurePadSynth();  // cree audioCtx si besoin + master gain
   if (!audioCtx) return;
-  ensurePadSynth();
   const t = audioCtx.currentTime;
   const target = _padSynthMaster;
   const noise = runnerNoiseBuf();
@@ -10060,7 +10060,15 @@ document.getElementById('done-again').addEventListener('click', () => {
 // WebAudio (click + récompense)
 // =====================================================================
 function ensureAudio() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  // Chrome/Safari : l'AudioContext est cree en mode 'suspended' tant qu'un
+  // gesture user n'a pas ete fait. On retente le resume a chaque appel —
+  // dès que cet appel se fait depuis un click/keydown, ca se debloque.
+  if (audioCtx.state === 'suspended' && typeof audioCtx.resume === 'function') {
+    audioCtx.resume().catch(() => {});
+  }
 }
 function playClick(strong) {
   ensureAudio();
