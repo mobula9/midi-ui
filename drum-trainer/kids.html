@@ -275,51 +275,67 @@ button:focus { outline: none; }
   box-shadow: 0 0 14px var(--accent);
 }
 
-/* === Mode libre — dispo physique DD-75 === */
+/* === Mode libre — dispo physique DD-75 (absolute positioning) === */
 #screen-free { background: var(--bg); }
 #screen-free .pads-free {
   flex: 1;
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
-  grid-template-rows: 1fr 1fr 1fr 1fr 0.8fr;
-  gap: 14px;
-  padding: 14px 24px 24px 24px;
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  aspect-ratio: 5 / 4;
+  padding: 0;
 }
 .free-pad {
-  border-radius: 24px;
+  position: absolute;
+  border-radius: 50%;          /* pads ronds comme la vraie batterie */
+  aspect-ratio: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  font-size: 56px;
-  position: relative;
-  box-shadow: var(--shadow);
+  gap: 2px;
+  font-size: clamp(24px, 4vw, 48px);
+  box-shadow: var(--shadow), inset 0 -8px 16px rgba(0,0,0,0.15), inset 0 4px 8px rgba(255,255,255,0.2);
   cursor: pointer;
   user-select: none;
   transition: transform 0.08s;
-  overflow: hidden;
+  border: 4px solid rgba(0,0,0,0.25);
   background: var(--lane-color);
+  color: rgba(0,0,0,0.7);
 }
 .free-pad:active { transform: scale(0.94); }
-.free-pad .pad-label { font-size: 18px; font-weight: 700; color: rgba(0,0,0,0.55); }
-.free-pad .pad-id    { font-size: 11px; font-weight: 700; color: rgba(0,0,0,0.4); letter-spacing: 0.5px; position: absolute; top: 8px; left: 12px; }
-.free-pad.pedal { border-radius: 18px; font-size: 44px; }
-.free-pad.bounce {
-  animation: bounce 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+.free-pad .pad-label { font-size: clamp(11px, 1.2vw, 16px); font-weight: 700; color: rgba(0,0,0,0.65); }
+.free-pad .pad-id    { font-size: clamp(9px, 0.9vw, 12px); font-weight: 800; color: rgba(0,0,0,0.5); letter-spacing: 0.5px; }
+.free-pad.bounce { animation: bounce 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+/* Pédales rectangulaires en bas */
+.free-pad.pedal {
+  border-radius: 14px;
+  aspect-ratio: auto;
+  font-size: clamp(20px, 3vw, 32px);
 }
 
-/* Positions des pads sur la grille (vue de face du DD-75) */
-.free-pad[data-lane="crash"]   { grid-column: 1; grid-row: 1 / span 2; }     /* Pad 5 — haut gauche */
-.free-pad[data-lane="ridecup"] { grid-column: 5; grid-row: 1 / span 2; }     /* Pad 7 — haut droit */
-.free-pad[data-lane="tomL"]    { grid-column: 2 / span 2; grid-row: 1; }     /* Pad 2 — haut centre gauche */
-.free-pad[data-lane="tomM"]    { grid-column: 3 / span 2; grid-row: 2; }     /* Pad 3 — haut centre droit (offset) */
-.free-pad[data-lane="hihat"]   { grid-column: 1; grid-row: 3 / span 2; }     /* Pad 6 — mid gauche */
-.free-pad[data-lane="ride"]    { grid-column: 5; grid-row: 3 / span 2; }     /* Pad 8 — mid droit */
-.free-pad[data-lane="snare"]   { grid-column: 2 / span 2; grid-row: 3; }     /* Pad 1 — bas centre gauche */
-.free-pad[data-lane="tomH"]    { grid-column: 3 / span 2; grid-row: 4; }     /* Pad 4 — bas centre droit (offset) */
-.free-pad[data-lane="hhpedal"] { grid-column: 1 / span 2; grid-row: 5; }     /* Pedal 2 — bas gauche */
-.free-pad[data-lane="kick"]    { grid-column: 4 / span 2; grid-row: 5; }     /* Pedal 1 — bas droit */
+/* Positions (en %) calquées sur la photo du DD-75 — vue de face */
+/* Top corners — petites cymbales */
+.free-pad[data-lane="crash"]   { top: 2%;  left: 4%;  width: 16%; }    /* Pad 5 */
+.free-pad[data-lane="ridecup"] { top: 2%;  right: 4%; width: 16%; }    /* Pad 7 */
+
+/* Upper inner — toms moyens */
+.free-pad[data-lane="tomL"]    { top: 6%;  left: 30%; width: 18%; }    /* Pad 2 */
+.free-pad[data-lane="tomM"]    { top: 6%;  right: 30%;width: 18%; }    /* Pad 3 */
+
+/* Middle sides — hi-hat + ride (larges) */
+.free-pad[data-lane="hihat"]   { top: 32%; left: 1%;  width: 24%; }    /* Pad 6 */
+.free-pad[data-lane="ride"]    { top: 32%; right: 1%; width: 24%; }    /* Pad 8 */
+
+/* Lower inner — snare + tom H (les plus gros) */
+.free-pad[data-lane="snare"]   { top: 44%; left: 22%; width: 27%; }    /* Pad 1 */
+.free-pad[data-lane="tomH"]    { top: 44%; right: 22%;width: 27%; }    /* Pad 4 */
+
+/* Pédales en bas */
+.free-pad[data-lane="hhpedal"] { bottom: 2%; left: 4%;  width: 22%; height: 11%; }   /* Pedal 2 */
+.free-pad[data-lane="kick"]    { bottom: 2%; right: 4%; width: 22%; height: 11%; }   /* Pedal 1 */
 @keyframes bounce {
   0%   { transform: scale(1); }
   40%  { transform: scale(0.85); }
@@ -363,35 +379,66 @@ button:focus { outline: none; }
   inset: 0;
   width: 100%; height: 100%;
 }
+/* Footer du mode jeu = même widget DD-75 que le mode libre, en plus compact */
 #screen-play .play-pads {
   position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 140px;
-  display: flex;
-  background: rgba(0,0,0,0.4);
-  border-top: 3px solid rgba(255,255,255,0.4);
+  bottom: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 700px;
+  height: 280px;
+  background: rgba(0,0,0,0.35);
+  border-top: 3px solid rgba(255,255,255,0.3);
   z-index: 2;
+  padding: 6px 12px 12px 12px;
 }
 .play-pad {
-  flex: 1;
+  position: absolute;
+  border-radius: 50%;
+  aspect-ratio: 1;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  gap: 6px;
-  font-size: 64px;
-  position: relative;
-  border-right: 1px solid rgba(255,255,255,0.1);
+  gap: 2px;
+  font-size: 22px;
+  border: 3px solid rgba(255,255,255,0.2);
+  background: rgba(60,60,80,0.5);
+  color: rgba(255,255,255,0.5);
   overflow: hidden;
+  transition: transform 0.08s, background 0.06s, border-color 0.06s, box-shadow 0.06s;
 }
-.play-pad:last-child { border-right: none; }
-.play-pad-label { font-size: 22px; font-weight: 700; color: rgba(255,255,255,0.7); }
-.play-pad-bar { position: absolute; top: 0; left: 0; right: 0; height: 6px; }
-.play-pad.flash::after {
-  content: '';
-  position: absolute; inset: 0;
+.play-pad.in-pattern {
   background: var(--lane-color);
-  opacity: 0.5;
-  pointer-events: none;
+  color: rgba(0,0,0,0.7);
+  border-color: rgba(255,255,255,0.6);
+  opacity: 0.85;
 }
+.play-pad.upcoming {
+  /* Note qui approche du now-line dans cette lane */
+  box-shadow: 0 0 30px var(--lane-color), inset 0 0 20px rgba(255,255,255,0.5);
+  transform: scale(1.08);
+  opacity: 1;
+}
+.play-pad.flash {
+  background: white !important;
+  color: black;
+  transform: scale(1.15);
+}
+.play-pad-label { font-size: 11px; font-weight: 700; line-height: 1; }
+.play-pad-id    { font-size: 9px; font-weight: 800; letter-spacing: 0.5px; opacity: 0.7; line-height: 1; }
+.play-pad-bar { display: none; }
+.play-pad.pedal { border-radius: 12px; aspect-ratio: auto; font-size: 18px; }
+
+/* Positions DD-75 (vue de face, plus compact pour le footer) */
+.play-pad[data-lane="crash"]   { top: 4px;  left: 5%;   width: 16%; }
+.play-pad[data-lane="ridecup"] { top: 4px;  right: 5%;  width: 16%; }
+.play-pad[data-lane="tomL"]    { top: 14%; left: 31%;  width: 17%; }
+.play-pad[data-lane="tomM"]    { top: 14%; right: 31%; width: 17%; }
+.play-pad[data-lane="hihat"]   { top: 35%; left: 2%;   width: 24%; }
+.play-pad[data-lane="ride"]    { top: 35%; right: 2%;  width: 24%; }
+.play-pad[data-lane="snare"]   { top: 47%; left: 24%;  width: 25%; }
+.play-pad[data-lane="tomH"]    { top: 47%; right: 24%; width: 25%; }
+.play-pad[data-lane="hhpedal"] { bottom: 6px; left: 4%;  width: 22%; height: 12%; }
+.play-pad[data-lane="kick"]    { bottom: 6px; right: 4%; width: 22%; height: 12%; }
 
 .play-controls {
   position: absolute;
@@ -1386,17 +1433,22 @@ function clearAwaitingMessage() {
 }
 
 function buildPlayPads() {
+  // On affiche les 10 pads du DD-75. Ceux du pattern sont colorés (in-pattern),
+  // les autres restent grisés pour montrer la dispo physique sans distraction.
   const padsEl = document.getElementById('play-pads');
   padsEl.innerHTML = '';
-  for (const lane of activeLanes()) {
+  const activeIds = new Set(activeLanes().map(l => l.id));
+  for (const lane of LANES) {
+    const isPedal = lane.dd75?.startsWith('Pedal');
+    const inPattern = activeIds.has(lane.id);
     const el = document.createElement('div');
-    el.className = 'play-pad';
+    el.className = 'play-pad' + (isPedal ? ' pedal' : '') + (inPattern ? ' in-pattern' : '');
     el.dataset.lane = lane.id;
     el.style.setProperty('--lane-color', lane.color);
     el.innerHTML = `
-      <div class="play-pad-bar" style="background:${lane.color}"></div>
       <div>${lane.emoji}</div>
       <div class="play-pad-label">${lane.name}</div>
+      <div class="play-pad-id">${lane.dd75}</div>
     `;
     padsEl.appendChild(el);
   }
@@ -1456,7 +1508,7 @@ function drawPlay() {
   const lanes = activeLanes();
   if (!lanes.length) return;
   const laneW = pW / lanes.length;
-  const PAD_H = 140;
+  const PAD_H = 280;  // hauteur du widget DD-75 dans le footer
   const nowY = pH - PAD_H;
   const beatsPerSec = bpm / 60;
   const pxPerBeat = nowY / (FALL_TIME_SEC * beatsPerSec);
@@ -1529,6 +1581,28 @@ function drawPlay() {
     playCtx.lineWidth = 2;
     drawRound(playCtx, x, y - h/2, w, h, 10);
     playCtx.stroke();
+  }
+
+  // Highlight des pads "à taper bientôt" (note dans la fenêtre d'approche)
+  const APPROACH_MS = 220;  // commence à highlight 220 ms avant le now-line
+  const upcomingLanes = new Set();
+  for (const n of scheduledNotes) {
+    if (n.hit || n.missed) continue;
+    const beatOffset = n.beat - currentBeat;
+    const msOffset = beatOffset / beatsPerSec * 1000;
+    if (msOffset <= APPROACH_MS && msOffset >= -HIT_WINDOW_MS) {
+      upcomingLanes.add(n.lane);
+    }
+  }
+  // Applique/retire la classe .upcoming sur chaque pad DD-75
+  const playPadsEl = document.getElementById('play-pads');
+  if (playPadsEl) {
+    for (const lane of LANES) {
+      const padEl = playPadsEl.querySelector(`.play-pad[data-lane="${lane.id}"]`);
+      if (!padEl) continue;
+      if (upcomingLanes.has(lane.id)) padEl.classList.add('upcoming');
+      else padEl.classList.remove('upcoming');
+    }
   }
 
   // Missed detection (silencieux, juste grisé + emoji discret)
