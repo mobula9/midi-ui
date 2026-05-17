@@ -2610,9 +2610,28 @@ function buildPlayPads() {
     padsEl.appendChild(col);
   }
 }
+// Ordre visuel gauche → droite sur le DD-75 (basé sur layout.json).
+// Permet d'afficher les colonnes du Mode Apprendre dans le même ordre
+// que la dispo physique : kick à droite (pédale droite), snare au centre, etc.
+const LANE_SCREEN_ORDER = [
+  'hhpedal',  // pédale gauche
+  'crash',    // cymbale haut gauche
+  'hihat',    // hi-hat mid gauche
+  'snare',    // snare centre-gauche
+  'tomL',     // tom L centre haut
+  'tomM',     // tom M centre haut
+  'tomH',     // tom H centre-droite
+  'ride',     // ride mid droite
+  'ridecup',  // cymbale haut droite
+  'kick',     // pédale droite
+];
+
 function activeLanes() {
   if (!currentPattern) return [];
-  return LANES.filter(l => currentPattern.notes[l.id]);
+  const lanes = LANES.filter(l => currentPattern.notes[l.id]);
+  // Trie selon l'ordre physique sur la DD-75 (les colonnes du jeu suivent la batterie)
+  lanes.sort((a, b) => LANE_SCREEN_ORDER.indexOf(a.id) - LANE_SCREEN_ORDER.indexOf(b.id));
+  return lanes;
 }
 
 function scheduleNotes() {
