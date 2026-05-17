@@ -129,10 +129,39 @@ button:hover { filter: brightness(1.05); }
   font-size: clamp(16px, 2.6vw, 32px);
   color: rgba(0,0,0,0.7);
   user-select: none;
+  cursor: grab;
+  transition: box-shadow 0.1s;
+}
+.pad:hover { box-shadow: 0 8px 24px rgba(40,40,80,0.10), inset 0 -8px 16px rgba(0,0,0,0.15), inset 0 4px 8px rgba(255,255,255,0.2), 0 0 0 3px rgba(78,205,196,0.5); }
+.pad.dragging {
+  cursor: grabbing;
+  box-shadow: 0 12px 36px rgba(40,40,80,0.25), inset 0 -8px 16px rgba(0,0,0,0.15), inset 0 4px 8px rgba(255,255,255,0.2), 0 0 0 4px var(--accent);
+  z-index: 10;
 }
 .pad.pedal { border-radius: 10px; aspect-ratio: auto; font-size: clamp(14px, 2vw, 22px); }
-.pad .lbl { font-size: clamp(9px, 0.9vw, 12px); font-weight: 800; color: rgba(0,0,0,0.5); }
-.pad .nm  { font-size: clamp(11px, 1.1vw, 16px); font-weight: 700; }
+.pad .lbl { font-size: clamp(9px, 0.9vw, 12px); font-weight: 800; color: rgba(0,0,0,0.5); pointer-events: none; }
+.pad .nm  { font-size: clamp(11px, 1.1vw, 16px); font-weight: 700; pointer-events: none; }
+.pad .coord {
+  font-size: clamp(9px, 0.8vw, 11px); font-family: 'SF Mono', Menlo, monospace;
+  color: rgba(0,0,0,0.5); margin-top: 2px;
+  pointer-events: none;
+}
+
+/* Petits "handles" pour le resize (apparaissent au hover) */
+.pad::after {
+  content: '';
+  position: absolute;
+  bottom: -4px; right: -4px;
+  width: 14px; height: 14px;
+  background: var(--accent);
+  border: 2px solid white;
+  border-radius: 50%;
+  opacity: 0;
+  cursor: nwse-resize;
+  transition: opacity 0.1s;
+}
+.pad:hover::after,
+.pad.dragging::after { opacity: 1; }
 
 .pad[data-lane="crash"]   { background: var(--crash); }
 .pad[data-lane="ridecup"] { background: var(--ridecup); }
@@ -168,10 +197,22 @@ button:hover { filter: brightness(1.05); }
   <div class="status" id="status">Charge layout.json…</div>
 
   <div class="actions">
-    <button id="reload-file">↻ Recharger layout.json</button>
+    <button id="save-file">💾 Sauvegarder dans layout.json</button>
+    <button id="download" class="secondary">⬇ Télécharger</button>
+    <button id="reload-file" class="secondary">↻ Recharger</button>
+  </div>
+  <div class="actions">
     <button id="copy-css">📋 Copier le CSS</button>
     <button id="copy-json" class="secondary">📋 Copier le JSON</button>
     <button id="reset" class="secondary">Reset défaut</button>
+  </div>
+  <div style="font-size:11px; color:var(--muted); line-height:1.5; padding:4px 8px; background:#f5f5f0; border-radius:6px;">
+    <strong>🎯 Édition visuelle :</strong><br>
+    • <kbd style="background:#fff;padding:1px 5px;border:1px solid #ddd;border-radius:3px;">drag</kbd> sur un pad pour le bouger<br>
+    • <kbd style="background:#fff;padding:1px 5px;border:1px solid #ddd;border-radius:3px;">molette</kbd> sur un pad pour changer sa taille<br>
+    • <kbd style="background:#fff;padding:1px 5px;border:1px solid #ddd;border-radius:3px;">Shift + molette</kbd> (pédales) pour la hauteur<br>
+    • <kbd style="background:#fff;padding:1px 5px;border:1px solid #ddd;border-radius:3px;">drag</kbd> du <span style="color:var(--accent)">●</span> en bas-droite = resize<br>
+    Les coordonnées s'affichent sur chaque pad et dans le JSON à gauche en temps réel.
   </div>
 
   <div class="css-block" id="css-out">/* le CSS apparaîtra ici après "Copier le CSS" */</div>
@@ -221,6 +262,9 @@ const json = document.getElementById('json');
 const status = document.getElementById('status');
 const cssOut = document.getElementById('css-out');
 
+let currentData = null;  // dernière donnée valide (modifiée par drag/resize)
+let dirty = false;       // true si modifié localement non sauvé (bloque l'auto-reload)
+
 function buildPads() {
   widget.innerHTML = '';
   for (const l of LANES) {
@@ -232,9 +276,98 @@ function buildPads() {
       <div class="lbl">${l.pad}</div>
       <div>${l.emoji}</div>
       <div class="nm">${l.name}</div>
+      <div class="coord" data-coord="${l.id}"></div>
     `;
+    // Drag pour bouger
+    el.addEventListener('mousedown', e => startDrag(el, e));
+    // Wheel pour resize
+    el.addEventListener('wheel', e => onWheelResize(el, e), { passive: false });
     widget.appendChild(el);
   }
+}
+
+function updateCoordText(laneId) {
+  const p = currentData?.pads?.[laneId];
+  if (!p) return;
+  const el = widget.querySelector(`[data-coord="${laneId}"]`);
+  if (!el) return;
+  if (p.size !== undefined) {
+    el.textContent = `${p.x},${p.y} · ${p.size}`;
+  } else {
+    el.textContent = `${p.x},${p.y} · ${p.w}×${p.h}`;
+  }
+}
+
+function startDrag(el, e) {
+  // Distingue drag normal vs drag du handle (resize)
+  const r = el.getBoundingClientRect();
+  const isResizeHandle = (e.clientX > r.right - 20) && (e.clientY > r.bottom - 20);
+  const lane = el.dataset.lane;
+  const p = currentData.pads[lane];
+  if (!p) return;
+  const widgetRect = widget.getBoundingClientRect();
+  const startX = e.clientX, startY = e.clientY;
+  const startVals = { ...p };
+  el.classList.add('dragging');
+  e.preventDefault();
+
+  function onMove(ev) {
+    const dxPct = (ev.clientX - startX) / widgetRect.width  * 100;
+    const dyPct = (ev.clientY - startY) / widgetRect.height * 100;
+    if (isResizeHandle) {
+      // Resize : la diagonale détermine le nouveau diamètre
+      const delta = Math.max(dxPct, dyPct);
+      if (startVals.size !== undefined) {
+        p.size = Math.max(4, Math.min(60, +(startVals.size + delta).toFixed(1)));
+      } else {
+        p.w = Math.max(5, Math.min(80, +(startVals.w + dxPct).toFixed(1)));
+        p.h = Math.max(3, Math.min(30, +(startVals.h + dyPct).toFixed(1)));
+      }
+    } else {
+      // Move : maj x et y selon le signe (anchor left/right, top/bottom)
+      p.x = +(startVals.x + (startVals.x >= 0 ? dxPct : dxPct)).toFixed(1);
+      p.y = +(startVals.y + (startVals.y >= 0 ? dyPct : dyPct)).toFixed(1);
+    }
+    applyAll();
+    updateTextarea();
+    dirty = true;
+  }
+  function onUp() {
+    el.classList.remove('dragging');
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    if (dirty) setStatus('● Modifié — clique 💾 pour sauvegarder', false);
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+function onWheelResize(el, e) {
+  e.preventDefault();
+  const lane = el.dataset.lane;
+  const p = currentData.pads[lane];
+  if (!p) return;
+  const step = e.deltaY < 0 ? +0.5 : -0.5;
+  if (p.size !== undefined) {
+    p.size = Math.max(4, Math.min(60, +(p.size + step).toFixed(1)));
+  } else if (e.shiftKey) {
+    p.h = Math.max(3, Math.min(30, +(p.h + step).toFixed(1)));
+  } else {
+    p.w = Math.max(5, Math.min(80, +(p.w + step).toFixed(1)));
+  }
+  applyAll();
+  updateTextarea();
+  dirty = true;
+  setStatus('● Modifié — clique 💾 pour sauvegarder', false);
+}
+
+function updateTextarea() {
+  json.value = JSON.stringify(currentData, null, 2);
+}
+
+function applyAll() {
+  apply(currentData);
+  for (const l of LANES) updateCoordText(l.id);
 }
 
 function apply(data) {
@@ -287,7 +420,8 @@ function setStatus(msg, ok) {
 function parseAndApply(text, fromFile = false) {
   try {
     const data = JSON.parse(text);
-    apply(data);
+    currentData = data;
+    applyAll();
     setStatus(fromFile ? '✓ layout.json chargé' : '✓ JSON valide — preview à jour', true);
     return data;
   } catch (e) {
@@ -316,6 +450,53 @@ document.getElementById('reload-file').addEventListener('click', async () => {
   }
 });
 
+// Sauvegarde via File System Access API (Chrome) — vraie écriture du fichier
+let fileHandle = null;
+async function pickFileForSave() {
+  try {
+    [fileHandle] = await window.showOpenFilePicker({
+      types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
+      multiple: false,
+      startIn: 'documents',
+    });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+async function writeToFile() {
+  if (!fileHandle) {
+    const picked = await pickFileForSave();
+    if (!picked) {
+      setStatus('Sauvegarde annulée', false);
+      return;
+    }
+  }
+  try {
+    const writable = await fileHandle.createWritable();
+    await writable.write(JSON.stringify(currentData, null, 2));
+    await writable.close();
+    dirty = false;
+    lastFileText = JSON.stringify(currentData, null, 2);
+    setStatus(`💾 Sauvegardé dans ${fileHandle.name}`, true);
+  } catch (e) {
+    setStatus('Erreur sauvegarde : ' + e.message, false);
+  }
+}
+document.getElementById('save-file').addEventListener('click', writeToFile);
+
+// Téléchargement comme fallback (toujours dispo)
+document.getElementById('download').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(currentData, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'layout.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  setStatus('📥 Téléchargé : remplace drum-trainer/layout.json', true);
+});
+
 document.getElementById('reset').addEventListener('click', () => {
   json.value = JSON.stringify(DEFAULTS, null, 2);
   parseAndApply(json.value);
@@ -341,10 +522,10 @@ document.getElementById('copy-json').addEventListener('click', async () => {
 let lastFileText = '';
 async function pollFile() {
   if (!document.getElementById('autopoll').checked) return;
+  if (dirty) return;   // ne pas écraser les modifs locales non sauvegardées
   const t = await loadFromFile();
   if (!t || t === lastFileText) return;
   lastFileText = t;
-  // Évite d'écraser si l'utilisateur est en train de taper dans le textarea
   if (document.activeElement !== json) {
     json.value = t;
     parseAndApply(t, true);
