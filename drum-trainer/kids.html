@@ -1514,6 +1514,20 @@ button:focus { outline: none; }
   padding-left: 6px;
   letter-spacing: 0.5px;
 }
+.studio-scroll-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--panel);
+  padding: 6px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  user-select: none;
+}
+.studio-scroll-toggle input { cursor: pointer; margin: 0; }
 
 .studio-grid-wrap {
   flex: 1;
@@ -1527,24 +1541,59 @@ button:focus { outline: none; }
   min-width: 0;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;  /* rows ne s'étirent PAS à la largeur du grid :
-                                chaque row prend la largeur de son contenu,
-                                ce qui permet à position:sticky de fonctionner */
   gap: 6px;
   align-self: center;
   background: var(--panel);
   padding: 16px;
   border-radius: 16px;
   box-shadow: var(--shadow);
+  --studio-cell-w: 36px;
+  --studio-cell-h: 36px;
+  --studio-cell-gap: 4px;
+  --studio-cell-radius: 8px;
+}
+/* Mode FIT (defaut) : tout rentre, cellules ecrasees */
+.studio-grid.fit {
+  align-items: stretch;
+  overflow: visible;
+}
+.studio-grid.fit .studio-row { width: auto; }
+.studio-grid.fit .studio-row-cells {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.studio-grid.fit .studio-cell {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+}
+/* Mode SCROLL : cellules a taille fixe, scroll-x */
+.studio-grid.scroll {
+  align-items: flex-start;
   overflow-x: auto;
   overflow-y: visible;
-  --studio-cell-w: 36px;
+}
+.studio-grid.scroll .studio-row { width: max-content; }
+.studio-grid.scroll .studio-cell {
+  flex: 0 0 var(--studio-cell-w, 36px);
+  width: var(--studio-cell-w, 36px);
+}
+.studio-grid.scroll .studio-row-label {
+  position: sticky;
+  left: 0;
+  background: var(--panel);
+  z-index: 3;
+}
+.studio-grid.scroll .ssn-label-spacer {
+  position: sticky;
+  left: 0;
+  background: var(--panel);
+  z-index: 3;
 }
 .studio-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: max-content;  /* largeur = somme des cells, indispensable pour sticky */
 }
 .studio-row-label {
   display: flex;
@@ -1553,10 +1602,6 @@ button:focus { outline: none; }
   font-weight: 700;
   font-size: 13px;
   color: var(--text);
-  position: sticky;
-  left: 0;
-  background: var(--panel);
-  z-index: 3;
   flex: 0 0 90px;
   padding-right: 4px;
 }
@@ -1571,8 +1616,7 @@ button:focus { outline: none; }
 }
 .studio-row-cells {
   display: flex;
-  gap: 4px;
-  flex: 0 0 auto;
+  gap: var(--studio-cell-gap, 4px);
 }
 .studio-cell.barstart {
   border-left: 2px solid rgba(120, 120, 120, 0.4);
@@ -1580,12 +1624,10 @@ button:focus { outline: none; }
 }
 .studio-cell.barstart:first-child { border-left: none; margin-left: 0; }
 .studio-cell {
-  flex: 0 0 var(--studio-cell-w, 36px);
-  width: var(--studio-cell-w, 36px);
-  height: var(--studio-cell-w, 36px);
+  height: var(--studio-cell-h, 36px);
   background: #f5f5f0;
   border: 2px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--studio-cell-radius, 8px);
   cursor: pointer;
   transition: background 0.08s, transform 0.06s, box-shadow 0.1s;
   position: relative;
@@ -1622,24 +1664,25 @@ button:focus { outline: none; }
   margin-top: 6px;
   font-size: 11px;
   color: var(--muted);
-  width: max-content;
 }
+.studio-grid.scroll .studio-step-numbers { width: max-content; }
 .studio-step-numbers .ssn-label-spacer {
   flex: 0 0 90px;
-  position: sticky;
-  left: 0;
-  background: var(--panel);
-  z-index: 3;
 }
 .studio-step-numbers .ssn-cells {
   display: flex;
-  gap: 4px;
-  flex: 0 0 auto;
+  gap: var(--studio-cell-gap, 4px);
 }
-.studio-step-numbers .ssn-cells > div {
+.studio-grid.fit .studio-step-numbers .ssn-cells { flex: 1 1 0; min-width: 0; }
+.studio-step-numbers .ssn-cells > div { text-align: center; }
+.studio-grid.fit .studio-step-numbers .ssn-cells > div {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.studio-grid.scroll .studio-step-numbers .ssn-cells > div {
   flex: 0 0 var(--studio-cell-w, 36px);
   width: var(--studio-cell-w, 36px);
-  text-align: center;
 }
 
 .studio-boumbi-dance {
@@ -3496,6 +3539,10 @@ button:focus { outline: none; }
       <button data-steps="64">64</button>
       <button data-steps="128">128</button>
     </div>
+    <label class="studio-scroll-toggle" title="Cellules a taille fixe + scroll horizontal">
+      <input type="checkbox" id="studio-scroll-toggle">
+      <span>Scroll</span>
+    </label>
   </div>
   <div class="studio-grid-wrap">
     <div class="studio-grid" id="studio-grid"></div>
@@ -8585,6 +8632,7 @@ const studio = {
   name: '',
   laneMode: 4,                // 4 ou 8
   stepsCount: 16,             // 8, 16, 32, 64, 128 (8 max = 8 mesures)
+  scrollMode: false,          // false = fit (cellules ecrasees), true = scroll-x
   lanes: STUDIO_LANES_4,      // copie d'un des deux templates
   steps: {},                  // {kick: [bool * stepsCount], ...}
   loadedId: null,             // id du motif chargé depuis la lib (pour update)
@@ -8641,6 +8689,7 @@ function studioSaveDraft() {
     bpm: studio.bpm,
     laneMode: studio.laneMode,
     stepsCount: studio.stepsCount,
+    scrollMode: studio.scrollMode,
     lanes: studio.lanes,
     steps: studio.steps,
     loadedId: studio.loadedId,
@@ -8655,6 +8704,7 @@ function studioLoadDraft() {
     studio.bpm = d.bpm || 100;
     studio.laneMode = d.laneMode || 4;
     studio.stepsCount = STUDIO_STEPS_OPTIONS.includes(d.stepsCount) ? d.stepsCount : 16;
+    studio.scrollMode = !!d.scrollMode;
     studio.lanes = d.lanes || (studio.laneMode === 8 ? STUDIO_LANES_8 : STUDIO_LANES_4);
     studio.steps = d.steps || studioFreshSteps(studio.lanes);
     studio.loadedId = d.loadedId || null;
@@ -8665,14 +8715,34 @@ function studioLoadDraft() {
 function buildStudioGrid() {
   const grid = document.getElementById('studio-grid');
   grid.innerHTML = '';
-  // Largeur de cellule adaptative : moins de steps = plus large
-  // mais pas trop pour ne pas pousser les actions hors viewport
+  // Mode fit (defaut) ou scroll (cellules taille fixe)
+  grid.classList.toggle('fit', !studio.scrollMode);
+  grid.classList.toggle('scroll', !!studio.scrollMode);
+  // Largeur de cellule en mode scroll (cellules carrees)
   const cellW = (studio.stepsCount <= 8)  ? 44
               : (studio.stepsCount <= 16) ? 40
               : (studio.stepsCount <= 32) ? 32
               : (studio.stepsCount <= 64) ? 28
               :                              24;
+  // Hauteur de cellule (en mode fit on baisse pour ne pas exploser la grid en vertical)
+  const cellH = studio.scrollMode
+    ? cellW
+    : (studio.stepsCount <= 16) ? 36
+    : (studio.stepsCount <= 32) ? 28
+    : (studio.stepsCount <= 64) ? 22
+    :                             18;
   grid.style.setProperty('--studio-cell-w', cellW + 'px');
+  grid.style.setProperty('--studio-cell-h', cellH + 'px');
+  // Gap entre cellules : 0 a partir de 32 pas (cellules collees)
+  const gap = (studio.stepsCount <= 16) ? 4
+            : (studio.stepsCount <= 32) ? 2
+            :                              0;
+  grid.style.setProperty('--studio-cell-gap', gap + 'px');
+  // Border-radius reduit a partir de 32 (sinon les cells collees ont des trous)
+  const rad = (studio.stepsCount <= 16) ? 8
+            : (studio.stepsCount <= 32) ? 4
+            :                              0;
+  grid.style.setProperty('--studio-cell-radius', rad + 'px');
   for (const laneId of studio.lanes) {
     const lane = LANES.find(l => l.id === laneId);
     if (!lane) continue;
@@ -8721,6 +8791,8 @@ function buildStudioGrid() {
   document.querySelectorAll('#studio-steps-mode button').forEach(b => {
     b.classList.toggle('active', parseInt(b.dataset.steps, 10) === studio.stepsCount);
   });
+  const scrollChk = document.getElementById('studio-scroll-toggle');
+  if (scrollChk) scrollChk.checked = !!studio.scrollMode;
   // Show "supprimer" only if loaded from library
   document.getElementById('studio-delete').style.display = studio.loadedId ? '' : 'none';
 }
@@ -9064,6 +9136,13 @@ document.getElementById('studio-steps-mode').addEventListener('click', e => {
   if (count === studio.stepsCount) return;
   studioStop();  // par precaution
   studioResizeSteps(count);
+  studioSaveDraft();
+  buildStudioGrid();
+});
+
+// Toggle mode scroll (cellules taille fixe + scroll-x)
+document.getElementById('studio-scroll-toggle').addEventListener('change', e => {
+  studio.scrollMode = !!e.target.checked;
   studioSaveDraft();
   buildStudioGrid();
 });
