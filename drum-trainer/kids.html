@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <title>Drum Trainer · Boumbi</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A6%89%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -369,21 +370,27 @@ button:focus { outline: none; }
   aspect-ratio: 1;        /* pads ronds par défaut */
   border-radius: 50%;
 }
-/* Top corners — petites cymbales (Pad 5 et Pad 7) */
-.dd75-layout > [data-lane="crash"]   { top: 3%;  left: 4%;   width: 20%; }
-.dd75-layout > [data-lane="ridecup"] { top: 3%;  right: 4%;  width: 20%; }
-/* Top inner — toms moyens (Pad 2 et Pad 3), tightly packed au centre */
-.dd75-layout > [data-lane="tomL"]    { top: 9%;  left: 25%;  width: 23%; }
-.dd75-layout > [data-lane="tomM"]    { top: 9%;  right: 25%; width: 23%; }
-/* Mid sides — hi-hat et ride (Pad 6 et Pad 8) */
-.dd75-layout > [data-lane="hihat"]   { top: 45%; left: 3%;   width: 20%; }
-.dd75-layout > [data-lane="ride"]    { top: 45%; right: 3%;  width: 20%; }
-/* Bottom inner — snare et tom H (Pad 1 et Pad 4), aussi tight au centre */
-.dd75-layout > [data-lane="snare"]   { top: 51%; left: 25%;  width: 23%; }
-.dd75-layout > [data-lane="tomH"]    { top: 51%; right: 25%; width: 23%; }
-/* Pédales en bas — rectangulaires */
-.dd75-layout > [data-lane="hhpedal"] { bottom: 3%; left: 5%;  width: 22%; height: 9%; aspect-ratio: auto; border-radius: 8px; }
-.dd75-layout > [data-lane="kick"]    { bottom: 3%; right: 5%; width: 22%; height: 9%; aspect-ratio: auto; border-radius: 8px; }
+/* Dispo précise calquée sur la photo du DD-75 :
+   - 2 rangées de 4 pads
+   - 4 PETITS pads aux 4 coins (5, 7 en haut ; 6, 8 en bas), tous ~17% width
+   - 4 GROS pads au centre (2, 3 en haut ; 1, 4 en bas), tous ~23% width
+   - Pads 5 et 6 alignés verticalement à gauche, Pads 7 et 8 à droite
+   - Un "trou" au milieu du bas pour les contrôles (= laisse de la place
+     pour les pédales)
+*/
+/* Rangée du HAUT — coins petits, centre grands */
+.dd75-layout > [data-lane="crash"]   { top: 3%;  left: 5%;   width: 17%; }    /* Pad 5  petit  */
+.dd75-layout > [data-lane="tomL"]    { top: 9%;  left: 27%;  width: 22%; }    /* Pad 2  grand  */
+.dd75-layout > [data-lane="tomM"]    { top: 9%;  right: 27%; width: 22%; }    /* Pad 3  grand  */
+.dd75-layout > [data-lane="ridecup"] { top: 3%;  right: 5%;  width: 17%; }    /* Pad 7  petit  */
+/* Rangée du BAS — coins petits (alignés sous 5/7), centre grands */
+.dd75-layout > [data-lane="hihat"]   { top: 37%; left: 5%;   width: 17%; }    /* Pad 6  petit  */
+.dd75-layout > [data-lane="snare"]   { top: 44%; left: 25%;  width: 24%; }    /* Pad 1  grand  */
+.dd75-layout > [data-lane="tomH"]    { top: 44%; right: 25%; width: 24%; }    /* Pad 4  grand  */
+.dd75-layout > [data-lane="ride"]    { top: 37%; right: 5%;  width: 17%; }    /* Pad 8  petit  */
+/* Pédales en bas — rectangulaires, séparées (laissent le "trou" central) */
+.dd75-layout > [data-lane="hhpedal"] { bottom: 2%; left: 7%;  width: 22%; height: 9%; aspect-ratio: auto; border-radius: 8px; }
+.dd75-layout > [data-lane="kick"]    { bottom: 2%; right: 7%; width: 22%; height: 9%; aspect-ratio: auto; border-radius: 8px; }
 
 /* === Mode libre — dispo physique DD-75 (absolute positioning) === */
 #screen-free { background: var(--bg); }
@@ -549,7 +556,22 @@ button:focus { outline: none; }
 .free-pad:active { transform: scale(0.94); }
 .free-pad .pad-label { font-size: clamp(11px, 1.2vw, 16px); font-weight: 700; color: rgba(0,0,0,0.65); }
 .free-pad .pad-id    { font-size: clamp(9px, 0.9vw, 12px); font-weight: 800; color: rgba(0,0,0,0.5); letter-spacing: 0.5px; }
-.free-pad.bounce { animation: bounce 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); }
+/* Bounce dont l'amplitude dépend de la vélocité (var --vel : 0 → 1).
+   Soft tap = mini-rebond ; frappe forte = gros impact + flash lumineux. */
+.free-pad.bounce {
+  animation: bounce 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow:
+    var(--shadow),
+    inset 0 -8px 16px rgba(0,0,0,0.15),
+    inset 0 4px 8px rgba(255,255,255,0.2),
+    0 0 calc(var(--vel, 0.5) * 60px) calc(var(--vel, 0.5) * 6px) var(--lane-color, white);
+}
+@keyframes bounce {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(calc(1 - var(--vel, 0.5) * 0.18)); }   /* dip plus fort si frappe forte */
+  70%  { transform: scale(calc(1 + var(--vel, 0.5) * 0.06)); }   /* rebond légèrement plus haut */
+  100% { transform: scale(1); }
+}
 @keyframes bounce {
   0%   { transform: scale(1); }
   40%  { transform: scale(0.85); }
@@ -1423,11 +1445,24 @@ const KITS = [
 let currentKitNum = parseInt(localStorage.getItem('boumbi-kit') || '1', 10);
 function getCurrentKit() { return KITS.find(k => k.num === currentKitNum) || KITS[0]; }
 function selectKit(num) {
+  const previous = currentKitNum;
   currentKitNum = num;
   localStorage.setItem('boumbi-kit', String(num));
   updateKitDisplay();
   // Rafraîchit les ⚠ kit mismatch dans la liste des records si on est dessus
   if (currentScreen === 'free') renderRecordings();
+  // Si on change de kit, le mapping des pads peut être différent (les voix
+  // assignées sur la DD-75 changent → les notes MIDI envoyées changent
+  // aussi). On reset le compteur de notes non mappées pour redéclencher
+  // la suggestion de calibration si nécessaire.
+  if (previous !== num) {
+    unmappedCount = 0;
+    const btn = document.getElementById('home-calibrate');
+    if (btn) {
+      btn.classList.remove('attention');
+      btn.textContent = '🎯 Calibrer ma batterie';
+    }
+  }
 }
 function updateKitDisplay() {
   const kit = getCurrentKit();
@@ -1998,10 +2033,15 @@ buildFreePads();
 function freePadHit(laneId, sendMidi = false, isReplay = false, velocity = 100) {
   const el = document.querySelector(`.free-pad[data-lane="${laneId}"]`);
   if (!el) return;
+  // Intensité normalisée 0.2 → 1 selon la vélocité (1-127 MIDI).
+  // Frappe douce = mini-animation ; frappe forte = gros impact + confettis.
+  const intensity = Math.max(0.2, Math.min(1, velocity / 110));
+  el.style.setProperty('--vel', intensity.toFixed(2));
   el.classList.remove('bounce');
   void el.offsetWidth;
   el.classList.add('bounce');
-  spawnConfetti(el, 12, LANES.find(l => l.id === laneId)?.color);
+  const confettiCount = Math.round(4 + intensity * 18);  // 4-22 particules
+  spawnConfetti(el, confettiCount, LANES.find(l => l.id === laneId)?.color);
   // Si déclenché par clic souris OU replay et qu'on a un MIDI out → batterie joue
   if (sendMidi && midiOutput) {
     const note = LANE_TO_NOTE[laneId];
