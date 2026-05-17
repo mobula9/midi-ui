@@ -1635,6 +1635,10 @@ button:focus { outline: none; }
       <button data-diff="normal" class="active">Normal</button>
       <button data-diff="fast">Rapide</button>
       <button data-diff="crazy">Fou</button>
+      <label class="rfx-option" style="display:inline-flex;align-items:center;gap:6px;margin-left:14px;font-size:13px;color:var(--muted);cursor:pointer;user-select:none;">
+        <input type="checkbox" id="rfx-skip-pedals" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);">
+        Sans les pédales 🦶
+      </label>
     </div>
     <div class="reflex-board dd75-layout" id="reflex-board"></div>
     <button class="reflex-start" id="rfx-toggle">▶ Démarrer (1 min)</button>
@@ -2425,6 +2429,14 @@ function renderProfileDropdown() {
         // Refresh la vue qui dépend du profil (progression, étoiles inline, etc.)
         if (currentScreen === 'progress' && typeof renderProgress === 'function') renderProgress();
         if (currentScreen === 'learn-select' && typeof renderPatternList === 'function') renderPatternList();
+        if (currentScreen === 'reflex') {
+          // Restore l'option "sans pédales" du nouveau profil
+          const skipBox = document.getElementById('rfx-skip-pedals');
+          if (skipBox) {
+            skipBox.checked = localStorage.getItem(pkey('rfx-skip-pedals')) === '1';
+            applyReflexSkipPedalsUI(skipBox.checked);
+          }
+        }
       }
       closeProfileDropdown();
     });
@@ -2898,6 +2910,24 @@ function buildReflexBoard() {
   // Affiche le kit actuel en haut
   const k = getCurrentKit();
   document.getElementById('reflex-kit-label').textContent = `Kit ${k.num} · ${k.fr}`;
+  // Restore la préférence "sans pédales" (per-profile)
+  const skipBox = document.getElementById('rfx-skip-pedals');
+  if (skipBox) {
+    skipBox.checked = localStorage.getItem(pkey('rfx-skip-pedals')) === '1';
+    applyReflexSkipPedalsUI(skipBox.checked);
+  }
+}
+
+// Grise visuellement les pads pédales quand l'option est cochée (feedback UX)
+function applyReflexSkipPedalsUI(skip) {
+  document.querySelectorAll('#reflex-board .reflex-pad').forEach(el => {
+    const laneId = el.dataset.lane;
+    const lane = LANES.find(l => l.id === laneId);
+    if (lane?.dd75?.startsWith('Pedal')) {
+      el.style.opacity = skip ? '0.25' : '';
+      el.style.pointerEvents = skip ? 'none' : '';
+    }
+  });
 }
 
 function rfxUpdateScores() {
@@ -2918,8 +2948,12 @@ function rfxClearPadState(el) {
 
 function rfxStartNextPad() {
   if (!reflexActive) return;
-  // Choisis un pad aléatoire
-  const lane = LANES[Math.floor(Math.random() * LANES.length)];
+  // Choisis un pad aléatoire, en excluant les pédales si l'option est cochée
+  const skipPedals = document.getElementById('rfx-skip-pedals')?.checked;
+  const pool = skipPedals
+    ? LANES.filter(l => !l.dd75?.startsWith('Pedal'))
+    : LANES;
+  const lane = pool[Math.floor(Math.random() * pool.length)];
   reflexCurrentLane = lane.id;
   const el = document.querySelector(`.reflex-pad[data-lane="${lane.id}"]`);
   if (!el) return;
@@ -3153,6 +3187,11 @@ document.getElementById('rfx-difficulty').addEventListener('click', e => {
   if (!btn) return;
   reflexDiff = btn.dataset.diff;
   document.querySelectorAll('#rfx-difficulty button').forEach(b => b.classList.toggle('active', b === btn));
+});
+// Checkbox "Sans les pédales" : save per-profile + maj visuel
+document.getElementById('rfx-skip-pedals').addEventListener('change', e => {
+  localStorage.setItem(pkey('rfx-skip-pedals'), e.target.checked ? '1' : '0');
+  applyReflexSkipPedalsUI(e.target.checked);
 });
 
 // =====================================================================
