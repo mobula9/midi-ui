@@ -1196,6 +1196,7 @@ button:focus { outline: none; }
   </div>
   <div class="reflex-area">
     <div class="reflex-header">
+      <div class="stat"><span class="stat-val" id="rfx-time">60</span><span class="stat-lbl">Secondes</span></div>
       <div class="stat"><span class="stat-val" id="rfx-score">0</span><span class="stat-lbl">Réussis</span></div>
       <div class="stat"><span class="stat-val" id="rfx-misses">0</span><span class="stat-lbl">Ratés</span></div>
       <div class="stat"><span class="stat-val" id="rfx-streak">0</span><span class="stat-lbl">Combo</span></div>
@@ -1208,7 +1209,21 @@ button:focus { outline: none; }
       <button data-diff="crazy">Fou</button>
     </div>
     <div class="reflex-board dd75-layout" id="reflex-board"></div>
-    <button class="reflex-start" id="rfx-toggle">▶ Démarrer</button>
+    <button class="reflex-start" id="rfx-toggle">▶ Démarrer (1 min)</button>
+  </div>
+  <!-- Overlay de fin de session -->
+  <div id="rfx-end-overlay" style="position:absolute;inset:0;background:rgba(0,0,0,0.85);display:none;align-items:center;justify-content:center;z-index:100;">
+    <div style="background:var(--panel);padding:32px 48px;border-radius:24px;text-align:center;max-width:500px;">
+      <div style="font-size:80px;line-height:1;" id="rfx-end-emoji">🎉</div>
+      <h2 style="margin:8px 0;font-size:28px;" id="rfx-end-title">Session terminée !</h2>
+      <div style="font-size:80px;font-weight:800;line-height:1;color:var(--accent);" id="rfx-end-score">0</div>
+      <div style="color:var(--muted);font-size:14px;margin-top:4px;">coups réussis en 1 minute</div>
+      <div style="margin-top:12px;font-size:14px;color:var(--text);" id="rfx-end-detail"></div>
+      <div style="display:flex;gap:12px;margin-top:24px;justify-content:center;">
+        <button id="rfx-end-again" style="background:var(--accent);color:white;border:none;padding:14px 24px;border-radius:12px;font-weight:700;font-size:15px;cursor:pointer;font-family:inherit;">🔁 Encore</button>
+        <button id="rfx-end-home" style="background:#eee;color:var(--text);border:none;padding:14px 24px;border-radius:12px;font-weight:700;font-size:15px;cursor:pointer;font-family:inherit;">🏠 Maison</button>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -1584,6 +1599,12 @@ const PATTERNS = [
       hihat: [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0],
     }
   },
+
+  // --- Modes Réflexes (cachés du menu Apprendre, mais visibles dans Mes progrès) ---
+  { id: 'reflex_slow',   name: 'Réflexes — Tranquille', emoji: '😌', stars: 3, hidden: true, isReflex: true, diff: 'slow',   maxScale: 25 },
+  { id: 'reflex_normal', name: 'Réflexes — Normal',     emoji: '⚡', stars: 4, hidden: true, isReflex: true, diff: 'normal', maxScale: 45 },
+  { id: 'reflex_fast',   name: 'Réflexes — Rapide',     emoji: '🚀', stars: 4, hidden: true, isReflex: true, diff: 'fast',   maxScale: 70 },
+  { id: 'reflex_crazy',  name: 'Réflexes — Fou',        emoji: '🤪', stars: 5, hidden: true, isReflex: true, diff: 'crazy',  maxScale: 110 },
 ];
 
 // =====================================================================
@@ -1684,8 +1705,12 @@ function goto(screen) {
     if (recording) stopRecord();
     stopReplay();
   }
-  // Quitte le mode réflexes → stop
-  if (screen !== 'reflex' && reflexActive) reflexStop();
+  // Quitte le mode réflexes → stop + ferme l'overlay de fin
+  if (screen !== 'reflex') {
+    if (reflexActive) reflexStop();
+    const ov = document.getElementById('rfx-end-overlay');
+    if (ov) ov.style.display = 'none';
+  }
   if (screen === 'home') stop();
 }
 document.querySelectorAll('[data-goto]').forEach(el => {
@@ -1969,15 +1994,17 @@ function renderProgress() {
     for (const { pattern: p, attempts: att, last } of buckets[bk]) {
       const best = Math.max(...att.map(a => a.score));
       const avg = Math.round(att.reduce((s, a) => s + a.score, 0) / att.length);
+      const scale = p.isReflex ? (p.maxScale || 50) : 100;
+      const unit = p.isReflex ? '' : '/100';
       const card = document.createElement('div');
       card.className = 'progress-card';
       card.innerHTML = `
         <button class="progress-header" style="background:none;border:none;cursor:pointer;width:100%;text-align:left;padding:0;" data-play="${p.id}">
           <div class="progress-emoji">${p.emoji}</div>
           <div class="progress-name">${p.name} <span style="font-size:13px;color:var(--accent);font-weight:600;">▶ challenger</span></div>
-          <div class="progress-best">Best ${best}/100</div>
+          <div class="progress-best">Best ${best}${unit}</div>
         </button>
-        ${renderSparkline(att)}
+        ${renderSparkline(att, scale)}
         <div class="progress-stats">
           <span>${att.length} essai${att.length > 1 ? 's' : ''}</span>
           <span>Moyenne ${avg}</span>
@@ -1985,26 +2012,38 @@ function renderProgress() {
         </div>
       `;
       const btn = card.querySelector('[data-play]');
-      btn.addEventListener('click', () => startPattern(p));
+      btn.addEventListener('click', () => {
+        if (p.isReflex) {
+          // Pré-sélectionne la difficulté + va au mode Réflexes
+          reflexDiff = p.diff;
+          goto('reflex');
+          document.querySelectorAll('#rfx-difficulty button').forEach(b => {
+            b.classList.toggle('active', b.dataset.diff === p.diff);
+          });
+        } else {
+          startPattern(p);
+        }
+      });
       list.appendChild(card);
     }
   }
 }
 
-function renderSparkline(attempts) {
+function renderSparkline(attempts, maxScale = 100) {
   if (attempts.length < 2) {
     return `<div class="progress-empty">Encore 1 essai pour voir une courbe…</div>`;
   }
   const W = 300, H = 80, pad = 6;
   const pts = attempts.slice(-30);
   const xs = pts.map((_, i) => pad + i * (W - 2*pad) / (pts.length - 1));
-  const ys = pts.map(a => pad + (1 - a.score/100) * (H - 2*pad));
+  // Axe dynamique : on prend max(maxScale, meilleur score observé) pour ne jamais couper
+  const dataMax = Math.max(maxScale, ...pts.map(a => a.score));
+  const ys = pts.map(a => pad + (1 - Math.min(a.score, dataMax)/dataMax) * (H - 2*pad));
   const poly = pts.map((_, i) => `${xs[i].toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
   const last = pts[pts.length - 1].score;
-  const color = last >= 70 ? '#6BCB77' : last >= 50 ? '#FFD93D' : '#FF6B6B';
+  const color = last >= dataMax*0.7 ? '#6BCB77' : last >= dataMax*0.5 ? '#FFD93D' : '#FF6B6B';
   const y50 = pad + 0.5 * (H - 2*pad);
   const y75 = pad + 0.25 * (H - 2*pad);
-  // Aire sous la courbe (esthétique)
   const area = poly + ` ${xs[xs.length-1].toFixed(1)},${H-pad} ${xs[0].toFixed(1)},${H-pad}`;
   return `<svg class="progress-chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
     <line x1="0" y1="${y75}" x2="${W}" y2="${y75}" stroke="#eef0e8" stroke-dasharray="3,3"/>
@@ -2024,6 +2063,7 @@ function renderPatternList() {
   list.innerHTML = '';
   const stars = getStars();
   for (const p of PATTERNS) {
+    if (p.hidden) continue;  // les modes réflexes ne sont pas joués depuis Apprendre
     const earned = stars[p.id] || 0;
     const card = document.createElement('button');
     card.className = 'pattern-card';
@@ -2422,21 +2462,83 @@ function spawnFloatingEmojiAt(el, emoji, size) {
   setTimeout(() => span.remove(), 1300);
 }
 
+const REFLEX_SESSION_SEC = 60;
+let reflexTimeLeft = REFLEX_SESSION_SEC;
+let reflexTimerInterval = null;
+
 function reflexStart() {
   reflexActive = true;
   reflexScore = 0; reflexMisses = 0; reflexStreak = 0;
+  reflexTimeLeft = REFLEX_SESSION_SEC;
   rfxUpdateScores();
+  document.getElementById('rfx-time').textContent = reflexTimeLeft;
   document.getElementById('rfx-toggle').textContent = '⏹ Arrêter';
+  if (reflexTimerInterval) clearInterval(reflexTimerInterval);
+  reflexTimerInterval = setInterval(() => {
+    reflexTimeLeft--;
+    document.getElementById('rfx-time').textContent = Math.max(0, reflexTimeLeft);
+    if (reflexTimeLeft <= 0) {
+      reflexFinishSession();
+    }
+  }, 1000);
   rfxScheduleNext();
 }
+
 function reflexStop() {
+  if (reflexTimerInterval) { clearInterval(reflexTimerInterval); reflexTimerInterval = null; }
   reflexActive = false;
   clearTimeout(reflexGrowTimer);
   clearTimeout(reflexNextTimer);
   reflexCurrentLane = null;
   document.querySelectorAll('.reflex-pad').forEach(rfxClearPadState);
-  document.getElementById('rfx-toggle').textContent = '▶ Démarrer';
+  document.getElementById('rfx-toggle').textContent = '▶ Démarrer (1 min)';
 }
+
+function reflexFinishSession() {
+  reflexStop();
+  // Sauvegarde l'essai dans l'historique du profil courant
+  // patternId = 'reflex_<diff>'
+  const patternId = 'reflex_' + reflexDiff;
+  const pattern = PATTERNS.find(p => p.id === patternId);
+  const maxScale = pattern?.maxScale || 50;
+  const stars = Math.max(1, Math.min(pattern?.stars || 5,
+                  Math.floor((reflexScore / maxScale) * (pattern?.stars || 5)) + 1));
+  saveAttempt(patternId, reflexScore, stars);
+
+  // Détermine emoji + titre selon la perf
+  let emoji, title;
+  const ratio = reflexScore / maxScale;
+  if (ratio >= 0.9)      { emoji = '🏆'; title = 'Champion !'; }
+  else if (ratio >= 0.7) { emoji = '🌟'; title = 'Excellent !'; }
+  else if (ratio >= 0.5) { emoji = '👏'; title = 'Très bien !'; }
+  else if (ratio >= 0.25){ emoji = '💪'; title = 'Bien joué !'; }
+  else                   { emoji = '🦉'; title = 'On réessaie ?'; }
+
+  document.getElementById('rfx-end-emoji').textContent = emoji;
+  document.getElementById('rfx-end-title').textContent = title;
+  document.getElementById('rfx-end-score').textContent = reflexScore;
+  document.getElementById('rfx-end-detail').textContent =
+    `${reflexMisses} ratés · ${pattern?.name || 'Réflexes'}`;
+  document.getElementById('rfx-end-overlay').style.display = 'flex';
+
+  // Confettis et son de récompense
+  if (ratio >= 0.25) {
+    playReward();
+    for (let i = 0; i < Math.round(40 + ratio * 80); i++) {
+      setTimeout(() => spawnConfetti(null, 1), Math.random() * 1500);
+    }
+  }
+  updateStarsCounter();
+}
+
+document.getElementById('rfx-end-again').addEventListener('click', () => {
+  document.getElementById('rfx-end-overlay').style.display = 'none';
+  reflexStart();
+});
+document.getElementById('rfx-end-home').addEventListener('click', () => {
+  document.getElementById('rfx-end-overlay').style.display = 'none';
+  goto('home');
+});
 
 document.getElementById('rfx-toggle').addEventListener('click', () => {
   if (reflexActive) reflexStop();
