@@ -81,6 +81,91 @@ button:focus { outline: none; }
 }
 .stars::before { content: '⭐'; margin-right: 6px; }
 
+/* === Sélecteur de kit === */
+.kit-selector {
+  position: absolute;
+  top: 16px; left: 50%;
+  transform: translateX(-50%);
+  background: var(--panel);
+  border: none;
+  border-radius: 999px;
+  padding: 10px 22px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  z-index: 5;
+  max-width: 380px;
+}
+.kit-selector .kit-icon { font-size: 18px; }
+.kit-selector:hover { background: #f8f4e7; }
+
+/* Modal de choix du kit */
+.kit-modal {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75);
+  display: none; align-items: center; justify-content: center;
+  z-index: 150;
+}
+.kit-modal.active { display: flex; }
+.kit-modal-content {
+  background: var(--panel);
+  border-radius: 24px;
+  padding: 24px 32px;
+  width: 90%; max-width: 1000px;
+  max-height: 88vh;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.kit-modal-content h2 { margin: 0 0 8px 0; font-size: 24px; }
+.kit-modal-content p.hint { color: var(--muted); font-size: 13px; margin: 4px 0 16px 0; }
+.kit-list-scroll {
+  overflow-y: auto;
+  flex: 1;
+  padding-right: 8px;
+}
+.kit-cat-title {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 16px 0 8px 0;
+}
+.kit-cat-title:first-child { margin-top: 0; }
+.kit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+.kit-item {
+  background: #f5f5f0;
+  border: 2px solid transparent;
+  padding: 10px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  display: flex; gap: 10px; align-items: center;
+  transition: background 0.1s, border-color 0.1s;
+  font-size: 14px;
+}
+.kit-item:hover { background: #efebde; }
+.kit-item.current { border-color: var(--accent); background: #e0f7f5; }
+.kit-item .kit-num {
+  font-weight: 800; color: var(--muted);
+  background: white;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  min-width: 28px;
+  text-align: center;
+}
+.kit-item.current .kit-num { color: var(--accent); }
+.kit-item .kit-name { flex: 1; font-weight: 600; }
+
 /* === Calibration accessible === */
 .cal-shortcut {
   position: absolute;
@@ -549,6 +634,10 @@ button:focus { outline: none; }
 <!-- =================================================================== -->
 <section id="screen-home" class="screen active">
   <div class="brand" id="brand">Drum Trainer</div>
+  <button class="kit-selector" id="kit-selector">
+    <span class="kit-icon">🎚</span>
+    <span id="kit-current-label">Kit 1 · Acoustique Maple 1</span>
+  </button>
   <button class="cal-shortcut" id="home-calibrate">🎯 Calibrer ma batterie</button>
   <div class="stars" id="stars-counter">0</div>
 
@@ -728,6 +817,18 @@ button:focus { outline: none; }
   </div>
 </div>
 
+<!-- Modale de sélection de kit -->
+<div id="kit-modal" class="kit-modal">
+  <div class="kit-modal-content">
+    <h2>🎚 Choisir un kit de batterie</h2>
+    <p class="hint">Le DD-75 a 75 kits différents. Choisis celui que tu as actuellement sélectionné sur l'appareil. Si après changement les pads ne réagissent pas comme attendu, fais une calibration (🎯).</p>
+    <div class="kit-list-scroll" id="kit-list-scroll"></div>
+    <div style="margin-top:12px;display:flex;gap:12px;justify-content:flex-end;">
+      <button id="kit-close" style="padding:10px 20px;border:none;background:var(--accent);color:white;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;">Fermer</button>
+    </div>
+  </div>
+</div>
+
 <canvas id="confetti-canvas"></canvas>
 
 <script>
@@ -753,6 +854,162 @@ const LANES = [
 
 // Lanes utilisées par les patterns du Mode Apprendre (sous-ensemble simple).
 const PATTERN_LANES = ['kick', 'snare', 'hihat', 'crash'];
+
+// =====================================================================
+// Liste des 75 kits du DD-75 avec noms FR + catégorie
+// (les numéros et noms EN sont issus du manuel officiel)
+// =====================================================================
+const KITS = [
+  // --- Acoustique ---
+  { num: 1,  en: 'Maple Kit 1',           fr: 'Acoustique Maple 1',                   cat: '🎵 Acoustique' },
+  { num: 2,  en: 'Maple Kit 2',           fr: 'Acoustique Maple 2',                   cat: '🎵 Acoustique' },
+  { num: 3,  en: 'Maple Kit 3',           fr: 'Acoustique Maple 3 (avec ride)',       cat: '🎵 Acoustique' },
+  { num: 4,  en: 'Maple Kit 4',           fr: 'Acoustique Maple 4 (snare douce)',     cat: '🎵 Acoustique' },
+  { num: 5,  en: 'Oak Kit 1',             fr: 'Acoustique Oak 1',                     cat: '🎵 Acoustique' },
+  { num: 6,  en: 'Oak Kit 2',             fr: 'Acoustique Oak 2',                     cat: '🎵 Acoustique' },
+  { num: 7,  en: 'Oak Kit 3',             fr: 'Acoustique Oak 3 (avec ride)',         cat: '🎵 Acoustique' },
+  { num: 8,  en: 'Oak Kit 4',             fr: 'Acoustique Oak 4 (snare douce)',       cat: '🎵 Acoustique' },
+  // --- Rock ---
+  { num: 9,  en: 'Hard Rock Kit 1',       fr: 'Rock dur 1',                            cat: '🤘 Rock' },
+  { num: 10, en: 'Hard Rock Kit 2',       fr: 'Rock dur 2',                            cat: '🤘 Rock' },
+  { num: 11, en: 'Hard Rock Kit 3',       fr: 'Rock dur 3',                            cat: '🤘 Rock' },
+  { num: 12, en: 'Hard Rock Kit 4',       fr: 'Rock dur 4',                            cat: '🤘 Rock' },
+  { num: 13, en: 'Hard Rock Kit 5',       fr: 'Rock dur 5',                            cat: '🤘 Rock' },
+  // --- Vintage électronique ---
+  { num: 14, en: 'Analog T8 Kit 1',       fr: 'Analogique TR-808 #1',                 cat: '📻 Vintage électro' },
+  { num: 15, en: 'Analog T8 Kit 2',       fr: 'Analogique TR-808 #2',                 cat: '📻 Vintage électro' },
+  { num: 16, en: 'Analog T8 Kit 3',       fr: 'Analogique TR-808 #3',                 cat: '📻 Vintage électro' },
+  { num: 17, en: 'Vox Kit',               fr: 'Voix humaine (beatbox)',               cat: '📻 Vintage électro' },
+  // --- Stéréo / Puissant ---
+  { num: 18, en: 'Stereo Kit 1',          fr: 'Stéréo puissante 1',                   cat: '🔊 Stéréo' },
+  { num: 19, en: 'Stereo Kit 2',          fr: 'Stéréo puissante 2',                   cat: '🔊 Stéréo' },
+  { num: 20, en: 'Stereo Kit 3',          fr: 'Stéréo puissante 3',                   cat: '🔊 Stéréo' },
+  { num: 21, en: 'Stereo Kit 4',          fr: 'Stéréo puissante 4',                   cat: '🔊 Stéréo' },
+  { num: 22, en: 'Stereo Kit 5',          fr: 'Stéréo puissante 5',                   cat: '🔊 Stéréo' },
+  { num: 23, en: 'Stereo Ballad Kit',     fr: 'Ballade stéréo',                       cat: '🔊 Stéréo' },
+  // --- Ballade ---
+  { num: 24, en: 'Ballad Kit 1',          fr: 'Ballade 1',                            cat: '💗 Ballade' },
+  { num: 25, en: 'Ballad Kit 2',          fr: 'Ballade 2',                            cat: '💗 Ballade' },
+  { num: 26, en: 'Analog Ballad Kit 1',   fr: 'Ballade analogique 1',                 cat: '💗 Ballade' },
+  { num: 27, en: 'Analog Ballad Kit 2',   fr: 'Ballade analogique 2',                 cat: '💗 Ballade' },
+  // --- Shuffle / Slow Rock ---
+  { num: 28, en: 'Stereo Shuffle Kit 1',  fr: 'Shuffle stéréo 1',                     cat: '🥁 Shuffle' },
+  { num: 29, en: 'Stereo Shuffle Kit 2',  fr: 'Shuffle stéréo 2',                     cat: '🥁 Shuffle' },
+  { num: 30, en: 'Stereo Shuffle Kit 3',  fr: 'Shuffle stéréo 3',                     cat: '🥁 Shuffle' },
+  { num: 31, en: 'Stereo Slow Rock Kit',  fr: 'Rock lent stéréo',                     cat: '🥁 Shuffle' },
+  // --- Électronique ---
+  { num: 32, en: 'Electric Kit 1',        fr: 'Électrique 1 (gate)',                  cat: '⚡ Électronique' },
+  { num: 33, en: 'Electric Kit 2',        fr: 'Électrique 2',                         cat: '⚡ Électronique' },
+  { num: 34, en: 'Dance Kit 1',           fr: 'Dance 1',                              cat: '⚡ Électronique' },
+  { num: 35, en: 'Dance Kit 2',           fr: 'Dance 2',                              cat: '⚡ Électronique' },
+  { num: 36, en: 'Analog Kit',            fr: 'Analogique',                           cat: '⚡ Électronique' },
+  { num: 37, en: 'DJ Kit',                fr: 'DJ (avec voix)',                       cat: '⚡ Électronique' },
+  { num: 38, en: 'Disco Kit 1',           fr: 'Disco 1',                              cat: '⚡ Électronique' },
+  { num: 39, en: 'Disco Kit 2',           fr: 'Disco 2',                              cat: '⚡ Électronique' },
+  // --- Jazz / Brush ---
+  { num: 40, en: 'Jazz Kit',              fr: 'Jazz',                                 cat: '🎷 Jazz / Brush' },
+  { num: 41, en: 'Brush Kit',             fr: 'Brush (balais)',                       cat: '🎷 Jazz / Brush' },
+  { num: 42, en: '5/4 Jazz Kit',          fr: 'Jazz en 5/4',                          cat: '🎷 Jazz / Brush' },
+  { num: 43, en: 'Dixieland Kit',         fr: 'Dixieland',                            cat: '🎷 Jazz / Brush' },
+  // --- Soul / Rock'n'Roll / Blues ---
+  { num: 44, en: 'Soul Kit',              fr: 'Soul',                                 cat: '🎤 Soul / R&R / Blues' },
+  { num: 45, en: 'R & R Kit',             fr: 'Rock\'n\'Roll',                        cat: '🎤 Soul / R&R / Blues' },
+  { num: 46, en: '6/8 Blues Kit',         fr: 'Blues en 6/8',                         cat: '🎤 Soul / R&R / Blues' },
+  { num: 47, en: 'Country Kit',           fr: 'Country',                              cat: '🎤 Soul / R&R / Blues' },
+  // --- Latin ---
+  { num: 48, en: 'Samba Kit',             fr: 'Samba',                                cat: '🌴 Latin' },
+  { num: 49, en: 'Bossa Nova Kit 1',      fr: 'Bossa nova 1',                         cat: '🌴 Latin' },
+  { num: 50, en: 'Bossa Nova Kit 2',      fr: 'Bossa nova 2',                         cat: '🌴 Latin' },
+  { num: 51, en: 'Conga Kit',             fr: 'Congas',                               cat: '🌴 Latin' },
+  { num: 52, en: 'Conga & Bongo Kit 1',   fr: 'Congas + bongos 1',                    cat: '🌴 Latin' },
+  { num: 53, en: 'Conga & Bongo Kit 2',   fr: 'Congas + bongos 2',                    cat: '🌴 Latin' },
+  { num: 54, en: 'Salsa Kit',             fr: 'Salsa',                                cat: '🌴 Latin' },
+  // --- Reggae / Waltz / Classique ---
+  { num: 55, en: 'Beguine Kit',           fr: 'Béguine',                              cat: '🎼 Reggae / Classique' },
+  { num: 56, en: 'Reggae Kit',            fr: 'Reggae',                               cat: '🎼 Reggae / Classique' },
+  { num: 57, en: 'Waltz Kit',             fr: 'Valse',                                cat: '🎼 Reggae / Classique' },
+  { num: 58, en: 'March Kit',             fr: 'Marche militaire',                     cat: '🎼 Reggae / Classique' },
+  { num: 59, en: 'Timpani Kit',           fr: 'Timbales d\'orchestre',                cat: '🎼 Reggae / Classique' },
+  // --- Monde arabe ---
+  { num: 60, en: 'Arabic Kit 1',          fr: 'Percussions arabes 1',                 cat: '🌍 Monde' },
+  { num: 61, en: 'Arabic Kit 2',          fr: 'Percussions arabes 2',                 cat: '🌍 Monde' },
+  { num: 62, en: 'Arabic Kit 3',          fr: 'Percussions arabes 3',                 cat: '🌍 Monde' },
+  // --- Brésil ---
+  { num: 63, en: 'Brazil Kit 1',          fr: 'Brésil 1 (tan tan, pandeiro)',         cat: '🌍 Monde' },
+  { num: 64, en: 'Brazil Kit 2',          fr: 'Brésil 2 (surdo, pandeiro)',           cat: '🌍 Monde' },
+  { num: 65, en: 'Brazil Kit 3',          fr: 'Brésil 3 (zabumba, pandeiro)',         cat: '🌍 Monde' },
+  // --- Inde ---
+  { num: 66, en: 'Indian Kit 1',          fr: 'Inde 1 (dholak)',                      cat: '🌍 Monde' },
+  { num: 67, en: 'Indian Kit 2',          fr: 'Inde 2 (dhol)',                        cat: '🌍 Monde' },
+  { num: 68, en: 'Indian Kit 3',          fr: 'Inde 3 (dafli)',                       cat: '🌍 Monde' },
+  { num: 69, en: 'Indian Kit 4',          fr: 'Inde 4 (dafli + dhol)',                cat: '🌍 Monde' },
+  // --- Folklore / Asie ---
+  { num: 70, en: 'African Kit',           fr: 'Afrique (djembé)',                     cat: '🌍 Monde' },
+  { num: 71, en: 'Folklore Kit',          fr: 'Folklore (cajón)',                     cat: '🌍 Monde' },
+  { num: 72, en: 'Japanese Kit',          fr: 'Japon (taikos)',                       cat: '🌍 Monde' },
+  { num: 73, en: 'Chinese Kit',           fr: 'Chine (paigu, bangu)',                 cat: '🌍 Monde' },
+  // --- Bruitages ---
+  { num: 74, en: 'SE Kit 1',              fr: 'Bruitages animaux',                    cat: '🎬 Bruitages' },
+  { num: 75, en: 'SE Kit 2',              fr: 'Bruitages voix',                       cat: '🎬 Bruitages' },
+];
+
+let currentKitNum = parseInt(localStorage.getItem('boumbi-kit') || '1', 10);
+function getCurrentKit() { return KITS.find(k => k.num === currentKitNum) || KITS[0]; }
+function selectKit(num) {
+  currentKitNum = num;
+  localStorage.setItem('boumbi-kit', String(num));
+  updateKitDisplay();
+}
+function updateKitDisplay() {
+  const kit = getCurrentKit();
+  const lbl = document.getElementById('kit-current-label');
+  if (lbl) lbl.textContent = `Kit ${kit.num} · ${kit.fr}`;
+  // Met aussi à jour le titre du mode libre si visible
+  const freeHint = document.querySelector('#screen-free .screen-title span');
+  if (freeHint) freeHint.textContent = `Yamaha DD-75 · Kit ${kit.num} (${kit.fr})`;
+}
+
+function renderKitList() {
+  const root = document.getElementById('kit-list-scroll');
+  if (!root) return;
+  root.innerHTML = '';
+  const byCat = {};
+  for (const k of KITS) {
+    (byCat[k.cat] = byCat[k.cat] || []).push(k);
+  }
+  for (const [cat, kits] of Object.entries(byCat)) {
+    const title = document.createElement('div');
+    title.className = 'kit-cat-title';
+    title.textContent = cat;
+    root.appendChild(title);
+    const grid = document.createElement('div');
+    grid.className = 'kit-grid';
+    for (const k of kits) {
+      const btn = document.createElement('button');
+      btn.className = 'kit-item' + (k.num === currentKitNum ? ' current' : '');
+      btn.innerHTML = `<span class="kit-num">${k.num}</span><span class="kit-name">${k.fr}</span>`;
+      btn.addEventListener('click', () => {
+        selectKit(k.num);
+        renderKitList(); // rafraîchit l'état "current"
+      });
+      grid.appendChild(btn);
+    }
+    root.appendChild(grid);
+  }
+}
+
+document.getElementById('kit-selector').addEventListener('click', () => {
+  renderKitList();
+  document.getElementById('kit-modal').classList.add('active');
+});
+document.getElementById('kit-close').addEventListener('click', () => {
+  document.getElementById('kit-modal').classList.remove('active');
+});
+document.getElementById('kit-modal').addEventListener('click', e => {
+  if (e.target.id === 'kit-modal') {
+    document.getElementById('kit-modal').classList.remove('active');
+  }
+});
 let NOTE_TO_LANE = {};
 let LANE_TO_NOTE = {};
 
@@ -1785,6 +2042,7 @@ document.getElementById('cal-cancel').addEventListener('click', endCalibration);
 // =====================================================================
 loadMapping();
 updateStarsCounter();
+updateKitDisplay();
 setupMIDI();
 loop();
 resizePlay();
