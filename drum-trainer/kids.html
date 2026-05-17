@@ -1214,6 +1214,309 @@ button:focus { outline: none; }
   background: white; color: var(--text); border: 1px solid #ddd;
 }
 
+/* === Studio Boumbi (step sequencer) === */
+#screen-studio {
+  padding: 0 24px 24px 24px;
+}
+#screen-studio .screen-title { }
+.studio-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 12px 0;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 14px;
+}
+.studio-tb-btn {
+  background: var(--panel);
+  border: 1px solid #e5e5e0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text);
+  transition: background 0.1s;
+}
+.studio-tb-btn:hover { background: #f5f5f0; }
+#studio-name {
+  flex: 1;
+  min-width: 180px;
+  padding: 8px 14px;
+  border: 1px solid #e5e5e0;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  background: white;
+}
+#studio-name:focus { outline: 2px solid var(--accent); }
+.studio-bpm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel);
+  padding: 6px 14px;
+  border-radius: 999px;
+}
+.studio-bpm label { font-size: 11px; color: var(--muted); letter-spacing: 0.5px; }
+.studio-bpm input[type=range] { width: 110px; accent-color: var(--accent); cursor: pointer; }
+.studio-bpm span {
+  font-size: 14px;
+  font-weight: 700;
+  min-width: 30px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.studio-lane-mode {
+  display: flex;
+  gap: 2px;
+  background: var(--panel);
+  padding: 3px;
+  border-radius: 999px;
+}
+.studio-lane-mode button {
+  background: transparent;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text);
+}
+.studio-lane-mode button.active { background: var(--accent); color: white; }
+
+.studio-grid-wrap {
+  flex: 1;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  min-height: 0;
+}
+.studio-grid {
+  flex: 1;
+  display: grid;
+  gap: 6px;
+  align-self: center;
+  background: var(--panel);
+  padding: 16px;
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+.studio-row {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 8px;
+  align-items: center;
+}
+.studio-row-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--text);
+}
+.studio-row-label .srl-emoji { font-size: 20px; }
+.studio-row-cells {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  gap: 4px;
+}
+.studio-cell {
+  aspect-ratio: 1;
+  background: #f5f5f0;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.08s, transform 0.06s, box-shadow 0.1s;
+  position: relative;
+  min-height: 28px;
+}
+.studio-cell:hover { background: #ebe8de; }
+.studio-cell.downbeat { background: #e8e3d5; }
+.studio-cell.downbeat:hover { background: #ddd6c4; }
+.studio-cell.on {
+  background: var(--lane-color);
+  box-shadow: inset 0 -3px 8px rgba(0,0,0,0.15), inset 0 2px 4px rgba(255,255,255,0.3);
+}
+.studio-cell.on:hover { filter: brightness(1.05); }
+.studio-cell.playing {
+  border-color: white;
+  box-shadow: 0 0 12px rgba(255,255,255,0.7);
+  transform: scale(1.1);
+  z-index: 2;
+}
+.studio-cell.flash {
+  animation: studioCellFlash 0.18s;
+}
+@keyframes studioCellFlash {
+  0% { transform: scale(1.3); filter: brightness(1.8); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+.studio-row-bar {
+  /* divider between beats */
+  display: contents;
+}
+.studio-step-numbers {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.studio-step-numbers .ssn-cells {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  gap: 4px;
+  text-align: center;
+}
+
+.studio-boumbi-dance {
+  font-size: 72px;
+  width: 90px;
+  height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.08s;
+  user-select: none;
+}
+.studio-boumbi-dance.bob {
+  animation: boumbiDance 0.2s;
+}
+@keyframes boumbiDance {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px) scale(1.08); }
+}
+
+.studio-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  padding: 14px 0 0 0;
+}
+.studio-action {
+  padding: 12px 22px;
+  border-radius: 999px;
+  border: none;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  background: white;
+  color: var(--text);
+  border: 1px solid #e5e5e0;
+  transition: background 0.1s;
+}
+.studio-action:hover { background: #f5f5f0; }
+.studio-action.play {
+  background: linear-gradient(135deg, var(--accent), #6BCB77);
+  color: white;
+  border: none;
+  font-size: 16px;
+  padding: 12px 28px;
+}
+.studio-action.play.playing {
+  background: #FF6B6B;
+}
+.studio-action.play:hover { filter: brightness(1.05); }
+.studio-action.save {
+  background: #4ECDC4;
+  color: white;
+  border: none;
+}
+.studio-action.danger {
+  background: #fee;
+  color: var(--bad);
+  border-color: #fbb;
+}
+
+.studio-library {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 150;
+}
+.studio-library.active { display: flex; }
+.studio-library-content {
+  background: var(--panel);
+  border-radius: 24px;
+  padding: 24px 32px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 88vh;
+  overflow-y: auto;
+}
+.studio-library-header { display: flex; align-items: center; justify-content: space-between; }
+.studio-library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+.studio-lib-item {
+  background: white;
+  border: 2px solid #eee;
+  border-radius: 14px;
+  padding: 14px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: transform 0.08s, border-color 0.1s, background 0.1s;
+}
+.studio-lib-item:hover { transform: translateY(-2px); border-color: var(--accent); }
+.studio-lib-item.active { border-color: var(--accent); background: #e0f7f5; }
+.studio-lib-item .sli-name { font-weight: 700; font-size: 15px; }
+.studio-lib-item .sli-meta { font-size: 11px; color: var(--muted); }
+.studio-lib-item .sli-preview {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  gap: 1px;
+  margin: 6px 0;
+}
+.studio-lib-item .sli-preview-cell {
+  aspect-ratio: 1;
+  border-radius: 2px;
+  background: #f0eee5;
+}
+.studio-lib-item .sli-preview-cell.on { background: var(--lane-color); }
+.studio-lib-item .sli-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+.studio-lib-item .sli-actions button {
+  flex: 1;
+  font-size: 11px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  background: white;
+  cursor: pointer;
+  font-family: inherit;
+}
+.studio-lib-item .sli-actions button.danger {
+  background: #fef0f0;
+  color: var(--bad);
+  border-color: #fbb;
+}
+.studio-lib-empty {
+  text-align: center;
+  padding: 32px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
 /* === Echo (call & response) === */
 #screen-echo {
   padding: 0 24px 24px 24px;
@@ -2128,6 +2431,11 @@ button:focus { outline: none; }
       <div class="card-title">Echo</div>
       <div class="card-sub">imite le rythme de Boumbi</div>
     </button>
+    <button class="card" data-goto="studio">
+      <div class="card-emoji">🎨</div>
+      <div class="card-title">Studio</div>
+      <div class="card-sub">compose ton propre beat</div>
+    </button>
     <button class="card" data-goto="spotify">
       <div class="card-emoji">🎵</div>
       <div class="card-title">Spotify</div>
@@ -2491,6 +2799,53 @@ button:focus { outline: none; }
         <button class="primary" id="echo-over-again">🔁 Rejouer</button>
         <button class="secondary" id="echo-over-home">🏠 Maison</button>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- =================================================================== -->
+<!-- STUDIO BOUMBI — step sequencer -->
+<!-- =================================================================== -->
+<section id="screen-studio" class="screen">
+  <div class="screen-title">
+    <button class="btn-back" data-goto="home">←</button>
+    <h2 style="margin:0" data-title-tpl="🎨 {name}, compose ton beat">🎨 Studio Boumbi</h2>
+    <span style="margin-left:auto;color:var(--muted);font-size:13px;">Clique sur les cases · ▶ pour écouter</span>
+  </div>
+  <div class="studio-toolbar">
+    <button class="studio-tb-btn" id="studio-library-btn">📚 Mes motifs (<span id="studio-lib-count">0</span>)</button>
+    <button class="studio-tb-btn" id="studio-new-btn">+ Nouveau</button>
+    <input type="text" id="studio-name" placeholder="Nom du motif" maxlength="40" />
+    <div class="studio-bpm">
+      <label>BPM</label>
+      <input type="range" id="studio-bpm" min="40" max="180" value="100">
+      <span id="studio-bpm-val">100</span>
+    </div>
+    <div class="studio-lane-mode" id="studio-lane-mode">
+      <button data-mode="4" class="active">4 lanes</button>
+      <button data-mode="8">8 lanes</button>
+    </div>
+  </div>
+  <div class="studio-grid-wrap">
+    <div class="studio-grid" id="studio-grid"></div>
+    <div class="studio-boumbi-dance" id="studio-boumbi-dance">🦉</div>
+  </div>
+  <div class="studio-actions">
+    <button class="studio-action play" id="studio-play">▶ Jouer</button>
+    <button class="studio-action" id="studio-clear">🧹 Vider</button>
+    <button class="studio-action save" id="studio-save">💾 Sauver</button>
+    <button class="studio-action danger" id="studio-delete" style="display:none">🗑️ Supprimer</button>
+  </div>
+
+  <!-- Modal bibliothèque -->
+  <div id="studio-library" class="studio-library">
+    <div class="studio-library-content">
+      <div class="studio-library-header">
+        <h2 style="margin:0">📚 Mes motifs</h2>
+        <button id="studio-library-close" style="background:#eee;border:none;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;">×</button>
+      </div>
+      <p style="color:var(--muted);font-size:13px;margin:8px 0 16px 0;">Clique sur un motif pour le charger dans le studio.</p>
+      <div class="studio-library-grid" id="studio-library-grid"></div>
     </div>
   </div>
 </section>
@@ -2971,7 +3326,7 @@ function spawnFloatingEmoji(laneId, emoji, size = 64) {
 // Navigation entre écrans
 // =====================================================================
 // Écrans qu'on persiste à travers les refresh (pas play/done : transient)
-const PERSISTED_SCREENS = new Set(['home', 'free', 'learn-select', 'reflex', 'memo', 'runner', 'echo', 'progress', 'spotify']);
+const PERSISTED_SCREENS = new Set(['home', 'free', 'learn-select', 'reflex', 'memo', 'runner', 'echo', 'studio', 'progress', 'spotify']);
 
 function goto(screen) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -3006,6 +3361,7 @@ function goto(screen) {
     document.getElementById('echo-start').style.display = '';
     document.getElementById('echo-over').classList.remove('active');
   }
+  if (screen === 'studio') studioOpen();
   if (screen === 'spotify') {
     spUpdateUI();
     if (!spCanvas) {
@@ -3043,6 +3399,10 @@ function goto(screen) {
     echoStopAll();
     const ov = document.getElementById('echo-over');
     if (ov) ov.classList.remove('active');
+  }
+  // Quitte Studio → stop playback
+  if (screen !== 'studio') {
+    studioStopAll();
   }
   if (screen === 'home') stop();
 }
@@ -3332,6 +3692,10 @@ function renderProfileDropdown() {
           if (ECHO_LEVEL_POOLS[savedLv]) echo.level = savedLv;
           echoComputeTimings();
           buildEchoWidget();
+        }
+        if (currentScreen === 'studio') {
+          studioStopAll();
+          studioOpen();
         }
       }
       closeProfileDropdown();
@@ -5432,6 +5796,415 @@ document.getElementById('echo-level').addEventListener('click', e => {
   const btn = e.target.closest('button[data-lv]');
   if (!btn) return;
   echoSetLevel(parseInt(btn.dataset.lv, 10));
+});
+
+// =====================================================================
+// Studio Boumbi — step sequencer
+// Le kid compose son propre beat sur une grille 16 steps × N lanes,
+// puis l'écoute en boucle. Save dans la bibliothèque per-profile.
+// =====================================================================
+const STUDIO_STEPS = 16;
+const STUDIO_LANES_4 = ['kick', 'snare', 'hihat', 'crash'];
+const STUDIO_LANES_8 = ['kick', 'snare', 'hihat', 'crash', 'tomL', 'tomM', 'tomH', 'ride'];
+
+const studio = {
+  bpm: 100,
+  name: '',
+  laneMode: 4,                // 4 ou 8
+  lanes: STUDIO_LANES_4,      // copie d'un des deux templates
+  steps: {},                  // {kick: [bool * 16], ...}
+  loadedId: null,             // id du motif chargé depuis la lib (pour update)
+  playing: false,
+  currentStep: -1,
+  loopHandle: null,
+};
+
+function studioFreshSteps(lanes) {
+  const s = {};
+  lanes.forEach(l => { s[l] = new Array(STUDIO_STEPS).fill(false); });
+  return s;
+}
+
+function studioStepIntervalMs() {
+  // 16 steps = 1 mesure de 4 temps en double-croches
+  return (60000 / studio.bpm) / 4;
+}
+
+function studioLibraryKey() { return pkey('studio-library'); }
+function studioDraftKey() { return pkey('studio-draft'); }
+
+function studioLoadLibrary() {
+  try {
+    const arr = JSON.parse(localStorage.getItem(studioLibraryKey()) || '[]');
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
+function studioSaveLibrary(lib) {
+  localStorage.setItem(studioLibraryKey(), JSON.stringify(lib));
+  document.getElementById('studio-lib-count').textContent = lib.length;
+}
+
+function studioSaveDraft() {
+  const draft = {
+    name: studio.name,
+    bpm: studio.bpm,
+    laneMode: studio.laneMode,
+    lanes: studio.lanes,
+    steps: studio.steps,
+    loadedId: studio.loadedId,
+  };
+  localStorage.setItem(studioDraftKey(), JSON.stringify(draft));
+}
+function studioLoadDraft() {
+  try {
+    const d = JSON.parse(localStorage.getItem(studioDraftKey()) || 'null');
+    if (!d) return false;
+    studio.name = d.name || '';
+    studio.bpm = d.bpm || 100;
+    studio.laneMode = d.laneMode || 4;
+    studio.lanes = d.lanes || (studio.laneMode === 8 ? STUDIO_LANES_8 : STUDIO_LANES_4);
+    studio.steps = d.steps || studioFreshSteps(studio.lanes);
+    studio.loadedId = d.loadedId || null;
+    return true;
+  } catch { return false; }
+}
+
+function buildStudioGrid() {
+  const grid = document.getElementById('studio-grid');
+  grid.innerHTML = '';
+  for (const laneId of studio.lanes) {
+    const lane = LANES.find(l => l.id === laneId);
+    if (!lane) continue;
+    const row = document.createElement('div');
+    row.className = 'studio-row';
+    row.style.setProperty('--lane-color', lane.color);
+    const cellsHtml = [];
+    for (let i = 0; i < STUDIO_STEPS; i++) {
+      const isDownbeat = (i % 4 === 0);
+      const isOn = studio.steps[laneId]?.[i];
+      cellsHtml.push(`<div class="studio-cell ${isDownbeat ? 'downbeat' : ''} ${isOn ? 'on' : ''}" data-lane="${laneId}" data-step="${i}" style="--lane-color:${lane.color}"></div>`);
+    }
+    row.innerHTML = `
+      <div class="studio-row-label" style="color:${lane.color}">
+        <span class="srl-emoji">${lane.emoji}</span>
+        <span>${lane.name}</span>
+      </div>
+      <div class="studio-row-cells">${cellsHtml.join('')}</div>
+    `;
+    grid.appendChild(row);
+  }
+  // Numéros de step (1, 2, 3, 4 sur les downbeats)
+  const numRow = document.createElement('div');
+  numRow.className = 'studio-step-numbers';
+  const numCells = [];
+  for (let i = 0; i < STUDIO_STEPS; i++) {
+    const beat = Math.floor(i / 4) + 1;
+    const txt = (i % 4 === 0) ? beat : '·';
+    numCells.push(`<div>${txt}</div>`);
+  }
+  numRow.innerHTML = `<div></div><div class="ssn-cells">${numCells.join('')}</div>`;
+  grid.appendChild(numRow);
+  // Wire cell clicks
+  grid.querySelectorAll('.studio-cell').forEach(c => {
+    c.addEventListener('click', () => studioToggleCell(c.dataset.lane, parseInt(c.dataset.step, 10)));
+  });
+  // Sync UI
+  document.getElementById('studio-name').value = studio.name;
+  document.getElementById('studio-bpm').value = studio.bpm;
+  document.getElementById('studio-bpm-val').textContent = studio.bpm;
+  document.querySelectorAll('#studio-lane-mode button').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.mode, 10) === studio.laneMode);
+  });
+  // Show "supprimer" only if loaded from library
+  document.getElementById('studio-delete').style.display = studio.loadedId ? '' : 'none';
+}
+
+function studioToggleCell(laneId, step) {
+  if (!studio.steps[laneId]) return;
+  studio.steps[laneId][step] = !studio.steps[laneId][step];
+  const el = document.querySelector(`.studio-cell[data-lane="${laneId}"][data-step="${step}"]`);
+  if (el) {
+    el.classList.toggle('on', studio.steps[laneId][step]);
+    if (studio.steps[laneId][step]) {
+      // Joue un preview du son quand on active
+      const note = LANE_TO_NOTE[laneId];
+      if (midiOutput && note != null) {
+        midiOutput.send([0x99, note, 100]);
+        setTimeout(() => midiOutput.send([0x89, note, 0]), 60);
+      }
+      el.classList.add('flash');
+      setTimeout(() => el.classList.remove('flash'), 200);
+    }
+  }
+  studioSaveDraft();
+}
+
+function studioPlay() {
+  if (studio.playing) return studioStop();
+  studio.playing = true;
+  studio.currentStep = -1;
+  const btn = document.getElementById('studio-play');
+  btn.textContent = '⏸ Stop';
+  btn.classList.add('playing');
+  const tick = () => {
+    if (!studio.playing) return;
+    studio.currentStep = (studio.currentStep + 1) % STUDIO_STEPS;
+    studioRenderStep();
+    studio.loopHandle = setTimeout(tick, studioStepIntervalMs());
+  };
+  tick();
+}
+
+function studioStop() {
+  studio.playing = false;
+  if (studio.loopHandle) { clearTimeout(studio.loopHandle); studio.loopHandle = null; }
+  studio.currentStep = -1;
+  // Cleanup visuel
+  document.querySelectorAll('.studio-cell.playing').forEach(c => c.classList.remove('playing'));
+  const btn = document.getElementById('studio-play');
+  btn.textContent = '▶ Jouer';
+  btn.classList.remove('playing');
+}
+
+function studioRenderStep() {
+  // Retire l'indicateur précédent
+  document.querySelectorAll('.studio-cell.playing').forEach(c => c.classList.remove('playing'));
+  // Ajoute sur la colonne courante + déclenche les pads actifs
+  const step = studio.currentStep;
+  let anyHit = false;
+  for (const laneId of studio.lanes) {
+    const isOn = studio.steps[laneId]?.[step];
+    const cell = document.querySelector(`.studio-cell[data-lane="${laneId}"][data-step="${step}"]`);
+    if (cell) cell.classList.add('playing');
+    if (isOn) {
+      anyHit = true;
+      const note = LANE_TO_NOTE[laneId];
+      if (midiOutput && note != null) {
+        midiOutput.send([0x99, note, 100]);
+        setTimeout(() => midiOutput.send([0x89, note, 0]), 60);
+      }
+    }
+  }
+  // Boumbi dance sur chaque hit
+  if (anyHit) {
+    const b = document.getElementById('studio-boumbi-dance');
+    b.classList.remove('bob');
+    void b.offsetWidth;
+    b.classList.add('bob');
+  }
+}
+
+function studioClear() {
+  studioStop();
+  studio.steps = studioFreshSteps(studio.lanes);
+  document.querySelectorAll('.studio-cell').forEach(c => c.classList.remove('on'));
+  studioSaveDraft();
+}
+
+function studioSave() {
+  const name = (document.getElementById('studio-name').value || '').trim() || `Beat du ${new Date().toLocaleDateString('fr-FR')}`;
+  studio.name = name;
+  const lib = studioLoadLibrary();
+  if (studio.loadedId) {
+    // Update
+    const idx = lib.findIndex(p => p.id === studio.loadedId);
+    if (idx >= 0) {
+      lib[idx] = {
+        ...lib[idx],
+        name,
+        bpm: studio.bpm,
+        laneMode: studio.laneMode,
+        lanes: studio.lanes,
+        steps: studio.steps,
+        updatedAt: Date.now(),
+      };
+    }
+  } else {
+    // Create
+    const id = 'm_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+    lib.unshift({
+      id,
+      name,
+      bpm: studio.bpm,
+      laneMode: studio.laneMode,
+      lanes: studio.lanes,
+      steps: studio.steps,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    studio.loadedId = id;
+  }
+  studioSaveLibrary(lib);
+  studioSaveDraft();
+  // Mini feedback
+  const btn = document.getElementById('studio-save');
+  const orig = btn.textContent;
+  btn.textContent = '✓ Sauvé !';
+  setTimeout(() => { btn.textContent = orig; }, 1200);
+  // Show delete button
+  document.getElementById('studio-delete').style.display = '';
+  if (typeof playReward === 'function') playReward();
+  // Stars : créer un motif compte ! 1⭐ par motif unique sauvé
+  if (typeof addStarsFor === 'function') {
+    addStarsFor('studio-saves', Math.min(3, lib.length));
+    updateStarsCounter();
+  }
+}
+
+function studioDelete() {
+  if (!studio.loadedId) return;
+  if (!confirm('Supprimer ce motif ?')) return;
+  let lib = studioLoadLibrary();
+  lib = lib.filter(p => p.id !== studio.loadedId);
+  studioSaveLibrary(lib);
+  studioNewPattern();
+}
+
+function studioNewPattern() {
+  studioStop();
+  studio.name = '';
+  studio.lanes = studio.laneMode === 8 ? STUDIO_LANES_8 : STUDIO_LANES_4;
+  studio.steps = studioFreshSteps(studio.lanes);
+  studio.loadedId = null;
+  studioSaveDraft();
+  buildStudioGrid();
+}
+
+function studioLoadPattern(id) {
+  const lib = studioLoadLibrary();
+  const p = lib.find(x => x.id === id);
+  if (!p) return;
+  studioStop();
+  studio.name = p.name;
+  studio.bpm = p.bpm;
+  studio.laneMode = p.laneMode || 4;
+  studio.lanes = p.lanes || (studio.laneMode === 8 ? STUDIO_LANES_8 : STUDIO_LANES_4);
+  // Migration : ensure all lane keys exist
+  const fresh = studioFreshSteps(studio.lanes);
+  studio.steps = { ...fresh, ...p.steps };
+  studio.loadedId = id;
+  studioSaveDraft();
+  buildStudioGrid();
+}
+
+function studioOpenLibrary() {
+  const overlay = document.getElementById('studio-library');
+  const grid = document.getElementById('studio-library-grid');
+  const lib = studioLoadLibrary();
+  grid.innerHTML = '';
+  if (lib.length === 0) {
+    grid.innerHTML = `<div class="studio-lib-empty">Aucun motif sauvegardé.<br/>Compose et sauve ton premier beat 🎨</div>`;
+  } else {
+    for (const p of lib) {
+      const item = document.createElement('div');
+      item.className = 'studio-lib-item' + (p.id === studio.loadedId ? ' active' : '');
+      // Preview rendering : pour chaque lane, une mini-ligne 16 cells colorée
+      let previewHtml = '';
+      const laneList = p.lanes || (p.laneMode === 8 ? STUDIO_LANES_8 : STUDIO_LANES_4);
+      laneList.slice(0, 4).forEach(lid => {
+        const lane = LANES.find(l => l.id === lid);
+        const cells = (p.steps[lid] || new Array(16).fill(false))
+          .map(on => `<div class="sli-preview-cell ${on ? 'on' : ''}" style="--lane-color:${lane?.color || '#999'}"></div>`)
+          .join('');
+        previewHtml += `<div class="sli-preview" style="--lane-color:${lane?.color || '#999'}">${cells}</div>`;
+      });
+      item.innerHTML = `
+        <div class="sli-name">${p.name}</div>
+        <div class="sli-meta">${p.bpm} BPM · ${laneList.length} lanes</div>
+        ${previewHtml}
+        <div class="sli-actions">
+          <button data-act="load">📂 Charger</button>
+          <button class="danger" data-act="delete">🗑️</button>
+        </div>
+      `;
+      item.querySelector('[data-act="load"]').addEventListener('click', e => {
+        e.stopPropagation();
+        studioLoadPattern(p.id);
+        overlay.classList.remove('active');
+      });
+      item.querySelector('[data-act="delete"]').addEventListener('click', e => {
+        e.stopPropagation();
+        if (!confirm(`Supprimer "${p.name}" ?`)) return;
+        const newLib = lib.filter(x => x.id !== p.id);
+        studioSaveLibrary(newLib);
+        if (studio.loadedId === p.id) {
+          studio.loadedId = null;
+          document.getElementById('studio-delete').style.display = 'none';
+        }
+        studioOpenLibrary();  // re-render
+      });
+      item.addEventListener('click', () => {
+        studioLoadPattern(p.id);
+        overlay.classList.remove('active');
+      });
+      grid.appendChild(item);
+    }
+  }
+  overlay.classList.add('active');
+}
+
+function studioOpen() {
+  studioStop();
+  const hadDraft = studioLoadDraft();
+  if (!hadDraft) {
+    studio.bpm = 100;
+    studio.laneMode = 4;
+    studio.lanes = STUDIO_LANES_4;
+    studio.steps = studioFreshSteps(studio.lanes);
+    studio.name = '';
+    studio.loadedId = null;
+  }
+  buildStudioGrid();
+  const lib = studioLoadLibrary();
+  document.getElementById('studio-lib-count').textContent = lib.length;
+}
+
+function studioStopAll() {
+  studioStop();
+  const ov = document.getElementById('studio-library');
+  if (ov) ov.classList.remove('active');
+}
+
+// Wire UI
+document.getElementById('studio-play').addEventListener('click', studioPlay);
+document.getElementById('studio-clear').addEventListener('click', studioClear);
+document.getElementById('studio-save').addEventListener('click', studioSave);
+document.getElementById('studio-delete').addEventListener('click', studioDelete);
+document.getElementById('studio-library-btn').addEventListener('click', studioOpenLibrary);
+document.getElementById('studio-library-close').addEventListener('click', () => {
+  document.getElementById('studio-library').classList.remove('active');
+});
+document.getElementById('studio-library').addEventListener('click', e => {
+  if (e.target.id === 'studio-library') {
+    document.getElementById('studio-library').classList.remove('active');
+  }
+});
+document.getElementById('studio-new-btn').addEventListener('click', studioNewPattern);
+document.getElementById('studio-name').addEventListener('input', e => {
+  studio.name = e.target.value;
+  studioSaveDraft();
+});
+document.getElementById('studio-bpm').addEventListener('input', e => {
+  studio.bpm = parseInt(e.target.value, 10);
+  document.getElementById('studio-bpm-val').textContent = studio.bpm;
+  studioSaveDraft();
+});
+document.getElementById('studio-lane-mode').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-mode]');
+  if (!btn) return;
+  const mode = parseInt(btn.dataset.mode, 10);
+  if (mode === studio.laneMode) return;
+  studio.laneMode = mode;
+  const newLanes = mode === 8 ? STUDIO_LANES_8 : STUDIO_LANES_4;
+  // Préserve les cases existantes des lanes communes
+  const oldSteps = studio.steps;
+  studio.lanes = newLanes;
+  studio.steps = studioFreshSteps(newLanes);
+  for (const l of newLanes) {
+    if (oldSteps[l]) studio.steps[l] = oldSteps[l];
+  }
+  studioSaveDraft();
+  buildStudioGrid();
 });
 
 // =====================================================================
