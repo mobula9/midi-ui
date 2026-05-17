@@ -370,27 +370,17 @@ button:focus { outline: none; }
   aspect-ratio: 1;        /* pads ronds par défaut */
   border-radius: 50%;
 }
-/* Dispo précise calquée sur la photo du DD-75 :
-   - 2 rangées de 4 pads
-   - 4 PETITS pads aux 4 coins (5, 7 en haut ; 6, 8 en bas), tous ~17% width
-   - 4 GROS pads au centre (2, 3 en haut ; 1, 4 en bas), tous ~23% width
-   - Pads 5 et 6 alignés verticalement à gauche, Pads 7 et 8 à droite
-   - Un "trou" au milieu du bas pour les contrôles (= laisse de la place
-     pour les pédales)
-*/
-/* Rangée du HAUT — coins petits, centre grands */
-.dd75-layout > [data-lane="crash"]   { top: 3%;  left: 5%;   width: 17%; }    /* Pad 5  petit  */
-.dd75-layout > [data-lane="tomL"]    { top: 9%;  left: 27%;  width: 22%; }    /* Pad 2  grand  */
-.dd75-layout > [data-lane="tomM"]    { top: 9%;  right: 27%; width: 22%; }    /* Pad 3  grand  */
-.dd75-layout > [data-lane="ridecup"] { top: 3%;  right: 5%;  width: 17%; }    /* Pad 7  petit  */
-/* Rangée du BAS — coins petits (alignés sous 5/7), centre grands */
-.dd75-layout > [data-lane="hihat"]   { top: 37%; left: 5%;   width: 17%; }    /* Pad 6  petit  */
-.dd75-layout > [data-lane="snare"]   { top: 44%; left: 25%;  width: 24%; }    /* Pad 1  grand  */
-.dd75-layout > [data-lane="tomH"]    { top: 44%; right: 25%; width: 24%; }    /* Pad 4  grand  */
-.dd75-layout > [data-lane="ride"]    { top: 37%; right: 5%;  width: 17%; }    /* Pad 8  petit  */
-/* Pédales en bas — rectangulaires, séparées (laissent le "trou" central) */
-.dd75-layout > [data-lane="hhpedal"] { bottom: 2%; left: 7%;  width: 22%; height: 9%; aspect-ratio: auto; border-radius: 8px; }
-.dd75-layout > [data-lane="kick"]    { bottom: 2%; right: 7%; width: 22%; height: 9%; aspect-ratio: auto; border-radius: 8px; }
+/* Dispo synchronisée avec drum-trainer/layout.json (édite via layout-debug.html) */
+.dd75-layout > [data-lane="crash"]   { top: 3%;  left: 5%;    width: 15%; }
+.dd75-layout > [data-lane="tomL"]    { top: 12%; left: 25%;   width: 22%; }
+.dd75-layout > [data-lane="tomM"]    { top: 12%; right: 27%;  width: 22%; }
+.dd75-layout > [data-lane="ridecup"] { top: 3%;  right: 5%;   width: 15%; }
+.dd75-layout > [data-lane="hihat"]   { top: 25%; left: 8%;    width: 15%; }
+.dd75-layout > [data-lane="snare"]   { top: 42%; left: 14%;   width: 24%; }
+.dd75-layout > [data-lane="tomH"]    { top: 42%; right: 14%;  width: 24%; }
+.dd75-layout > [data-lane="ride"]    { top: 25%; right: 8%;   width: 15%; }
+.dd75-layout > [data-lane="hhpedal"] { bottom: 2%; left: 7%;  width: 9%; height: 22%; aspect-ratio: auto; border-radius: 8px; }
+.dd75-layout > [data-lane="kick"]    { bottom: 2%; right: 7%; width: 9%; height: 22%; aspect-ratio: auto; border-radius: 8px; }
 
 /* === Mode libre — dispo physique DD-75 (absolute positioning) === */
 #screen-free { background: var(--bg); }
