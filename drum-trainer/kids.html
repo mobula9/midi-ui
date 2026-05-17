@@ -3055,29 +3055,73 @@ function closeSpotifyAccompPicker() {
   document.getElementById('sp-picker-overlay').style.display = 'none';
 }
 
+async function spGetTempo(trackId) {
+  // 1. Essai audio-features (simple, retourne juste tempo + key + danceability...)
+  try {
+    const r = await spApi(`/audio-features/${trackId}`);
+    if (r.ok) {
+      const data = await r.json();
+      if (data.tempo) return { tempo: data.tempo, source: 'audio-features' };
+    } else {
+      console.warn('audio-features status:', r.status);
+    }
+  } catch (e) { console.warn('audio-features error:', e); }
+  // 2. Essai audio-analysis (plus complet mais souvent 403 pour les nouvelles apps)
+  try {
+    const r = await spApi(`/audio-analysis/${trackId}`);
+    if (r.ok) {
+      const data = await r.json();
+      if (data?.track?.tempo) return { tempo: data.track.tempo, source: 'audio-analysis' };
+    } else {
+      console.warn('audio-analysis status:', r.status);
+    }
+  } catch (e) { console.warn('audio-analysis error:', e); }
+  return null;
+}
+
 async function pickSpotifyAccompTrack(track) {
   apprSpotifyTrack = track;
-  // Coupe le synthé pour ne pas se cogner avec
   if (accompOn) toggleAccomp();
   closeSpotifyAccompPicker();
+
+  // Affiche le badge "Now playing" avec état "Détection tempo..."
+  document.getElementById('sp-accomp-info').style.display = 'inline-flex';
+  document.getElementById('sp-accomp-track').textContent = `${track.name} — Détection tempo…`;
+
   // Lance la lecture
   try {
     await spPlay(track.uri, track.id);
   } catch (e) {
     console.error('Spotify play:', e);
-    alert('Impossible de lancer la lecture. Vérifie ton compte Premium.');
+    alert('Impossible de lancer la lecture. Compte Premium requis.');
+    stopSpotifyAccomp();
     return;
   }
-  // Attente courte que l'analysis soit récupérée
-  for (let i = 0; i < 20 && !spAnalysis; i++) await new Promise(r => setTimeout(r, 100));
-  if (spAnalysis?.track?.tempo) {
-    const tempo = Math.round(spAnalysis.track.tempo);
+
+  // Cherche le tempo : audio-features d'abord, audio-analysis ensuite
+  const result = await spGetTempo(track.id);
+  let label;
+  if (result?.tempo) {
+    const tempo = Math.round(result.tempo);
     setLiveBpm(tempo);
+    label = `${track.name} — ${tempo} BPM (${result.source})`;
+  } else {
+    // Spotify a refusé : on demande manuellement
+    const manual = prompt(
+      `⚠ Spotify n'a pas voulu me donner le tempo du morceau "${track.name}".\n\n` +
+      `(C'est une limitation côté Spotify depuis fin 2024 pour les nouvelles apps.)\n\n` +
+      `Tape le BPM à la main (ou laisse vide pour garder le BPM actuel : ${bpm}) :`,
+      String(bpm)
+    );
+    const manualBpm = parseInt(manual, 10);
+    if (!isNaN(manualBpm) && manualBpm >= 30 && manualBpm <= 220) {
+      setLiveBpm(manualBpm);
+      label = `${track.name} — ${manualBpm} BPM (manuel)`;
+    } else {
+      label = `${track.name} — BPM ${bpm}`;
+    }
   }
-  // Affiche le badge "Now playing"
-  document.getElementById('sp-accomp-info').style.display = 'inline-flex';
-  document.getElementById('sp-accomp-track').textContent = `${track.name} — ${track.artists.map(a=>a.name).join(', ')}`;
-  // Re-schedule avec beaucoup plus de répétitions (le pattern boucle pendant tout le morceau)
+  document.getElementById('sp-accomp-track').textContent = label;
   scheduleNotes();
 }
 
