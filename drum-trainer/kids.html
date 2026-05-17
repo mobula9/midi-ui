@@ -739,6 +739,17 @@ button:focus { outline: none; }
   opacity: 0;
   transition: opacity 0.6s ease-out;
 }
+/* Pad "mauvais" : tapé alors que ce n'était pas le bon */
+.reflex-pad.wrong {
+  background: rgba(248, 113, 113, 0.35) !important;
+  border-color: var(--bad) !important;
+  animation: wrong-shake 0.3s ease-in-out;
+}
+@keyframes wrong-shake {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(-4px); }
+  75%      { transform: translateX(4px); }
+}
 
 .reflex-header {
   display: flex; gap: 30px;
@@ -2344,8 +2355,23 @@ function rfxScheduleNext() {
 }
 
 function rfxOnHit(laneId) {
-  // Validé si le pad tapé == le pad actif
-  if (laneId !== reflexCurrentLane) return false;
+  // Pas de pad actif → on ignore (entre 2 rounds)
+  if (!reflexCurrentLane) return false;
+  // Mauvais pad → flash rouge subtil + perd 1 point + reset combo
+  if (laneId !== reflexCurrentLane) {
+    const wrongEl = document.querySelector(`.reflex-pad[data-lane="${laneId}"]`);
+    if (wrongEl) {
+      wrongEl.classList.remove('wrong');
+      void wrongEl.offsetWidth;
+      wrongEl.classList.add('wrong');
+      setTimeout(() => wrongEl.classList.remove('wrong'), 320);
+      spawnFloatingEmojiAt(wrongEl, '🙈', 30);
+    }
+    reflexScore = Math.max(0, reflexScore - 1);
+    reflexStreak = 0;
+    rfxUpdateScores();
+    return false;
+  }
   const el = document.querySelector(`.reflex-pad[data-lane="${laneId}"]`);
   if (!el) return false;
   clearTimeout(reflexGrowTimer);
