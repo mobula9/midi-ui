@@ -212,6 +212,123 @@ button:focus { outline: none; }
 }
 .profile-pill:hover { filter: brightness(1.05); }
 .profile-pill .emoji { font-size: 26px; }
+
+/* === Switcher de profil global (top-right, visible sur toutes les pages) === */
+.profile-switcher {
+  position: fixed;
+  top: 12px; right: 12px;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--panel);
+  border: none;
+  border-radius: 999px;
+  padding: 5px 14px 5px 5px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 700;
+  color: var(--text);
+  transition: filter 0.1s;
+}
+.profile-switcher:hover { filter: brightness(0.97); }
+.profile-switcher .ps-emoji {
+  width: 36px; height: 36px;
+  background: var(--accent);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+.profile-switcher .ps-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0px;
+  line-height: 1.1;
+}
+.profile-switcher .ps-name { font-size: 14px; }
+.profile-switcher .ps-stars { font-size: 11px; color: var(--muted); font-weight: 600; }
+.profile-switcher .ps-arrow { font-size: 11px; opacity: 0.5; margin-left: 2px; }
+
+.profile-dropdown {
+  position: fixed;
+  top: 58px; right: 12px;
+  z-index: 91;
+  background: var(--panel);
+  border-radius: 14px;
+  box-shadow: 0 10px 32px rgba(0,0,0,0.22), 0 2px 6px rgba(0,0,0,0.08);
+  padding: 6px;
+  min-width: 240px;
+  max-height: 70vh;
+  overflow-y: auto;
+  display: none;
+  font-family: inherit;
+}
+.profile-dropdown.open { display: block; }
+.profile-dropdown-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  border: none; background: transparent;
+  width: 100%; text-align: left;
+  font-family: inherit;
+  transition: background 0.08s;
+}
+.profile-dropdown-row:hover { background: #f5f5f0; }
+.profile-dropdown-row.active { background: #e0f7f5; }
+.profile-dropdown-row .pd-em {
+  width: 34px; height: 34px;
+  background: #f5f5f0;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.profile-dropdown-row.active .pd-em { background: var(--accent); }
+.profile-dropdown-row .pd-name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.profile-dropdown-row .pd-check { color: var(--accent); font-weight: 800; font-size: 14px; }
+.profile-dropdown-row .pd-stars {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.profile-dropdown-divider {
+  height: 1px; background: #eee; margin: 6px 4px;
+}
+.profile-dropdown-action {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  border: none; background: transparent;
+  width: 100%; text-align: left;
+  font-family: inherit;
+  transition: background 0.08s, color 0.08s;
+}
+.profile-dropdown-action:hover { background: #f5f5f0; color: var(--text); }
+.profile-dropdown-action .pda-icon {
+  width: 22px; text-align: center; font-size: 15px;
+}
+
+/* Sur l'accueil, le compteur d'étoiles standalone est redondant (le switcher l'affiche) */
+#screen-home #stars-counter { display: none; }
+/* Et on décale la cal-shortcut pour ne pas chevaucher le switcher */
+#screen-home .cal-shortcut { right: 240px; }
+@media (max-width: 680px) {
+  .profile-switcher .ps-text { display: none; }
+  #screen-home .cal-shortcut { right: 76px; }
+}
 .boumbi-hello .speech {
   display: inline-block;
   background: var(--panel);
@@ -1222,6 +1339,17 @@ button:focus { outline: none; }
 </head>
 <body>
 
+<!-- Switcher de profil global, visible sur toutes les pages -->
+<button class="profile-switcher" id="profile-switcher" aria-label="Changer de profil">
+  <span class="ps-emoji" id="ps-emoji">🦁</span>
+  <span class="ps-text">
+    <span class="ps-name" id="ps-name">Lucas</span>
+    <span class="ps-stars">⭐ <span id="ps-stars">0</span></span>
+  </span>
+  <span class="ps-arrow">▾</span>
+</button>
+<div class="profile-dropdown" id="profile-dropdown" role="menu"></div>
+
 <!-- =================================================================== -->
 <!-- ÉCRAN ACCUEIL -->
 <!-- =================================================================== -->
@@ -2092,7 +2220,11 @@ function totalStars() {
   return Object.values(getStars()).reduce((a, b) => a + b, 0);
 }
 function updateStarsCounter() {
-  document.getElementById('stars-counter').textContent = totalStars();
+  const total = totalStars();
+  const sc = document.getElementById('stars-counter');
+  if (sc) sc.textContent = total;
+  const ps = document.getElementById('ps-stars');
+  if (ps) ps.textContent = total;
 }
 
 // =====================================================================
@@ -2121,6 +2253,11 @@ function updateProfileDisplay() {
   if (emoji) emoji.textContent = p.emoji;
   if (name) name.textContent = p.name;
   if (boumbiName) boumbiName.textContent = p.name;
+  // Switcher global (visible sur toutes les pages)
+  const psEmoji = document.getElementById('ps-emoji');
+  const psName = document.getElementById('ps-name');
+  if (psEmoji) psEmoji.textContent = p.emoji;
+  if (psName) psName.textContent = p.name;
 }
 
 function profileStats(profileName) {
@@ -2228,6 +2365,93 @@ document.getElementById('profile-modal').addEventListener('click', e => {
     document.getElementById('profile-modal').classList.remove('active');
   }
 });
+
+// === Switcher global : dropdown rapide pour switcher de profil ===
+function renderProfileDropdown() {
+  const root = document.getElementById('profile-dropdown');
+  root.innerHTML = '';
+  const current = getCurrentProfileName();
+  for (const p of getProfiles()) {
+    const { stars } = profileStats(p.name);
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'profile-dropdown-row' + (p.name === current ? ' active' : '');
+    row.innerHTML = `
+      <span class="pd-em">${p.emoji}</span>
+      <span class="pd-name">${p.name}</span>
+      ${p.name === current ? '<span class="pd-check">✓</span>' : `<span class="pd-stars">⭐ ${stars}</span>`}
+    `;
+    row.addEventListener('click', () => {
+      if (p.name !== current) {
+        setCurrentProfileName(p.name);
+        updateProfileDisplay();
+        updateStarsCounter();
+        // Refresh la vue qui dépend du profil (progression, étoiles inline, etc.)
+        if (currentScreen === 'progress' && typeof renderProgress === 'function') renderProgress();
+        if (currentScreen === 'learn-select' && typeof renderPatternList === 'function') renderPatternList();
+      }
+      closeProfileDropdown();
+    });
+    root.appendChild(row);
+  }
+  const div = document.createElement('div');
+  div.className = 'profile-dropdown-divider';
+  root.appendChild(div);
+
+  const addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.className = 'profile-dropdown-action';
+  addBtn.innerHTML = '<span class="pda-icon">＋</span> Nouveau profil';
+  addBtn.addEventListener('click', () => {
+    closeProfileDropdown();
+    addProfileFlow();
+  });
+  root.appendChild(addBtn);
+
+  const manageBtn = document.createElement('button');
+  manageBtn.type = 'button';
+  manageBtn.className = 'profile-dropdown-action';
+  manageBtn.innerHTML = '<span class="pda-icon">⚙</span> Gérer les profils';
+  manageBtn.addEventListener('click', () => {
+    closeProfileDropdown();
+    renderProfileList();
+    document.getElementById('profile-modal').classList.add('active');
+  });
+  root.appendChild(manageBtn);
+}
+
+function openProfileDropdown() {
+  renderProfileDropdown();
+  document.getElementById('profile-dropdown').classList.add('open');
+}
+function closeProfileDropdown() {
+  document.getElementById('profile-dropdown').classList.remove('open');
+}
+
+document.getElementById('profile-switcher').addEventListener('click', e => {
+  e.stopPropagation();
+  const dropdown = document.getElementById('profile-dropdown');
+  if (dropdown.classList.contains('open')) closeProfileDropdown();
+  else openProfileDropdown();
+});
+
+document.addEventListener('click', e => {
+  const dropdown = document.getElementById('profile-dropdown');
+  if (!dropdown.classList.contains('open')) return;
+  if (e.target.closest('#profile-dropdown')) return;
+  closeProfileDropdown();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' &&
+      document.getElementById('profile-dropdown').classList.contains('open')) {
+    closeProfileDropdown();
+  }
+});
+
+// Init initial des affichages du switcher
+updateProfileDisplay();
+updateStarsCounter();
 
 function relativeDate(ts) {
   const diff = Date.now() - ts;
