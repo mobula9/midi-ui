@@ -46,6 +46,8 @@ button:focus { outline: none; }
 .screen.active { display: flex; }
 .screen-title {
   padding: 16px 24px;
+  /* Espace pour ne pas passer sous la pill profil */
+  padding-right: calc(24px + var(--switcher-w));
   display: flex; align-items: center; gap: 12px;
 }
 .btn-back {
@@ -98,9 +100,17 @@ button:focus { outline: none; }
   cursor: pointer;
   display: flex; align-items: center; gap: 8px;
   z-index: 5;
-  max-width: 380px;
+  /* Jamais plus large que (viewport - brand - switcher - marges) */
+  max-width: min(380px, calc(100vw - 280px - var(--switcher-w)));
+  min-width: 120px;
 }
-.kit-selector .kit-icon { font-size: 18px; }
+.kit-selector .kit-icon { font-size: 18px; flex-shrink: 0; }
+.kit-selector #kit-current-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
 .kit-selector:hover { background: #f8f4e7; }
 
 /* Modal de choix du kit */
@@ -252,6 +262,10 @@ button:focus { outline: none; }
 .profile-switcher .ps-stars { font-size: 11px; color: var(--muted); font-weight: 600; }
 .profile-switcher .ps-arrow { font-size: 11px; opacity: 0.5; margin-left: 2px; }
 
+/* Largeur réservée pour ne pas que la pill cache les autres éléments. */
+/* Vaut sa largeur réelle + un petit gap. */
+:root { --switcher-w: 210px; }
+
 .profile-dropdown {
   position: fixed;
   top: 58px; right: 12px;
@@ -324,10 +338,19 @@ button:focus { outline: none; }
 /* Sur l'accueil, le compteur d'étoiles standalone est redondant (le switcher l'affiche) */
 #screen-home #stars-counter { display: none; }
 /* Et on décale la cal-shortcut pour ne pas chevaucher le switcher */
-#screen-home .cal-shortcut { right: 240px; }
+#screen-home .cal-shortcut { right: calc(24px + var(--switcher-w)); }
 @media (max-width: 680px) {
+  /* En mode "emoji seul", la pill est beaucoup plus étroite */
+  :root { --switcher-w: 76px; }
   .profile-switcher .ps-text { display: none; }
-  #screen-home .cal-shortcut { right: 76px; }
+}
+@media (max-width: 520px) {
+  /* Sur très petit écran, on passe le kit-selector sous la ligne du haut */
+  #screen-home .kit-selector {
+    top: 64px;
+    max-width: calc(100vw - 32px);
+  }
+  #screen-home .cal-shortcut { right: 80px; }
 }
 .boumbi-hello .speech {
   display: inline-block;
@@ -991,7 +1014,8 @@ button:focus { outline: none; }
   position: absolute;
   top: 12px;
   left: 12px;
-  right: 12px;
+  /* Réserve la place pour la pill profil à droite */
+  right: calc(12px + var(--switcher-w));
   display: flex;
   gap: 12px;
   align-items: center;
