@@ -1370,7 +1370,11 @@ button:focus { outline: none; }
     <div style="font-size:42px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;">
       <span id="tap-tempo-bpm">—</span> <span style="font-size:16px;opacity:0.6;">BPM</span>
     </div>
-    <div style="font-size:11px;color:rgba(255,255,255,0.7);"><span id="tap-tempo-count">0</span> taps · auto-stop dans <span id="tap-tempo-remaining">10</span>s · Échap pour finir</div>
+    <div style="font-size:11px;color:rgba(255,255,255,0.7);">
+      <span id="tap-tempo-count">0</span> taps
+      <span id="tap-tempo-autostop" style="display:none"> · auto-stop dans <span id="tap-tempo-remaining">4</span>s</span>
+      · Échap pour valider
+    </div>
   </div>
   <div class="play-pads" id="play-pads"></div>
   <div class="countdown" id="countdown" style="display:none"></div>
@@ -3283,7 +3287,13 @@ document.getElementById('sp-picker-overlay').addEventListener('click', e => {
 // =====================================================================
 // TAP TEMPO — tape espace en rythme, on calcule le BPM + l'offset
 // =====================================================================
-const TAP_WINDOW_MS = 10000;  // fenêtre d'enregistrement
+// Min de taps avant qu'on arme l'auto-stop. Tant qu'on n'a pas atteint ce seuil,
+// la session reste ouverte indéfiniment (l'utilisateur peut prendre son temps).
+const TAP_MIN_TAPS = 3;
+// Silence après le dernier tap avant que la session se ferme automatiquement.
+// Reset à chaque nouveau tap, donc tant que l'utilisateur tape, ça continue.
+const TAP_SILENCE_MS = 4000;
+
 let tapTimes = [];
 let tapActive = false;
 let tapEndTimer = null;
@@ -3299,15 +3309,10 @@ async function tapTempoStart() {
   document.getElementById('tap-tempo-bar').style.display = 'flex';
   document.getElementById('tap-tempo-count').textContent = '0';
   document.getElementById('tap-tempo-bpm').textContent = '—';
-  let remaining = 10;
-  document.getElementById('tap-tempo-remaining').textContent = remaining;
-  if (tapEndTimer) clearTimeout(tapEndTimer);
-  if (tapRemainingTimer) clearInterval(tapRemainingTimer);
-  tapRemainingTimer = setInterval(() => {
-    remaining--;
-    document.getElementById('tap-tempo-remaining').textContent = Math.max(0, remaining);
-  }, 1000);
-  tapEndTimer = setTimeout(tapTempoFinish, TAP_WINDOW_MS);
+  // Auto-stop caché tant qu'on n'a pas atteint le min de taps
+  document.getElementById('tap-tempo-autostop').style.display = 'none';
+  if (tapEndTimer) { clearTimeout(tapEndTimer); tapEndTimer = null; }
+  if (tapRemainingTimer) { clearInterval(tapRemainingTimer); tapRemainingTimer = null; }
 
   // Si on a un track Spotify sélectionné ET qu'on n'est pas déjà en plein
   // morceau (où Spotify joue déjà via startMode), on le lance pour le tap tempo.
@@ -3321,6 +3326,23 @@ async function tapTempoStart() {
       console.error('Spotify play (tap tempo):', e);
     }
   }
+}
+
+// (Re)démarre le timer d'auto-stop, qui se déclenche après TAP_SILENCE_MS sans tap.
+// Chaque tap reset ce timer (tant que tu tapes, ça continue).
+function tapTempoArmAutoStop() {
+  if (tapEndTimer) clearTimeout(tapEndTimer);
+  if (tapRemainingTimer) clearInterval(tapRemainingTimer);
+  const autostopEl = document.getElementById('tap-tempo-autostop');
+  const remainingEl = document.getElementById('tap-tempo-remaining');
+  autostopEl.style.display = 'inline';
+  let remaining = Math.round(TAP_SILENCE_MS / 1000);
+  remainingEl.textContent = remaining;
+  tapRemainingTimer = setInterval(() => {
+    remaining--;
+    remainingEl.textContent = Math.max(0, remaining);
+  }, 1000);
+  tapEndTimer = setTimeout(tapTempoFinish, TAP_SILENCE_MS);
 }
 
 function tapTempoTap() {
@@ -3340,6 +3362,10 @@ function tapTempoTap() {
     if (avg > 0) {
       document.getElementById('tap-tempo-bpm').textContent = Math.round(60000 / avg);
     }
+  }
+  // Une fois qu'on a assez de données, on arme l'auto-stop (reset à chaque tap)
+  if (tapTimes.length >= TAP_MIN_TAPS) {
+    tapTempoArmAutoStop();
   }
 }
 
