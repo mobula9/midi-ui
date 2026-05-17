@@ -202,7 +202,12 @@ button:focus { outline: none; }
 }
 
 /* === Home === */
-#screen-home { justify-content: center; align-items: center; }
+#screen-home {
+  justify-content: center;
+  align-items: center;
+  padding-top: 70px;   /* laisse passer le brand + kit-selector + switcher */
+  overflow-y: auto;
+}
 .boumbi-hello { text-align: center; margin-bottom: 24px; }
 .profile-pill {
   display: inline-flex;
@@ -345,8 +350,17 @@ button:focus { outline: none; }
 
 /* Sur l'accueil, le compteur d'étoiles standalone est redondant (le switcher l'affiche) */
 #screen-home #stars-counter { display: none; }
-/* Et on décale la cal-shortcut pour ne pas chevaucher le switcher */
-#screen-home .cal-shortcut { right: calc(24px + var(--switcher-w)); }
+/* La cal-shortcut va à droite, sous le switcher. Plus de chevauchement avec le kit-selector. */
+#screen-home .cal-shortcut {
+  top: 70px;
+  right: 16px;
+}
+@media (max-width: 920px) {
+  /* Plus de place pour le kit-selector au centre quand y'a moins de largeur */
+  .kit-selector {
+    max-width: min(380px, calc(100vw - 200px - var(--switcher-w)));
+  }
+}
 @media (max-width: 680px) {
   /* En mode "emoji seul", la pill est beaucoup plus étroite */
   :root { --switcher-w: 76px; }
@@ -358,7 +372,7 @@ button:focus { outline: none; }
     top: 64px;
     max-width: calc(100vw - 32px);
   }
-  #screen-home .cal-shortcut { right: 80px; }
+  #screen-home .cal-shortcut { top: 116px; }
 }
 .boumbi-hello .speech {
   display: inline-block;
@@ -2767,7 +2781,7 @@ button:focus { outline: none; }
       <button data-lv="6">6 · pro</button>
     </div>
     <div class="echo-stats">
-      <div>Motif <strong id="echo-motif-idx">—</strong>/<span id="echo-motif-total">8</span></div>
+      <div>Motif <strong><span id="echo-motif-idx">—</span> / <span id="echo-motif-total">8</span></strong></div>
       <div>Best <strong id="echo-best">—</strong></div>
     </div>
   </div>
