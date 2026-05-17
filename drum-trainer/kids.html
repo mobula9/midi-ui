@@ -267,6 +267,82 @@ button:focus { outline: none; }
 .profile-switcher .ps-stars { font-size: 11px; color: var(--muted); font-weight: 600; }
 .profile-switcher .ps-arrow { font-size: 11px; opacity: 0.5; margin-left: 2px; }
 
+/* Pad simulé flottant — visible quand pas de vrai MIDI */
+.sim-pad-widget {
+  position: fixed;
+  bottom: 14px;
+  right: 14px;
+  z-index: 92;
+  background: rgba(20, 20, 30, 0.92);
+  border-radius: 16px;
+  padding: 8px 10px 10px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.4);
+  backdrop-filter: blur(8px);
+  display: none;
+  font-family: inherit;
+  color: white;
+}
+.sim-pad-widget.visible { display: block; }
+.sim-pad-widget .spw-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.sim-pad-widget .spw-title { font-size: 11px; font-weight: 700; opacity: 0.85; }
+.sim-pad-widget .spw-close {
+  background: rgba(255,255,255,0.12);
+  border: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  color: white;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.sim-pad-widget .spw-close:hover { background: rgba(255,255,255,0.22); }
+.sim-pad-widget .spw-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+}
+.sim-pad-widget .spw-pad {
+  background: var(--lane-color, #444);
+  border: none;
+  border-radius: 8px;
+  padding: 6px 4px;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  color: rgba(0,0,0,0.7);
+  min-width: 56px;
+  transition: transform 0.06s, filter 0.06s;
+  box-shadow: inset 0 -3px 6px rgba(0,0,0,0.2), inset 0 2px 4px rgba(255,255,255,0.2);
+}
+.sim-pad-widget .spw-pad:hover { filter: brightness(1.08); }
+.sim-pad-widget .spw-pad:active,
+.sim-pad-widget .spw-pad.hit {
+  transform: scale(0.92);
+  filter: brightness(1.4);
+  box-shadow: 0 0 14px var(--lane-color, white), inset 0 -3px 6px rgba(0,0,0,0.2);
+}
+.sim-pad-widget .spw-key {
+  font-size: 13px;
+  font-weight: 800;
+  background: rgba(255,255,255,0.85);
+  border-radius: 4px;
+  padding: 0 5px;
+  color: #000;
+  min-width: 18px;
+  text-align: center;
+}
+.sim-pad-widget .spw-emoji { font-size: 20px; line-height: 1; }
+.sim-pad-widget .spw-name { font-size: 9px; font-weight: 700; }
+
 /* Pulse a chaque tap (Tap Tempo) */
 @keyframes tap-tempo-pulse {
   0% { transform: translateX(-50%) scale(1); box-shadow: 0 0 30px rgba(78,205,196,0.5); }
@@ -1934,11 +2010,11 @@ button:focus { outline: none; }
   box-shadow: var(--shadow);
   flex-shrink: 0;
 }
-/* Barre de vie verticale a droite */
+/* Barre de vie verticale a gauche */
 .runner-health-bar {
   position: absolute;
-  right: 16px;
-  top: 80px;
+  left: 16px;
+  top: 110px;       /* sous la HUD + bouton music */
   bottom: 60px;
   width: 28px;
   z-index: 5;
@@ -2784,6 +2860,15 @@ button:focus { outline: none; }
 <button class="fs-btn" id="fs-btn" title="Passer en plein écran" aria-label="Plein écran">
   <span class="fs-icon">⛶</span><span class="fs-label">Plein écran</span>
 </button>
+
+<!-- Pad simulé flottant : visible quand le MIDI n'est pas reel (IAC seulement, ou rien) -->
+<div class="sim-pad-widget" id="sim-pad-widget">
+  <div class="spw-header">
+    <span class="spw-title">🎹 Pad simulé · clavier 0-9 ou clique</span>
+    <button class="spw-close" id="spw-close" title="Masquer">×</button>
+  </div>
+  <div class="spw-grid" id="spw-grid"></div>
+</div>
 
 <!-- Switcher de profil global, visible sur toutes les pages -->
 <button class="profile-switcher" id="profile-switcher" aria-label="Changer de profil">
@@ -3982,6 +4067,24 @@ document.querySelectorAll('.home-cards .card').forEach(card => {
       if (!fsIsActive()) fsEnter();
     }
   });
+});
+
+// === Pad simulé : close button + keyboard global (Digit1-Digit0) ===
+document.getElementById('spw-close').addEventListener('click', () => {
+  _simPadDismissed = true;
+  updateSimPadWidget();
+});
+// Keyboard global : touche 1-9-0 → simulatePadHit, avec event.code donc OK
+// peu importe la dispo (azerty produit & é etc mais code = Digit1...).
+document.addEventListener('keydown', e => {
+  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+  // Si la pad widget est masquee manuellement on n'intercepte pas les digits
+  // (l'utilisateur a peut-etre une vraie batterie + veut taper des chiffres)
+  if (_simPadDismissed && !isVirtualMIDI()) return;
+  const laneId = SIM_PAD_KEYMAP[e.code];
+  if (!laneId) return;
+  e.preventDefault();
+  simulatePadHit(laneId, 100);
 });
 
 // =====================================================================
@@ -5875,6 +5978,7 @@ function runnerOpen() {
   runner.floatingText = [];
   runner.flyingHearts = [];
   runner.starbursts = [];
+  runner.raindrops = [];
   // HUD reset
   document.getElementById('runner-distance').textContent = '0';
   document.getElementById('runner-level').textContent = '1';
@@ -5937,6 +6041,7 @@ function runnerStart() {
   runner.floatingText = [];
   runner.flyingHearts = [];
   runner.starbursts = [];
+  runner.raindrops = [];
   runner.scrollX = 0;
   runner.obstaclesPassed = 0;
   runner.paused = false;
@@ -6067,6 +6172,31 @@ function runnerUpdate(dt, now) {
   // Flash decay (apres impact)
   if (runner.flash > 0) runner.flash = Math.max(0, runner.flash - dt * 4);
   if (runner.shake > 0) runner.shake = Math.max(0, runner.shake - dt * 4);
+  // Pluie quand la vie est basse (badness > 0.3, c'est-a-dire health < 70)
+  const badness = Math.max(0, Math.min(1, 1 - (runner.health || 100) / 100));
+  if (badness > 0.3 && rW > 0) {
+    if (!runner.raindrops) runner.raindrops = [];
+    // Spawn rate proportionnel a la badness
+    const spawnCount = Math.floor(badness * badness * 12 * dt * 60);
+    for (let i = 0; i < spawnCount; i++) {
+      runner.raindrops.push({
+        x: Math.random() * (rW + 100) - 50,
+        y: -10 - Math.random() * 100,
+        vy: 700 + Math.random() * 400,
+        vx: -120,  // un peu de vent latéral
+        life: 1.5,
+      });
+    }
+    runner.raindrops.forEach(d => {
+      d.x += d.vx * dt;
+      d.y += d.vy * dt;
+      d.life -= dt;
+    });
+    runner.raindrops = runner.raindrops.filter(d => d.life > 0 && d.y < rH);
+  } else if (runner.raindrops) {
+    runner.raindrops.forEach(d => { d.life -= dt; });
+    runner.raindrops = runner.raindrops.filter(d => d.life > 0);
+  }
   // HUD
   document.getElementById('runner-distance').textContent = Math.floor(runner.distance);
 }
@@ -6376,6 +6506,15 @@ function runnerDraw() {
   ctx.fillStyle = skyGrad;
   ctx.fillRect(0, 0, rW, rH);
 
+  // === Bad weather : plus la vie baisse, plus le ciel devient sombre + pluie ===
+  // 0 = beau temps, 1 = orage
+  const badness = Math.max(0, Math.min(1, 1 - (runner.health || 100) / 100));
+  if (badness > 0) {
+    // Overlay gris-bleu (assombrit la scene)
+    ctx.fillStyle = `rgba(20, 18, 40, ${badness * 0.55})`;
+    ctx.fillRect(0, 0, rW, rH);
+  }
+
   // === Etoiles (seulement nuit/espace) ===
   if (decor.stars) {
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
@@ -6543,6 +6682,18 @@ function runnerDraw() {
     ctx.fill();
   }
   ctx.globalAlpha = 1;
+
+  // === Pluie (bad weather) ===
+  if (runner.raindrops && runner.raindrops.length) {
+    ctx.strokeStyle = 'rgba(180, 200, 220, 0.65)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (const d of runner.raindrops) {
+      ctx.moveTo(d.x, d.y);
+      ctx.lineTo(d.x - 2, d.y + 10);  // ligne courte en biais
+    }
+    ctx.stroke();
+  }
 
   // === Coeurs volants (vers la barre de vie) ===
   if (runner.flyingHearts && runner.flyingHearts.length) {
@@ -7153,6 +7304,201 @@ function runnerSynthDrum(type, when, gain) {
   }
 }
 
+// =====================================================================
+// Pad simulé : sons synthetises pour TOUS les 10 pads, joues directement
+// dans le browser (utilise quand pas de MIDI reel branche).
+// =====================================================================
+let _padSynthMaster = null;
+function ensurePadSynth() {
+  ensureAudio();
+  if (!_padSynthMaster) {
+    _padSynthMaster = audioCtx.createGain();
+    _padSynthMaster.gain.value = 0.7;
+    _padSynthMaster.connect(audioCtx.destination);
+  }
+  return _padSynthMaster;
+}
+
+// Joue le son du pad correspondant au lane.id (synthetise en Web Audio).
+function playPadSound(laneId, velocity) {
+  if (!audioCtx) return;
+  ensurePadSynth();
+  const t = audioCtx.currentTime;
+  const target = _padSynthMaster;
+  const noise = runnerNoiseBuf();
+  const g = Math.max(0.05, Math.min(1, (velocity || 100) / 110)) * 0.45;
+
+  if (laneId === 'kick') {
+    // TR-808 kick
+    const o = audioCtx.createOscillator();
+    const env = audioCtx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(90, t);
+    o.frequency.exponentialRampToValueAtTime(48, t + 0.04);
+    env.gain.setValueAtTime(g * 1.4, t);
+    env.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
+    o.connect(env).connect(target);
+    o.start(t); o.stop(t + 0.75);
+  } else if (laneId === 'snare') {
+    [180, 330].forEach((f, i) => {
+      const o = audioCtx.createOscillator();
+      const eg = audioCtx.createGain();
+      o.type = 'triangle'; o.frequency.value = f;
+      eg.gain.setValueAtTime(g * (i === 0 ? 0.55 : 0.35), t);
+      eg.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+      o.connect(eg).connect(target);
+      o.start(t); o.stop(t + 0.1);
+    });
+    if (noise) {
+      const src = audioCtx.createBufferSource(); src.buffer = noise;
+      const hp = audioCtx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1800;
+      const bp = audioCtx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 5000; bp.Q.value = 0.5;
+      const ng = audioCtx.createGain();
+      ng.gain.setValueAtTime(g * 0.85, t);
+      ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+      src.connect(hp).connect(bp).connect(ng).connect(target);
+      src.start(t); src.stop(t + 0.2);
+    }
+  } else if (laneId === 'hihat' || laneId === 'hhpedal') {
+    // TR-808 hi-hat (square oscs)
+    const FREQS = [205, 304, 369, 522, 540, 800];
+    const hp = audioCtx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 7000;
+    const bp = audioCtx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 10000; bp.Q.value = 0.4;
+    const env = audioCtx.createGain();
+    const dur = (laneId === 'hhpedal') ? 0.025 : 0.04;
+    env.gain.setValueAtTime(g * 0.55, t);
+    env.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    hp.connect(bp).connect(env).connect(target);
+    for (const f of FREQS) {
+      const o = audioCtx.createOscillator();
+      o.type = 'square'; o.frequency.value = f;
+      o.connect(hp);
+      o.start(t); o.stop(t + dur + 0.01);
+    }
+  } else if (laneId === 'crash') {
+    // Crash cymbale : noise + bandpass haut + decay long
+    if (noise) {
+      const src = audioCtx.createBufferSource(); src.buffer = noise;
+      const hp = audioCtx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 4000;
+      const bp = audioCtx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 8000; bp.Q.value = 0.3;
+      const ng = audioCtx.createGain();
+      ng.gain.setValueAtTime(g * 0.6, t);
+      ng.gain.exponentialRampToValueAtTime(0.0001, t + 1.3);
+      src.connect(hp).connect(bp).connect(ng).connect(target);
+      src.start(t); src.stop(t + 1.4);
+    }
+  } else if (laneId === 'tomL' || laneId === 'tomM' || laneId === 'tomH') {
+    // Tom : sine pitch enveloppe descendante, freq selon hauteur
+    const startF = laneId === 'tomL' ? 110 : laneId === 'tomM' ? 165 : 230;
+    const endF = startF * 0.55;
+    const o = audioCtx.createOscillator();
+    const eg = audioCtx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(startF, t);
+    o.frequency.exponentialRampToValueAtTime(endF, t + 0.15);
+    eg.gain.setValueAtTime(g * 1.1, t);
+    eg.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+    o.connect(eg).connect(target);
+    o.start(t); o.stop(t + 0.38);
+  } else if (laneId === 'ride') {
+    // Ride : metallique long, plus doux que crash
+    if (noise) {
+      const src = audioCtx.createBufferSource(); src.buffer = noise;
+      const hp = audioCtx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 5500;
+      const bp = audioCtx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 9000; bp.Q.value = 1.2;
+      const ng = audioCtx.createGain();
+      ng.gain.setValueAtTime(g * 0.45, t);
+      ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+      src.connect(hp).connect(bp).connect(ng).connect(target);
+      src.start(t); src.stop(t + 0.65);
+    }
+  } else if (laneId === 'ridecup') {
+    // Ride cup : bell tone court (fundamental + 5th)
+    [880, 1320, 2640].forEach((f, i) => {
+      const o = audioCtx.createOscillator();
+      const eg = audioCtx.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      eg.gain.setValueAtTime(g * (i === 0 ? 0.45 : 0.2), t);
+      eg.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
+      o.connect(eg).connect(target);
+      o.start(t); o.stop(t + 0.28);
+    });
+  }
+}
+
+// === Widget pad simulé + mapping clavier global ===
+// Touches digits 0-9 (via event.code Digit0..Digit9, peu importe l'azerty/qwerty).
+const SIM_PAD_KEYMAP = {
+  Digit1: 'kick',
+  Digit2: 'snare',
+  Digit3: 'crash',
+  Digit4: 'tomL',
+  Digit5: 'hihat',
+  Digit6: 'tomM',
+  Digit7: 'tomH',
+  Digit8: 'ridecup',
+  Digit9: 'ride',
+  Digit0: 'hhpedal',
+};
+// Inverse pour afficher la touche sur chaque pad
+const SIM_LANE_TO_KEY = Object.fromEntries(
+  Object.entries(SIM_PAD_KEYMAP).map(([k, v]) => [v, k.replace('Digit', '')])
+);
+
+let _simPadDismissed = false;  // l'utilisateur l'a manuellement masque
+
+function buildSimPadWidget() {
+  const grid = document.getElementById('spw-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  // Affiche les 10 lanes dans l'ordre du keymap (1..0)
+  const order = ['kick','snare','crash','tomL','hihat','tomM','tomH','ridecup','ride','hhpedal'];
+  for (const laneId of order) {
+    const lane = LANES.find(l => l.id === laneId);
+    if (!lane) continue;
+    const btn = document.createElement('button');
+    btn.className = 'spw-pad';
+    btn.dataset.lane = laneId;
+    btn.style.setProperty('--lane-color', lane.color);
+    btn.innerHTML = `
+      <span class="spw-key">${SIM_LANE_TO_KEY[laneId]}</span>
+      <span class="spw-emoji">${lane.emoji}</span>
+      <span class="spw-name">${lane.name}</span>
+    `;
+    btn.addEventListener('click', () => simulatePadHit(laneId, 100));
+    grid.appendChild(btn);
+  }
+}
+
+function updateSimPadWidget() {
+  const widget = document.getElementById('sim-pad-widget');
+  if (!widget) return;
+  if (!_simPadDismissed && isVirtualMIDI()) {
+    if (!widget.querySelector('.spw-pad')) buildSimPadWidget();
+    widget.classList.add('visible');
+  } else {
+    widget.classList.remove('visible');
+  }
+}
+
+// Simule un coup de pad : joue le son ET propage l'event comme un vrai MIDI.
+// Utilise par le clavier (touches 0-9) et par les clicks sur le widget.
+function simulatePadHit(laneId, velocity = 100) {
+  playPadSound(laneId, velocity);
+  // Synthese fake MIDI message → onMIDI declenche normalement les modes
+  const note = LANE_TO_NOTE[laneId];
+  if (note != null && typeof onMIDI === 'function') {
+    onMIDI({ data: [0x90, note, velocity] });
+  }
+  // Flash le bouton correspondant dans le widget si visible
+  const btn = document.querySelector(`.sim-pad-widget [data-lane="${laneId}"]`);
+  if (btn) {
+    btn.classList.remove('hit');
+    void btn.offsetWidth;
+    btn.classList.add('hit');
+  }
+}
+
 // Synth instrument plus stylé : 3 oscillateurs detunes (super-saw style) +
 // sub-oscillator (octave sous, sinus) pour la chaleur basse, filter envelope
 // dynamique, send delay.
@@ -7527,29 +7873,18 @@ function runnerHandlePadOrKey(laneId, velocity = 95) {
   }
 }
 
-// Keyboard fallback (pour tester sans MIDI)
-// 1-5 = lanes ; Espace = PAUSE (en cours de jeu) ou START (sur intro/gameover)
-const RUNNER_KEY_MAP = {
-  '1': 'kick', '2': 'snare', '3': 'crash', '4': 'tomL', '5': 'hihat',
-};
+// Runner-specific keyboard : juste Espace (pause/start). Les digits sont
+// gerees par le handler global qui passe par simulatePadHit + onMIDI.
 document.addEventListener('keydown', e => {
   if (currentScreen !== 'runner') return;
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
-  // Espace : pause / reprise (en cours de jeu) — ou start si pas encore lance
   if (e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar') {
     e.preventDefault();
     if (runner.active) {
       runnerPauseToggle();
     } else {
-      // Sur l'intro / gameover : tap pad simulé pour demarrer
       runnerHandlePadOrKey('kick');
     }
-    return;
-  }
-  const laneId = RUNNER_KEY_MAP[e.key];
-  if (laneId) {
-    e.preventDefault();
-    runnerHandlePadOrKey(laneId);
   }
 });
 
@@ -9637,18 +9972,21 @@ function refreshMIDI() {
   }
 
   if (inputs.length === 0) {
-    setMIDIIndicator('error', 'pas de MIDI');
+    setMIDIIndicator('error', 'pas de MIDI · pad simulé');
+    midiInput = null;
+    updateSimPadWidget();
     return;
   }
-  const preferredIn = inputs.find(i => !/IAC|virtual/i.test(i.name)) || inputs[0];
+  const preferredIn = inputs.find(i => !/IAC|virtual|gestion/i.test(i.name)) || inputs[0];
   inSel.value = preferredIn.id;
   connectMIDIInput(preferredIn);
   if (outputs.length) {
-    const preferredOut = outputs.find(o => !/IAC|virtual/i.test(o.name)) || outputs[0];
+    const preferredOut = outputs.find(o => !/IAC|virtual|gestion/i.test(o.name)) || outputs[0];
     outSel.value = preferredOut.id;
     midiOutput = preferredOut;
   }
   updateMappingDisplay();
+  updateSimPadWidget();
 }
 
 document.getElementById('sett-midi-in').addEventListener('change', e => {
@@ -9664,6 +10002,14 @@ function connectMIDIInput(input) {
   midiInput = input;
   midiInput.onmidimessage = onMIDI;
   setMIDIIndicator('connected', input.name);
+  // Active/desactive le mode "pad simule" selon que le MIDI est reel ou virtuel
+  updateSimPadWidget();
+}
+
+// Detecte si on est branche sur un port MIDI VIRTUEL (IAC, etc.) ou pas du
+// tout. Dans ce cas, on active le pad simule (clavier 0-9 + widget flottant).
+function isVirtualMIDI() {
+  return !midiInput || /IAC|virtual|gestion/i.test(midiInput.name || '');
 }
 
 function setMIDIIndicator(state, label) {
