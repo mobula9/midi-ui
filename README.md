@@ -45,15 +45,29 @@ Documenté dans `memory/reference_synthesia_format.md` (non versionné). Faits c
 
 ## 🥁 Drum Trainer
 
-App web type Synthesia pour apprendre la batterie, pensée pour enfants 4-6 ans. Compatible Yamaha DD-75 via Web MIDI API.
+App web type Synthesia pour apprendre la batterie, pensée pour enfants 4-6 ans. Compatible Yamaha DD-75 via Web MIDI API. Profils multiples (Lucas, Arthur, Léo, Wendy + custom), switcher rapide en haut à droite sur toutes les pages.
 
+### Modes de jeu
+| Mode | Description |
+|---|---|
+| 🥁 **Libre** | Tape comme tu veux, enregistre & replay, dispo physique DD-75 |
+| 🎓 **Apprendre** | Drum hero avec notes qui descendent, BPM ajustable, accompagnement synthé ou Spotify avec tap tempo |
+| ⚡ **Réflexes** | Tape avant que ça remplisse, 4 vitesses, option "sans pédales" |
+| 🦉 **Mémo Boumbi** | Simon-says : retiens la séquence qui grandit (3 difficultés) |
+| 🦖 **Boumbi court** | Dino-style runner, contrôlé à la batterie, 7 niveaux progressifs |
+| 🔁 **Echo** | Call & response — Boumbi joue, tu rejoues. 8 motifs par session, 6 niveaux |
+| 🎨 **Studio** | Step sequencer pour composer tes propres beats. Bibliothèque per-profile |
+| 🎵 **Spotify** | Joue sur tes morceaux (Premium requis, OAuth PKCE, BPM via tap tempo) |
+| 📈 **Progrès** | Historique, courbe, étoiles gagnées |
+
+### Fichiers
 | Fichier | Rôle |
 |---|---|
-| `drum-trainer/kids.html` | App version enfants (mascotte Boumbi, écrans accueil/libre/apprendre/progrès, dispo physique DD-75 en Mode Libre) |
+| `drum-trainer/kids.html` | App enfants (toutes les modes ci-dessus + profils + Spotify) |
 | `drum-trainer/index.html` | App version debug (calibration, log MIDI temps réel, mode Demo) |
 | `drum-trainer/DD-75-reference.md` | Référence complète du DD-75 : 75 kits, mapping notes MIDI, drum map, dispo physique des pads |
 | `drum-trainer/PRD-kids.md` | Product Requirements Document de la version kids |
-| `drum-trainer/PRD-next-exos.md` | Specs détaillées des 4 prochains modes à coder (Runner, Mémo, Echo, Studio) |
+| `drum-trainer/PRD-next-exos.md` | Specs détaillées des modes (Runner / Mémo / Echo / Studio) |
 
 ### Quick start drum trainer
 
