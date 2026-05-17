@@ -4921,26 +4921,34 @@ document.getElementById('memo-difficulty').addEventListener('click', e => {
 // Boumbi Runner — dino-style avec contrôle batterie
 // =====================================================================
 const RUNNER_OBS = {
-  // Mapping pad → obstacle. y = position verticale (g=ground / a=air / m=mid)
-  kick:  { emoji: '🌵', name: 'Cactus',  y: 'g', color: '#FF6B6B', anim: 'jump' },
-  snare: { emoji: '🌿', name: 'Buisson', y: 'g', color: '#FFD93D', anim: 'smash' },
-  crash: { emoji: '🦅', name: 'Oiseau',  y: 'a', color: '#C77DFF', anim: 'duck' },
-  tomL:  { emoji: '🪨', name: 'Caillou', y: 'g', color: '#FFA94D', anim: 'slide' },
-  hihat: { emoji: '☁️',  name: 'Nuage',  y: 'm', color: '#6BCB77', anim: 'spin' },
+  // Mapping pad → obstacle. Les icones evoquent visuellement le pad correspondant.
+  // y = position verticale (g=ground / a=air / m=mid).
+  // anim = animation declenchee sur Boumbi quand le pad est tape correctement.
+  kick:  { emoji: '👞', name: 'Kick',  y: 'g', color: '#FF6B6B', anim: 'jump' },
+  snare: { emoji: '🥁', name: 'Snare', y: 'g', color: '#FFD93D', anim: 'jump' },
+  tomL:  { emoji: '🪘', name: 'Tom',   y: 'g', color: '#FFA94D', anim: 'jump' },
+  crash: { emoji: '💥', name: 'Crash', y: 'a', color: '#C77DFF', anim: 'duck' },
+  hihat: { emoji: '🎩', name: 'Hi-Hat', y: 'm', color: '#6BCB77', anim: 'duck' },
 };
+// Progression : on commence par les sauts (sol), on ajoute les ducks (air) au niveau 4.
 const RUNNER_LEVELS = [
-  { lv: 1, threshold:   0, pool: ['kick'],                                  speed: 230, spawnMs: 1500 },
-  { lv: 2, threshold:  80, pool: ['kick', 'snare'],                         speed: 260, spawnMs: 1300 },
-  { lv: 3, threshold: 180, pool: ['kick', 'snare', 'crash'],                speed: 290, spawnMs: 1150 },
-  { lv: 4, threshold: 300, pool: ['kick', 'snare', 'crash', 'tomL'],        speed: 320, spawnMs: 1050 },
-  { lv: 5, threshold: 450, pool: ['kick', 'snare', 'crash', 'tomL', 'hihat'], speed: 350, spawnMs: 950 },
-  { lv: 6, threshold: 650, pool: ['kick', 'snare', 'crash', 'tomL', 'hihat'], speed: 390, spawnMs: 850 },
-  { lv: 7, threshold: 900, pool: ['kick', 'snare', 'crash', 'tomL', 'hihat'], speed: 440, spawnMs: 780 },
+  { lv: 1, threshold:   0, pool: ['kick'],                                    speed: 230, spawnMs: 1500 },
+  { lv: 2, threshold:  80, pool: ['kick', 'snare'],                           speed: 260, spawnMs: 1300 },
+  { lv: 3, threshold: 180, pool: ['kick', 'snare', 'tomL'],                   speed: 290, spawnMs: 1150 },
+  { lv: 4, threshold: 300, pool: ['kick', 'snare', 'tomL', 'crash'],          speed: 320, spawnMs: 1050 },
+  { lv: 5, threshold: 450, pool: ['kick', 'snare', 'tomL', 'crash', 'hihat'], speed: 350, spawnMs: 950 },
+  { lv: 6, threshold: 650, pool: ['kick', 'snare', 'tomL', 'crash', 'hihat'], speed: 390, spawnMs: 850 },
+  { lv: 7, threshold: 900, pool: ['kick', 'snare', 'tomL', 'crash', 'hihat'], speed: 440, spawnMs: 780 },
 ];
-const RUNNER_HIT_PX = 130;      // demi-fenêtre de hit en pixels canvas (généreuse pour kids)
-const RUNNER_M_PER_PX = 0.018;  // 1 px ≈ 1.8 cm — donne ~m/s honnêtes
-const RUNNER_JUMP_MS = 520;     // durée de l'animation jump
-const RUNNER_LIVES = 3;
+// Nouvelle mecanique : tu tapes AVANT que l'obstacle arrive sur Boumbi pour
+// declencher le saut. Boumbi saute, l'obstacle passe en dessous, Boumbi
+// retombe APRES. Donc le hit window est AHEAD de Boumbi (a sa droite).
+const RUNNER_HIT_AHEAD_START = 70;   // px devant Boumbi ou commence la fenetre
+const RUNNER_HIT_AHEAD_END   = 280;  // px devant Boumbi ou finit la fenetre
+const RUNNER_COLLISION_X     = 30;   // si obstacle.x < boumbiX - 30 sans evitement → collision
+const RUNNER_M_PER_PX = 0.018;       // 1 px ≈ 1.8 cm
+const RUNNER_JUMP_MS  = 900;         // duree du saut/duck (laisse le temps a l'obstacle de passer)
+const RUNNER_LIVES    = 3;
 
 const runnerCanvas = document.getElementById('runner-canvas');
 const runnerCtx = runnerCanvas.getContext('2d');
@@ -5148,12 +5156,15 @@ function runnerUpdate(dt, now) {
   for (const o of runner.obstacles) {
     o.x -= advance;
   }
-  // Détecte les misses (obstacles qui sortent à gauche sans être hits)
+  // Detecte les collisions : un obstacle qui atteint Boumbi sans avoir ete
+  // evite = -1 vie. Si avoide, il passe sereinement en dessous.
   const boumbiX = rW * 0.18;
   for (const o of runner.obstacles) {
-    if (!o.hit && !o.missed && o.x < boumbiX - RUNNER_HIT_PX) {
-      o.missed = true;
-      runnerLoseLife('miss', o);
+    if (o.avoided || o.collided) continue;
+    if (o.x < boumbiX - RUNNER_COLLISION_X) {
+      o.collided = true;
+      o.collidedT = now;
+      runnerLoseLife('collision', o);
     }
   }
   // Cleanup off-screen
@@ -5192,9 +5203,11 @@ function runnerSpawn(cfg, now) {
     lane: laneId,
     x: rW + 60,
     spawnTime: now,
-    hit: false,
-    missed: false,
-    hitT: 0,
+    avoided: false,
+    avoidedT: 0,
+    collided: false,
+    collidedT: 0,
+    wrongFlash: 0,
   });
 }
 
@@ -5216,9 +5229,11 @@ function runnerSpawnLevelUpParticles() {
 function runnerLoseLife(reason, obstacle) {
   if (!runner.active) return;
   runner.lives--;
-  // Feedback visuel
+  // Feedback visuel — clamp pour eviter RangeError si lives > RUNNER_LIVES
   const livesEl = document.getElementById('runner-lives');
-  livesEl.textContent = '❤️'.repeat(Math.max(0, runner.lives)) + '🖤'.repeat(RUNNER_LIVES - Math.max(0, runner.lives));
+  const alive = Math.max(0, Math.min(RUNNER_LIVES, runner.lives));
+  const dead = Math.max(0, RUNNER_LIVES - alive);
+  livesEl.textContent = '❤️'.repeat(alive) + '🖤'.repeat(dead);
   livesEl.classList.remove('lost');
   void livesEl.offsetWidth;
   livesEl.classList.add('lost');
@@ -5243,48 +5258,65 @@ function runnerLoseLife(reason, obstacle) {
 
 function runnerTap(laneId) {
   if (!runner.active) return;
-  // Trouve l'obstacle le plus proche dans la fenêtre de hit
+  // Trouve l'obstacle le plus proche AHEAD de Boumbi (entre AHEAD_START et
+  // AHEAD_END pixels devant lui). On veut taper AVANT que ca arrive.
   const boumbiX = rW * 0.18;
   let best = null, bestDist = Infinity;
   for (const o of runner.obstacles) {
-    if (o.hit || o.missed) continue;
-    const d = Math.abs(o.x - boumbiX);
-    if (d <= RUNNER_HIT_PX && d < bestDist) { best = o; bestDist = d; }
+    if (o.avoided || o.collided) continue;
+    const dx = o.x - boumbiX;
+    if (dx >= RUNNER_HIT_AHEAD_START && dx <= RUNNER_HIT_AHEAD_END && dx < bestDist) {
+      best = o; bestDist = dx;
+    }
   }
   if (!best) {
-    // Aucun obstacle dans la fenêtre → "tap dans le vide", on ignore (pas de pénalité, kid-friendly)
+    // Aucun obstacle dans la fenetre → tap dans le vide, on ignore (kid-friendly)
     return;
   }
   if (best.lane === laneId) {
-    //
-    best.hit = true;
-    best.hitT = performance.now();
+    // Bon pad ! Boumbi saute (ou ducks) pour eviter. L'obstacle continue
+    // a glisser vers la gauche et passera sous Boumbi.
+    best.avoided = true;
+    best.avoidedT = performance.now();
     runner.obstaclesPassed++;
     runner.boumbi.anim = RUNNER_OBS[laneId].anim;
     runner.boumbi.animT = performance.now();
-    // Joue le son
+    // Joue le son du pad pour confirmer
     const note = LANE_TO_NOTE[laneId];
     if (midiOutput && note != null) {
       midiOutput.send([0x99, note, 100]);
       setTimeout(() => midiOutput.send([0x89, note, 0]), 60);
     }
-    // Particules d'explosion
-    const obsColor = RUNNER_OBS[laneId].color;
-    for (let i = 0; i < 14; i++) {
+    // Petite poussiere de saut sur le sol
+    const groundY = rH * 0.78;
+    for (let i = 0; i < 10; i++) {
+      runner.particles.push({
+        x: boumbiX + (Math.random() - 0.5) * 30,
+        y: groundY,
+        vx: (Math.random() - 0.5) * 200,
+        vy: -50 - Math.random() * 100,
+        color: '#D2B48C',  // sable / poussiere
+        life: 0.6,
+        size: 3 + Math.random() * 3,
+      });
+    }
+    // Halo coloré autour de l'obstacle pour montrer qu'il est "OK"
+    for (let i = 0; i < 8; i++) {
       runner.particles.push({
         x: best.x,
-        y: runnerObstacleY(best),
-        vx: (Math.random() - 0.5) * 400,
-        vy: -100 - Math.random() * 200,
-        color: obsColor,
-        life: 0.7,
-        size: 4 + Math.random() * 4,
+        y: runnerObstacleY(best) - 20,
+        vx: (Math.random() - 0.5) * 100,
+        vy: -30 - Math.random() * 80,
+        color: RUNNER_OBS[laneId].color,
+        life: 0.4,
+        size: 3 + Math.random() * 2,
       });
     }
   } else {
-    // Mauvais pad → −1 vie + feedback
-    best.missed = true;
-    runnerLoseLife('wrong', best);
+    // Mauvais pad : flash visuel d'erreur, l'obstacle continue (peut etre
+    // re-tappe correctement avant collision). Petite penalite : ajoute un
+    // marker "wrong" pour le visuel.
+    best.wrongFlash = performance.now();
   }
 }
 
@@ -5345,13 +5377,25 @@ function runnerDraw() {
     ctx.fillRect(x, groundY + 24, 30, 4);
   }
 
-  // === Zone de hit (subtile) ===
+  // === Zone de hit (subtile) — AHEAD de Boumbi (a sa droite). Tape quand
+  // l'obstacle entre dans cette zone, AVANT qu'il arrive sur Boumbi. ===
   const boumbiX = rW * 0.18;
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
   ctx.lineWidth = 1;
   ctx.setLineDash([4, 6]);
-  ctx.strokeRect(boumbiX - RUNNER_HIT_PX, rH * 0.35, RUNNER_HIT_PX * 2, groundY - rH * 0.35 + 4);
+  ctx.strokeRect(
+    boumbiX + RUNNER_HIT_AHEAD_START,
+    rH * 0.35,
+    RUNNER_HIT_AHEAD_END - RUNNER_HIT_AHEAD_START,
+    groundY - rH * 0.35 + 4
+  );
   ctx.setLineDash([]);
+  // Petite ligne verticale a la position de Boumbi pour indiquer "ici = collision"
+  ctx.strokeStyle = 'rgba(255, 100, 100, 0.15)';
+  ctx.beginPath();
+  ctx.moveTo(boumbiX, rH * 0.35);
+  ctx.lineTo(boumbiX, groundY);
+  ctx.stroke();
 
   // === Obstacles ===
   // IMPORTANT : reset fillStyle a une couleur opaque avant fillText (sinon les
@@ -5362,39 +5406,48 @@ function runnerDraw() {
   for (const o of runner.obstacles) {
     const y = runnerObstacleY(o);
     const cfg = RUNNER_OBS[o.lane];
-    if (o.hit) {
-      const elapsed = (performance.now() - o.hitT) / 300;
+    let alpha = 1;
+    let bgColor = cfg.color;
+    let borderColor = 'rgba(255,255,255,0.85)';
+    let scale = 1;
+    if (o.collided) {
+      // Fade-out après collision
+      const elapsed = (performance.now() - (o.collidedT || performance.now())) / 500;
       if (elapsed >= 1) continue;
-      ctx.globalAlpha = 1 - elapsed;
-      const scale = 1 + elapsed * 0.8;
-      ctx.save();
-      ctx.translate(o.x, y);
-      ctx.scale(scale, scale);
-      // Halo coloré pour le visuel hit
-      ctx.fillStyle = cfg.color;
-      ctx.beginPath();
-      ctx.arc(0, -28, 36, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#000';
-      ctx.fillText(cfg.emoji, 0, 0);
-      ctx.restore();
-      ctx.globalAlpha = 1;
-    } else {
-      // Fond coloré sous l'emoji pour que ce soit toujours bien visible
-      ctx.globalAlpha = o.missed ? 0.4 : 1;
-      ctx.fillStyle = cfg.color;
-      ctx.beginPath();
-      ctx.arc(o.x, y - 26, 34, 0, Math.PI * 2);
-      ctx.fill();
-      // Bord blanc pour relief
-      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
-      ctx.lineWidth = 3;
-      ctx.stroke();
-      // L'emoji par-dessus avec fillStyle OPAQUE
-      ctx.fillStyle = '#000';
-      ctx.fillText(cfg.emoji, o.x, y);
-      ctx.globalAlpha = 1;
+      alpha = 1 - elapsed;
+      scale = 1 + elapsed * 0.3;
+      bgColor = '#FF6B6B';
+    } else if (o.avoided) {
+      // Tap correct : halo vert leger, sinon visuel normal car l'obstacle
+      // continue de glisser sous Boumbi (pas remove tant qu'il n'est pas off-screen)
+      borderColor = 'rgba(107,203,119,0.9)';  // vert
+    } else if (o.wrongFlash) {
+      // Tap incorrect : flash rouge bref
+      const elapsed = (performance.now() - o.wrongFlash) / 350;
+      if (elapsed < 1) {
+        borderColor = `rgba(255,107,107,${1 - elapsed})`;
+      } else {
+        o.wrongFlash = 0;
+      }
     }
+    ctx.globalAlpha = alpha;
+    ctx.save();
+    ctx.translate(o.x, y - 26);
+    ctx.scale(scale, scale);
+    // Fond colore
+    ctx.fillStyle = bgColor;
+    ctx.beginPath();
+    ctx.arc(0, 0, 34, 0, Math.PI * 2);
+    ctx.fill();
+    // Bord
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.restore();
+    // Emoji par dessus avec fillStyle opaque
+    ctx.fillStyle = '#000';
+    ctx.fillText(cfg.emoji, o.x, y);
+    ctx.globalAlpha = 1;
   }
 
   // === Boumbi ===
@@ -5434,27 +5487,31 @@ function runnerDrawBoumbi(ctx, x, groundY) {
   const bob = Math.sin(t) * 3;
 
   if (runner.boumbi.anim === 'jump' && animProgress < 1) {
-    // Saut parabolique
+    // Saut parabolique plus haut + reste en l'air longtemps pour laisser
+    // l'obstacle passer dessous, puis retombe progressivement.
     const p = animProgress;
-    yOffset = -90 * Math.sin(p * Math.PI);
-  } else if (runner.boumbi.anim === 'smash' && animProgress < 1) {
-    // Squish down
-    const p = animProgress;
-    scaleY = 1 - 0.3 * Math.sin(p * Math.PI);
-    scaleX = 1 + 0.2 * Math.sin(p * Math.PI);
+    // Asymetrique : monte vite (0 → 0.3), reste haut (0.3 → 0.7), descend (0.7 → 1)
+    let h;
+    if (p < 0.3) h = (p / 0.3);                       // 0 → 1 (montée)
+    else if (p < 0.7) h = 1;                          // 1 (plateau)
+    else h = 1 - ((p - 0.7) / 0.3);                   // 1 → 0 (chute)
+    yOffset = -140 * h;
+    // Petit squish à l'atterrissage
+    if (p > 0.85) {
+      const land = (p - 0.85) / 0.15;
+      scaleY = 1 - 0.15 * Math.sin(land * Math.PI);
+      scaleX = 1 + 0.1 * Math.sin(land * Math.PI);
+    }
   } else if (runner.boumbi.anim === 'duck' && animProgress < 1) {
-    // Se baisse
+    // Se baisse pour passer sous un obstacle aerien : reste baisse un moment
     const p = animProgress;
-    yOffset = 15 * Math.sin(p * Math.PI);
-    scaleY = 1 - 0.15 * Math.sin(p * Math.PI);
-  } else if (runner.boumbi.anim === 'slide' && animProgress < 1) {
-    // Glisse en avant
-    const p = animProgress;
-    yOffset = 10 * Math.sin(p * Math.PI);
-    scaleX = 1 + 0.15 * Math.sin(p * Math.PI);
-  } else if (runner.boumbi.anim === 'spin' && animProgress < 1) {
-    // Tourne sur lui-même
-    rot = animProgress * Math.PI * 2;
+    let crouch;
+    if (p < 0.2) crouch = p / 0.2;
+    else if (p < 0.8) crouch = 1;
+    else crouch = 1 - (p - 0.8) / 0.2;
+    yOffset = 20 * crouch;
+    scaleY = 1 - 0.25 * crouch;
+    scaleX = 1 + 0.15 * crouch;
   } else {
     yOffset = bob;
   }
