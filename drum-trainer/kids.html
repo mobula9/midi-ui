@@ -1934,17 +1934,54 @@ button:focus { outline: none; }
   box-shadow: var(--shadow);
   flex-shrink: 0;
 }
-.runner-lives {
-  font-size: 18px;
-  letter-spacing: 2px;
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
-  transition: filter 0.15s;
+/* Barre de vie verticale a droite */
+.runner-health-bar {
+  position: absolute;
+  right: 16px;
+  top: 80px;
+  bottom: 60px;
+  width: 28px;
+  z-index: 5;
+  background: rgba(0,0,0,0.5);
+  border-radius: 14px;
+  overflow: hidden;
+  border: 2px solid rgba(255,255,255,0.6);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
-.runner-lives.lost { animation: heartLost 0.5s; }
-@keyframes heartLost {
-  0% { filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15)); transform: scale(1); }
-  30% { filter: drop-shadow(0 0 12px #FF6B6B) brightness(2); transform: scale(1.3); }
-  100% { filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15)); transform: scale(1); }
+.rhb-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100%;
+  background: linear-gradient(180deg, #FF6B6B 0%, #FFD93D 50%, #6BCB77 100%);
+  transition: height 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: inset 0 0 12px rgba(255,255,255,0.4);
+}
+.rhb-label {
+  position: absolute;
+  bottom: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 800;
+  color: white;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.runner-health-bar.hurt { animation: hbHurt 0.4s; }
+@keyframes hbHurt {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  50% { transform: translateX(4px); border-color: #FF6B6B; }
+  75% { transform: translateX(-2px); }
+}
+.runner-health-bar.heal { animation: hbHeal 0.5s; }
+@keyframes hbHeal {
+  0% { box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+  50% { box-shadow: 0 0 30px 8px #6BCB77, 0 4px 12px rgba(0,0,0,0.3); border-color: #6BCB77; }
+  100% { box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
 }
 .runner-distance {
   font-size: 22px;
@@ -3124,11 +3161,15 @@ button:focus { outline: none; }
   <div class="runner-hud">
     <button class="btn-back runner-back" data-goto="home">←</button>
     <div class="runner-stats">
-      <div class="runner-lives" id="runner-lives">❤️❤️❤️</div>
       <div class="runner-distance"><span id="runner-distance">0</span>m</div>
       <div class="runner-level">Niv <span id="runner-level">1</span></div>
     </div>
     <div class="runner-best" id="runner-best-hud">Best : <strong>0</strong>m</div>
+  </div>
+  <!-- Barre de vie verticale a droite -->
+  <div class="runner-health-bar">
+    <div class="rhb-fill" id="runner-health-fill"></div>
+    <div class="rhb-label" id="runner-health-label">100%</div>
   </div>
   <!-- Bouton de musique d'accompagnement -->
   <button class="runner-music-btn" id="runner-music-btn" title="Changer la musique">
@@ -5612,14 +5653,14 @@ const memoAttribRefresh = setupScoreAttribution(
 // Boumbi Runner — dino-style avec contrôle batterie
 // =====================================================================
 const RUNNER_OBS = {
-  // Mapping pad → obstacle. Les icones evoquent visuellement le pad correspondant.
-  // y = position verticale (g=ground / a=air / m=mid).
-  // anim = animation declenchee sur Boumbi quand le pad est tape correctement.
-  kick:  { emoji: '👞', name: 'Kick',  y: 'g', color: '#FF6B6B', anim: 'jump' },
-  snare: { emoji: '🥁', name: 'Snare', y: 'g', color: '#FFD93D', anim: 'jump' },
-  tomL:  { emoji: '🪘', name: 'Tom',   y: 'g', color: '#FFA94D', anim: 'jump' },
-  crash: { emoji: '💥', name: 'Crash', y: 'a', color: '#C77DFF', anim: 'duck' },
-  hihat: { emoji: '🎩', name: 'Hi-Hat', y: 'm', color: '#6BCB77', anim: 'duck' },
+  // Mapping pad → obstacle. Tous en L'AIR maintenant : Boumbi saute pour les choper.
+  // y = position verticale (m=mid air, a=high air).
+  // anim = jump (toutes les obstacles se chopent en sautant + punch).
+  kick:  { emoji: '👞', name: 'Kick',   y: 'm', color: '#FF6B6B', anim: 'jump' },
+  snare: { emoji: '🥁', name: 'Snare',  y: 'm', color: '#FFD93D', anim: 'jump' },
+  tomL:  { emoji: '🪘', name: 'Tom',    y: 'm', color: '#FFA94D', anim: 'jump' },
+  crash: { emoji: '💥', name: 'Crash',  y: 'a', color: '#C77DFF', anim: 'jump' },
+  hihat: { emoji: '🎩', name: 'Hi-Hat', y: 'a', color: '#6BCB77', anim: 'jump' },
 };
 // Progression : on commence par les sauts (sol), on ajoute les ducks (air) au niveau 4.
 // 5 decors qui cyclent selon le niveau (level → decor = (level-1) % 5)
@@ -5715,8 +5756,10 @@ const RUNNER_HIT_AHEAD_START = 70;   // px devant Boumbi ou commence la fenetre
 const RUNNER_HIT_AHEAD_END   = 280;  // px devant Boumbi ou finit la fenetre
 const RUNNER_COLLISION_X     = 30;   // si obstacle.x < boumbiX - 30 sans evitement → collision
 const RUNNER_M_PER_PX = 0.018;       // 1 px ≈ 1.8 cm
-const RUNNER_JUMP_MS  = 650;         // duree du saut parabolique pur (300ms up + 350ms down)
-const RUNNER_LIVES    = 3;
+const RUNNER_JUMP_MS  = 650;
+const RUNNER_HEALTH_MAX = 100;
+const RUNNER_HEALTH_PER_MISS = 20;   // -20% par rate → 5 misses pour mourir
+const RUNNER_HEALTH_PER_HEART = 25;  // +25% quand on chope un coeur
 
 const runnerCanvas = document.getElementById('runner-canvas');
 const runnerCtx = runnerCanvas.getContext('2d');
@@ -5739,8 +5782,10 @@ const runner = {
   musicStartT: 0,       // performance.now() au moment du start de la musique
   lastHalfBeat: -1,     // dernier half-beat traite pour le spawn
   distance: 0,
-  lives: RUNNER_LIVES,
+  health: RUNNER_HEALTH_MAX,   // 0-100
   level: 1,
+  flash: 0,                    // intensite du flash blanc (0-1) apres impact
+  shake: 0,                    // intensite du screen shake (0-1)
   obstacles: [],
   particles: [],
   scrollX: 0,           // décor scrolling
@@ -5816,7 +5861,9 @@ function runnerOpen() {
   runnerStopAll();
   runner.active = false;
   runner.distance = 0;
-  runner.lives = RUNNER_LIVES;
+  runner.health = RUNNER_HEALTH_MAX;
+  runner.flash = 0;
+  runner.shake = 0;
   runner.level = 1;
   runner.obstacles = [];
   runner.particles = [];
@@ -5826,10 +5873,12 @@ function runnerOpen() {
   runner.obstaclesPassed = 0;
   runner.boumbi = { y: 0, vy: 0, anim: null, animT: 0, jumpHeight: 110 };
   runner.floatingText = [];
+  runner.flyingHearts = [];
+  runner.starbursts = [];
   // HUD reset
   document.getElementById('runner-distance').textContent = '0';
   document.getElementById('runner-level').textContent = '1';
-  document.getElementById('runner-lives').textContent = '❤️'.repeat(RUNNER_LIVES);
+  runnerUpdateHealthUI();
   document.getElementById('runner-best-hud').innerHTML = `Best : <strong>${runnerGetBest()}</strong>m`;
   document.getElementById('runner-intro').classList.remove('hidden');
   document.getElementById('runner-over').classList.remove('active');
@@ -5879,18 +5928,22 @@ function runnerStart() {
   document.getElementById('runner-pause').classList.remove('active');
   // Reset state
   runner.distance = 0;
-  runner.lives = RUNNER_LIVES;
+  runner.health = RUNNER_HEALTH_MAX;
+  runner.flash = 0;
+  runner.shake = 0;
   runner.level = 1;
   runner.obstacles = [];
   runner.particles = [];
   runner.floatingText = [];
+  runner.flyingHearts = [];
+  runner.starbursts = [];
   runner.scrollX = 0;
   runner.obstaclesPassed = 0;
   runner.paused = false;
   runner.boumbi = { y: 0, vy: 0, anim: null, animT: 0, jumpHeight: 110 };
   document.getElementById('runner-distance').textContent = '0';
   document.getElementById('runner-level').textContent = '1';
-  document.getElementById('runner-lives').textContent = '❤️'.repeat(RUNNER_LIVES);
+  runnerUpdateHealthUI();
   runnerRenderLegend();
   // Pick + play music (random ou pinned)
   const trackIdx = runnerMusicPickAtStart();
@@ -5955,10 +6008,14 @@ function runnerUpdate(dt, now) {
     // sur Boumbi pour declencher le PUNCH (boumbi est en l'air a ce moment).
     if (o.avoided) {
       const dxAbs = Math.abs(o.x - boumbiX);
-      if (dxAbs < 28) {
+      if (dxAbs < 32) {
         o.punched = true;
         o.punchedT = now;
         runnerSpawnPunchBurst(o, boumbiX);
+        // Si c'etait un item "coeur" : envoie un coeur volant vers la barre de vie
+        if (o.isHealth) {
+          runnerSpawnFlyingHeart(o.x, runnerObstacleY(o));
+        }
       }
       continue;
     }
@@ -5994,6 +6051,22 @@ function runnerUpdate(dt, now) {
     });
     runner.floatingText = runner.floatingText.filter(t => (performance.now() - t.born) / 1000 < t.life);
   }
+  // Coeurs volants qui partent vers la barre de vie
+  if (runner.flyingHearts && runner.flyingHearts.length) {
+    const arrived = [];
+    runner.flyingHearts = runner.flyingHearts.filter(h => {
+      const age = performance.now() - h.born;
+      if (age >= h.duration) {
+        arrived.push(h);
+        return false;
+      }
+      return true;
+    });
+    arrived.forEach(() => runnerHeal(RUNNER_HEALTH_PER_HEART));
+  }
+  // Flash decay (apres impact)
+  if (runner.flash > 0) runner.flash = Math.max(0, runner.flash - dt * 4);
+  if (runner.shake > 0) runner.shake = Math.max(0, runner.shake - dt * 4);
   // HUD
   document.getElementById('runner-distance').textContent = Math.floor(runner.distance);
 }
@@ -6024,7 +6097,6 @@ function runnerBeatSpawn(cfg, now) {
 
 function runnerSpawn(cfg, now, preferLane) {
   let pool = cfg.pool.slice();
-  // Variation : on evite 2 fois la meme lane d'affilee
   const last = runner.obstacles[runner.obstacles.length - 1];
   if (last && pool.length > 1 && Math.random() < 0.7) {
     pool = pool.filter(p => p !== last.lane);
@@ -6035,6 +6107,9 @@ function runnerSpawn(cfg, now, preferLane) {
   } else {
     laneId = pool[Math.floor(Math.random() * pool.length)];
   }
+  // 12% de chance que l'obstacle soit un "coeur" (heal pickup)
+  // mais seulement si la vie n'est pas deja pleine (sinon, useless)
+  const isHealth = runner.health < RUNNER_HEALTH_MAX - 10 && Math.random() < 0.12;
   runner.obstacles.push({
     lane: laneId,
     x: rW + 60,
@@ -6044,38 +6119,72 @@ function runnerSpawn(cfg, now, preferLane) {
     collided: false,
     collidedT: 0,
     wrongFlash: 0,
+    isHealth,
   });
 }
 
-// Burst d'impact "POW!" quand Boumbi tape l'obstacle en l'air.
+// Spawn un coeur volant qui voyage de l'obstacle a la barre de vie.
+// Quand il arrive, +HEART de vie + animation heal.
+function runnerSpawnFlyingHeart(x, y) {
+  if (!runner.flyingHearts) runner.flyingHearts = [];
+  // Cible : centre de la barre de vie a sa position courante (haut → bas)
+  const bar = document.querySelector('.runner-health-bar');
+  const targetRect = bar ? bar.getBoundingClientRect() : null;
+  const tx = targetRect ? targetRect.left + targetRect.width / 2 : rW * 0.95;
+  const ty = targetRect ? targetRect.top + targetRect.height / 2 : rH * 0.4;
+  runner.flyingHearts.push({
+    x, y, tx, ty,
+    born: performance.now(),
+    duration: 800,
+  });
+}
+
+// Burst d'impact ULTRA EXAGÉRÉ quand Boumbi tape l'obstacle en l'air.
+// 60 particules + star burst + screen flash + screen shake + gros POW!
 function runnerSpawnPunchBurst(o, boumbiX) {
-  const y = runnerObstacleY(o) - 30;
+  const y = runnerObstacleY(o);
   const color = RUNNER_OBS[o.lane].color;
-  // 20 particules explosent dans toutes les directions
-  for (let i = 0; i < 22; i++) {
-    const a = (i / 22) * Math.PI * 2 + Math.random() * 0.3;
-    const sp = 250 + Math.random() * 300;
+  // 60 particules explosives, vitesses variees, mix de couleurs vives
+  for (let i = 0; i < 60; i++) {
+    const a = (i / 60) * Math.PI * 2 + Math.random() * 0.4;
+    const sp = 350 + Math.random() * 500;
     runner.particles.push({
       x: o.x,
       y,
       vx: Math.cos(a) * sp,
-      vy: Math.sin(a) * sp - 80,
-      color: i % 3 === 0 ? '#FFD93D' : (i % 3 === 1 ? '#FFFFFF' : color),
-      life: 0.5 + Math.random() * 0.3,
-      size: 4 + Math.random() * 5,
+      vy: Math.sin(a) * sp - 100,
+      color: i % 4 === 0 ? '#FFD93D'
+           : i % 4 === 1 ? '#FFFFFF'
+           : i % 4 === 2 ? '#FFA94D'
+           : color,
+      life: 0.5 + Math.random() * 0.4,
+      size: 4 + Math.random() * 7,
     });
   }
-  // Texte flottant "POW!" qui monte
+  // Rayons de starburst (12 lignes blanches qui explosent)
+  if (!runner.starbursts) runner.starbursts = [];
+  runner.starbursts.push({
+    x: o.x, y, born: performance.now(), life: 0.32, color: '#fff',
+  });
+  // Onde de choc cercle
+  runner.starbursts.push({
+    x: o.x, y, born: performance.now(), life: 0.5, color: color, ring: true,
+  });
+  // Texte flottant GROS "POW!" qui monte
   if (!runner.floatingText) runner.floatingText = [];
   runner.floatingText.push({
     x: o.x,
     y: y - 10,
-    vy: -180,
-    text: ['POW!', 'BAM!', 'BOUM!', 'PAF!'][Math.floor(Math.random() * 4)],
-    color: '#FF6B6B',
-    life: 0.7,
+    vy: -200,
+    text: ['POW!', 'BAM!', 'BOUM!', 'PAF!', 'WHAM!', 'POUF!'][Math.floor(Math.random() * 6)],
+    color: '#FF3030',
+    life: 0.8,
     born: performance.now(),
+    big: true,  // pour gros rendu
   });
+  // Screen flash + shake leger
+  runner.flash = Math.max(runner.flash, 0.6);
+  runner.shake = Math.max(runner.shake, 0.5);
 }
 
 function runnerSpawnLevelUpParticles() {
@@ -6093,17 +6202,48 @@ function runnerSpawnLevelUpParticles() {
   }
 }
 
+function runnerUpdateHealthUI() {
+  const fill = document.getElementById('runner-health-fill');
+  const label = document.getElementById('runner-health-label');
+  const pct = Math.max(0, Math.min(100, runner.health || 0));
+  if (fill) fill.style.height = pct + '%';
+  if (label) label.textContent = Math.round(pct) + '%';
+}
+
 function runnerLoseLife(reason, obstacle) {
   if (!runner.active) return;
-  runner.lives--;
-  // Feedback visuel — clamp pour eviter RangeError si lives > RUNNER_LIVES
-  const livesEl = document.getElementById('runner-lives');
-  const alive = Math.max(0, Math.min(RUNNER_LIVES, runner.lives));
-  const dead = Math.max(0, RUNNER_LIVES - alive);
-  livesEl.textContent = '❤️'.repeat(alive) + '🖤'.repeat(dead);
-  livesEl.classList.remove('lost');
-  void livesEl.offsetWidth;
-  livesEl.classList.add('lost');
+  runner.health -= RUNNER_HEALTH_PER_MISS;
+  runner.flash = 1;        // flash blanc bref
+  runner.shake = 1;        // screen shake
+  runnerUpdateHealthUI();
+  const bar = document.querySelector('.runner-health-bar');
+  if (bar) {
+    bar.classList.remove('hurt');
+    void bar.offsetWidth;
+    bar.classList.add('hurt');
+  }
+  // Particules rouges qui giclent depuis la barre de vie
+  const barRect = bar ? bar.getBoundingClientRect() : null;
+  const cx = barRect ? barRect.left + barRect.width / 2 : rW * 0.9;
+  const cy = barRect ? barRect.top + barRect.height * (1 - runner.health / 100) : rH * 0.4;
+  for (let i = 0; i < 30; i++) {
+    runner.particles.push({
+      x: cx - (rW > 0 ? 0 : 0),
+      y: cy,
+      vx: -100 - Math.random() * 400,  // gicle vers la gauche
+      vy: (Math.random() - 0.5) * 400,
+      color: i < 20 ? '#FF6B6B' : '#a02020',
+      life: 0.7 + Math.random() * 0.3,
+      size: 3 + Math.random() * 4,
+    });
+  }
+  // Texte "OUCH!" qui apparait
+  if (!runner.floatingText) runner.floatingText = [];
+  runner.floatingText.push({
+    x: rW * 0.18, y: rH * 0.4,
+    vy: -120, text: '−' + RUNNER_HEALTH_PER_MISS + '%',
+    color: '#FF6B6B', life: 0.7, born: performance.now(),
+  });
   // Particules de poussière sur Boumbi
   const bx = rW * 0.18, by = rH * 0.78;
   for (let i = 0; i < 20; i++) {
@@ -6117,9 +6257,21 @@ function runnerLoseLife(reason, obstacle) {
       size: 3 + Math.random() * 3,
     });
   }
-  // Si game over
-  if (runner.lives <= 0) {
+  // Si game over (health a 0)
+  if (runner.health <= 0) {
     runnerGameOver();
+  }
+}
+
+function runnerHeal(amount) {
+  if (!runner.active) return;
+  runner.health = Math.min(RUNNER_HEALTH_MAX, runner.health + amount);
+  runnerUpdateHealthUI();
+  const bar = document.querySelector('.runner-health-bar');
+  if (bar) {
+    bar.classList.remove('heal');
+    void bar.offsetWidth;
+    bar.classList.add('heal');
   }
 }
 
@@ -6198,16 +6350,21 @@ function runnerTap(laneId, velocity = 95) {
 function runnerObstacleY(o) {
   const groundY = rH * 0.78;
   const yKind = RUNNER_OBS[o.lane].y;
-  if (yKind === 'g') return groundY;
-  if (yKind === 'a') return rH * 0.42;
-  if (yKind === 'm') return rH * 0.6;
-  return groundY;
+  if (yKind === 'a') return rH * 0.42;  // haut — saut puissant
+  if (yKind === 'm') return rH * 0.58;  // mid-air — saut moyen
+  return groundY;  // 'g' legacy (plus utilise)
 }
 
 function runnerDraw() {
   if (rW === 0 || rH === 0) return;
   const ctx = runnerCtx;
   ctx.clearRect(0, 0, rW, rH);
+  // Screen shake : decale tout le rendu d'un peu sur axes x/y
+  if (runner.shake > 0) {
+    ctx.save();
+    const s = runner.shake;
+    ctx.translate((Math.random() - 0.5) * 18 * s, (Math.random() - 0.5) * 18 * s);
+  }
   const decor = runnerCurrentDecor();
 
   // === Ciel : gradient peint sur le canvas (varie selon decor) ===
@@ -6349,15 +6506,29 @@ function runnerDraw() {
     ctx.beginPath();
     ctx.arc(0, 0, 34, 0, Math.PI * 2);
     ctx.fill();
-    // Bord
-    ctx.strokeStyle = borderColor;
-    ctx.lineWidth = 3;
+    // Bord (special vert qui pulse pour les items coeur)
+    if (o.isHealth && !o.punched && !o.collided) {
+      const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 200);
+      ctx.strokeStyle = `rgba(107,203,119,${0.6 + pulse * 0.4})`;
+      ctx.lineWidth = 4 + pulse * 2;
+    } else {
+      ctx.strokeStyle = borderColor;
+      ctx.lineWidth = 3;
+    }
     ctx.stroke();
     ctx.restore();
     // Emoji par dessus avec fillStyle opaque
     ctx.fillStyle = '#000';
     ctx.fillText(cfg.emoji, o.x, y);
     ctx.globalAlpha = 1;
+    // Petit coeur flottant au-dessus si c'est un item de vie
+    if (o.isHealth && !o.punched && !o.collided) {
+      const bob = Math.sin(performance.now() / 250) * 4;
+      ctx.font = 'bold 28px "Apple Color Emoji", "Segoe UI Emoji", system-ui';
+      ctx.fillStyle = '#000';
+      ctx.fillText('❤️', o.x, y - 64 + bob);
+      ctx.font = 'bold 56px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif';
+    }
   }
 
   // === Boumbi ===
@@ -6373,29 +6544,102 @@ function runnerDraw() {
   }
   ctx.globalAlpha = 1;
 
+  // === Coeurs volants (vers la barre de vie) ===
+  if (runner.flyingHearts && runner.flyingHearts.length) {
+    ctx.font = 'bold 38px "Apple Color Emoji", "Segoe UI Emoji", system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const h of runner.flyingHearts) {
+      const t = Math.min(1, (performance.now() - h.born) / h.duration);
+      // Bezier path : courbe up then to target (effet "tu fleches vers la barre")
+      const arc = -120 * Math.sin(t * Math.PI);
+      const cx = h.x + (h.tx - h.x) * t;
+      const cy = h.y + (h.ty - h.y) * t + arc;
+      const scale = 1 + Math.sin(t * Math.PI) * 0.4;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(scale, scale);
+      ctx.fillStyle = '#000';
+      ctx.fillText('❤️', 0, 0);
+      ctx.restore();
+    }
+  }
+
+  // === Starbursts (rayons + onde de choc) ===
+  if (runner.starbursts && runner.starbursts.length) {
+    for (const sb of runner.starbursts) {
+      const t = (performance.now() - sb.born) / 1000;
+      const p = t / sb.life;
+      if (p >= 1) continue;
+      if (sb.ring) {
+        // Onde de choc : cercle qui grandit et fade
+        const r = 30 + p * 180;
+        ctx.strokeStyle = sb.color;
+        ctx.globalAlpha = (1 - p) * 0.7;
+        ctx.lineWidth = 6 - p * 5;
+        ctx.beginPath();
+        ctx.arc(sb.x, sb.y, r, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        // 12 rayons blancs qui partent en etoile
+        ctx.strokeStyle = sb.color;
+        ctx.globalAlpha = (1 - p) * 0.95;
+        ctx.lineWidth = 6 * (1 - p) + 2;
+        const len = 40 + p * 90;
+        ctx.beginPath();
+        for (let i = 0; i < 12; i++) {
+          const a = (i / 12) * Math.PI * 2;
+          const x1 = sb.x + Math.cos(a) * 12;
+          const y1 = sb.y + Math.sin(a) * 12;
+          const x2 = sb.x + Math.cos(a) * len;
+          const y2 = sb.y + Math.sin(a) * len;
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+        }
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+    runner.starbursts = runner.starbursts.filter(sb => {
+      const t = (performance.now() - sb.born) / 1000;
+      return t < sb.life;
+    });
+  }
+
   // === Textes flottants (POW! BOUM! etc.) ===
   if (runner.floatingText && runner.floatingText.length) {
-    ctx.font = 'bold 38px "Comic Sans MS", "Marker Felt", system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     for (const t of runner.floatingText) {
       const age = (performance.now() - t.born) / 1000;
       const alpha = Math.max(0, 1 - age / t.life);
       if (alpha <= 0) continue;
-      const scale = 1 + Math.min(1, age * 4) * 0.4;
+      const scale = 1 + Math.min(1, age * 4) * (t.big ? 0.7 : 0.4);
+      ctx.font = `bold ${t.big ? 76 : 38}px "Comic Sans MS", "Marker Felt", system-ui, sans-serif`;
       ctx.save();
       ctx.translate(t.x, t.y);
       ctx.scale(scale, scale);
       ctx.globalAlpha = alpha;
-      // Halo blanc derriere pour lisibilite
+      // Halo blanc plus epais pour les gros textes
       ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 6;
+      ctx.lineWidth = t.big ? 10 : 6;
       ctx.strokeText(t.text, 0, 0);
       ctx.fillStyle = t.color;
       ctx.fillText(t.text, 0, 0);
       ctx.restore();
     }
     ctx.globalAlpha = 1;
+  }
+
+  // Restore le screen shake transform
+  if (runner.shake > 0) {
+    ctx.restore();
+  }
+
+  // Flash blanc apres impact (rendre AU-DESSUS du shake pour couvrir tout)
+  if (runner.flash > 0) {
+    ctx.fillStyle = `rgba(255,255,255,${runner.flash * 0.5})`;
+    ctx.fillRect(0, 0, rW, rH);
   }
 }
 
