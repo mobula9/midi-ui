@@ -3836,7 +3836,9 @@ resizePlay();
 // SPOTIFY — auth PKCE + Web Playback SDK + falling notes sur les beats
 // =====================================================================
 const SP_SCOPES = ['streaming','user-read-email','user-read-private','user-modify-playback-state','user-read-playback-state'];
-const SP_REDIRECT = window.location.href.split('?')[0].split('#')[0];
+// Force 127.0.0.1 dans l'URL de redirect (Spotify rejette localhost depuis 2025)
+const SP_REDIRECT = window.location.href.split('?')[0].split('#')[0]
+  .replace('://localhost:', '://127.0.0.1:');
 
 // Affiche l'URI de redirect dans l'aide
 const redirectHelpEl = document.getElementById('sp-redirect-help');
@@ -3862,6 +3864,14 @@ async function spPkceChallenge(v) {
 }
 
 async function spLogin() {
+  // Spotify exige 127.0.0.1 (loopback) pour les redirect URI HTTP, pas localhost.
+  // Si on est sur localhost, on bascule l'URL → 127.0.0.1 et l'utilisateur relance le login.
+  if (window.location.hostname === 'localhost') {
+    const newUrl = window.location.href.replace('://localhost', '://127.0.0.1');
+    alert(`Spotify exige 127.0.0.1 (pas localhost).\n\nJe te redirige vers :\n${newUrl}\n\nRecharge bien la page et clique à nouveau sur "Connecter Spotify".`);
+    window.location.href = newUrl;
+    return;
+  }
   let id = spGetClientId();
   if (!id) {
     id = prompt(`Spotify CLIENT_ID (depuis developer.spotify.com).\nN'oublie pas d'ajouter en Redirect URI dans l'app :\n${SP_REDIRECT}`);
