@@ -1017,6 +1017,162 @@ button:focus { outline: none; }
 }
 .reflex-start:hover { filter: brightness(1.05); }
 
+/* === Mémo Boumbi (Simon-says) === */
+#screen-memo {
+  padding: 0 24px 24px 24px;
+  align-items: center;
+}
+#screen-memo .screen-title { width: 100%; }
+.memo-stats {
+  display: flex;
+  gap: 32px;
+  margin: 4px 0 10px 0;
+  font-size: 14px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.memo-stats strong {
+  display: block;
+  font-size: 28px;
+  color: var(--accent);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.memo-status {
+  font-size: 26px;
+  font-weight: 700;
+  height: 38px;
+  text-align: center;
+  margin-bottom: 10px;
+  color: var(--text);
+  transition: color 0.2s;
+}
+.memo-status.boumbi { color: #4ECDC4; }
+.memo-status.player { color: #FFB85C; }
+.memo-status.success { color: #6BCB77; }
+.memo-status.fail { color: #FF6B6B; }
+.memo-widget-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 0;
+}
+.memo-widget {
+  width: min(560px, 90%);
+  background: var(--panel);
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+  /* Pas de padding ici — les pads sont positionnés en % depuis le padding box */
+}
+.memo-pad {
+  background: var(--lane-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 4px solid rgba(0,0,0,0.2);
+  font-size: clamp(20px, 3.5vw, 36px);
+  cursor: pointer;
+  transition: transform 0.1s, filter 0.15s, box-shadow 0.18s;
+  user-select: none;
+  box-shadow: inset 0 -6px 12px rgba(0,0,0,0.15), inset 0 3px 6px rgba(255,255,255,0.2);
+}
+.memo-pad.disabled {
+  filter: grayscale(0.7);
+  opacity: 0.35;
+  pointer-events: none;
+}
+.memo-pad.boumbi-play {
+  transform: scale(1.15);
+  filter: brightness(1.6) saturate(1.3);
+  box-shadow: 0 0 40px 6px var(--lane-color), inset 0 -6px 12px rgba(0,0,0,0.15), inset 0 3px 6px rgba(255,255,255,0.3);
+}
+.memo-pad.user-tap {
+  transform: scale(0.92);
+  filter: brightness(1.3);
+}
+.memo-pad.wrong-tap {
+  animation: memo-shake 0.4s;
+  box-shadow: 0 0 30px 6px #FF6B6B;
+}
+@keyframes memo-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+.memo-start {
+  margin-top: 14px;
+  padding: 14px 32px;
+  background: linear-gradient(135deg, var(--accent), #6BCB77);
+  color: white;
+  border: none;
+  border-radius: 999px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: var(--shadow);
+}
+.memo-start:hover { filter: brightness(1.05); }
+.memo-start[disabled] { opacity: 0.4; cursor: default; }
+.memo-over {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.memo-over.active { display: flex; }
+.memo-over-content {
+  background: var(--panel);
+  padding: 32px 48px;
+  border-radius: 24px;
+  text-align: center;
+  max-width: 520px;
+}
+.memo-over-content h2 { margin: 8px 0; font-size: 28px; }
+.memo-over-stars {
+  font-size: 48px;
+  letter-spacing: 8px;
+  margin: 16px 0;
+}
+.memo-over-record {
+  display: none;
+  background: linear-gradient(135deg, #FFD93D, #FFA94D);
+  color: white;
+  font-weight: 700;
+  padding: 8px 18px;
+  border-radius: 999px;
+  margin-bottom: 14px;
+  font-size: 14px;
+  letter-spacing: 1px;
+}
+.memo-over-record.show { display: inline-block; }
+.memo-over-content .actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 18px;
+}
+.memo-over-content .actions button {
+  padding: 12px 22px;
+  border-radius: 999px;
+  border: none;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+}
+.memo-over-content .actions .primary {
+  background: var(--accent); color: white;
+}
+.memo-over-content .actions .secondary {
+  background: white; color: var(--text); border: 1px solid #ddd;
+}
+
 /* === Top bar du Mode Apprendre — 2 rangées propres === */
 .play-topbar {
   position: absolute;
@@ -1445,6 +1601,11 @@ button:focus { outline: none; }
       <div class="card-title">Réflexes</div>
       <div class="card-sub">tape avant que ça remplisse</div>
     </button>
+    <button class="card" data-goto="memo">
+      <div class="card-emoji">🦉</div>
+      <div class="card-title">Mémo Boumbi</div>
+      <div class="card-sub">retiens la séquence</div>
+    </button>
     <button class="card" data-goto="spotify">
       <div class="card-emoji">🎵</div>
       <div class="card-title">Spotify</div>
@@ -1656,6 +1817,43 @@ button:focus { outline: none; }
       <div style="display:flex;gap:12px;margin-top:24px;justify-content:center;">
         <button id="rfx-end-again" style="background:var(--accent);color:white;border:none;padding:14px 24px;border-radius:12px;font-weight:700;font-size:15px;cursor:pointer;font-family:inherit;">🔁 Encore</button>
         <button id="rfx-end-home" style="background:#eee;color:var(--text);border:none;padding:14px 24px;border-radius:12px;font-weight:700;font-size:15px;cursor:pointer;font-family:inherit;">🏠 Maison</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =================================================================== -->
+<!-- MÉMO BOUMBI (Simon-says) -->
+<!-- =================================================================== -->
+<section id="screen-memo" class="screen">
+  <div class="screen-title">
+    <button class="btn-back" data-goto="home">←</button>
+    <h2 style="margin:0">🦉 Mémo Boumbi</h2>
+    <span style="margin-left:auto;color:var(--muted);font-size:13px;">Regarde, retiens, rejoue</span>
+  </div>
+  <div class="memo-stats">
+    <div>Round <strong id="memo-round">—</strong></div>
+    <div>Best <strong id="memo-best">0</strong></div>
+  </div>
+  <div class="memo-status" id="memo-status">▶ Démarrer pour jouer</div>
+  <div class="memo-widget-wrap">
+    <div class="memo-widget dd75-layout" id="memo-widget"></div>
+  </div>
+  <button class="memo-start" id="memo-start">▶ Démarrer</button>
+
+  <!-- Overlay fin de partie -->
+  <div id="memo-over" class="memo-over">
+    <div class="memo-over-content">
+      <div class="memo-over-record" id="memo-over-record">🏆 NOUVEAU RECORD !</div>
+      <div style="font-size:80px;line-height:1;" id="memo-over-emoji">😅</div>
+      <h2 id="memo-over-title">Presque !</h2>
+      <div style="color:var(--muted);font-size:14px;">Tu as réussi</div>
+      <div style="font-size:64px;font-weight:800;line-height:1;color:var(--accent);" id="memo-over-rounds">3</div>
+      <div style="color:var(--muted);font-size:14px;">round<span id="memo-over-rounds-s">s</span></div>
+      <div class="memo-over-stars" id="memo-over-stars">⭐</div>
+      <div class="actions">
+        <button class="primary" id="memo-over-again">🔁 Encore</button>
+        <button class="secondary" id="memo-over-home">🏠 Maison</button>
       </div>
     </div>
   </div>
@@ -2137,7 +2335,7 @@ function spawnFloatingEmoji(laneId, emoji, size = 64) {
 // Navigation entre écrans
 // =====================================================================
 // Écrans qu'on persiste à travers les refresh (pas play/done : transient)
-const PERSISTED_SCREENS = new Set(['home', 'free', 'learn-select', 'reflex', 'progress', 'spotify']);
+const PERSISTED_SCREENS = new Set(['home', 'free', 'learn-select', 'reflex', 'memo', 'progress', 'spotify']);
 
 function goto(screen) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -2151,6 +2349,13 @@ function goto(screen) {
   if (screen === 'progress') renderProgress();
   if (screen === 'free') renderRecordings();
   if (screen === 'reflex') buildReflexBoard();
+  if (screen === 'memo') {
+    buildMemoWidget();
+    memoSetStatus('▶ Démarrer pour jouer');
+    document.getElementById('memo-round').textContent = '—';
+    document.getElementById('memo-start').style.display = '';
+    document.getElementById('memo-over').classList.remove('active');
+  }
   if (screen === 'spotify') {
     spUpdateUI();
     if (!spCanvas) {
@@ -2172,6 +2377,12 @@ function goto(screen) {
     if (reflexActive) reflexStop();
     const ov = document.getElementById('rfx-end-overlay');
     if (ov) ov.style.display = 'none';
+  }
+  // Quitte Mémo Boumbi → reset state + ferme overlay
+  if (screen !== 'memo') {
+    memoStopAll();
+    const mo = document.getElementById('memo-over');
+    if (mo) mo.classList.remove('active');
   }
   if (screen === 'home') stop();
 }
@@ -2436,6 +2647,16 @@ function renderProfileDropdown() {
             skipBox.checked = localStorage.getItem(pkey('rfx-skip-pedals')) === '1';
             applyReflexSkipPedalsUI(skipBox.checked);
           }
+        }
+        if (currentScreen === 'memo') {
+          // Reset le mémo + affiche le best du nouveau profil
+          memoStopAll();
+          document.getElementById('memo-best').textContent =
+            parseInt(localStorage.getItem(pkey('memo-best')) || '0', 10);
+          document.getElementById('memo-round').textContent = '—';
+          memoSetStatus('▶ Démarrer pour jouer');
+          document.getElementById('memo-start').style.display = '';
+          document.getElementById('memo-over').classList.remove('active');
         }
       }
       closeProfileDropdown();
@@ -3192,6 +3413,215 @@ document.getElementById('rfx-difficulty').addEventListener('click', e => {
 document.getElementById('rfx-skip-pedals').addEventListener('change', e => {
   localStorage.setItem(pkey('rfx-skip-pedals'), e.target.checked ? '1' : '0');
   applyReflexSkipPedalsUI(e.target.checked);
+});
+
+// =====================================================================
+// Mémo Boumbi (Simon-says) — V1
+// Boumbi joue une séquence, le joueur la rejoue. La séquence grandit
+// d'un pad à chaque round réussi. Une erreur = game over.
+// V1 : 5 pads possibles (sans pédales) — niveau medium par défaut.
+// =====================================================================
+const MEMO_LANES_V1 = ['snare', 'hihat', 'crash', 'tomL', 'tomH'];
+const MEMO_SHOW_PAD_MS = 480;   // durée d'illumination d'un pad par Boumbi
+const MEMO_SHOW_GAP_MS = 180;   // pause entre 2 pads
+const MEMO_SHOW_START_DELAY = 600;  // pause avant de commencer la lecture
+
+let memoSeq = [];
+let memoUserIdx = 0;
+let memoRound = 0;
+let memoPhase = 'idle';  // idle | showing | awaiting | success | gameover
+let memoTimers = [];
+
+function memoClearTimers() {
+  memoTimers.forEach(t => clearTimeout(t));
+  memoTimers = [];
+}
+
+function memoSetStatus(text, klass) {
+  const el = document.getElementById('memo-status');
+  el.textContent = text;
+  el.classList.remove('boumbi', 'player', 'success', 'fail');
+  if (klass) el.classList.add(klass);
+}
+
+function buildMemoWidget() {
+  const root = document.getElementById('memo-widget');
+  root.innerHTML = '';
+  for (const lane of LANES) {
+    const inPool = MEMO_LANES_V1.includes(lane.id);
+    const el = document.createElement('div');
+    el.className = 'memo-pad' + (inPool ? '' : ' disabled');
+    el.dataset.lane = lane.id;
+    el.style.setProperty('--lane-color', lane.color);
+    el.innerHTML = `<div class="mp-emoji">${lane.emoji}</div>`;
+    el.addEventListener('click', () => {
+      if (memoPhase === 'awaiting' && inPool) memoUserTap(lane.id);
+    });
+    root.appendChild(el);
+  }
+  // Affiche le best round courant (per-profile)
+  document.getElementById('memo-best').textContent =
+    parseInt(localStorage.getItem(pkey('memo-best')) || '0', 10);
+}
+
+function memoStarsForRound(round) {
+  if (round >= 10) return 3;
+  if (round >= 6) return 2;
+  if (round >= 3) return 1;
+  return 0;
+}
+
+function memoStart() {
+  memoClearTimers();
+  memoSeq = [];
+  memoRound = 0;
+  memoUserIdx = 0;
+  document.getElementById('memo-over').classList.remove('active');
+  document.getElementById('memo-start').style.display = 'none';
+  memoNextRound();
+}
+
+function memoNextRound() {
+  if (currentScreen !== 'memo') return;  // sécurité au cas où on quitte
+  memoRound++;
+  document.getElementById('memo-round').textContent = memoRound;
+  const next = MEMO_LANES_V1[Math.floor(Math.random() * MEMO_LANES_V1.length)];
+  memoSeq.push(next);
+  memoUserIdx = 0;
+  memoShowSequence();
+}
+
+function memoShowSequence() {
+  memoPhase = 'showing';
+  memoSetStatus('👀 Regarde Boumbi…', 'boumbi');
+  memoClearTimers();
+  const totalShowMs = memoSeq.length * (MEMO_SHOW_PAD_MS + MEMO_SHOW_GAP_MS);
+  // Délai initial pour respirer entre le "à toi" et le show suivant
+  memoSeq.forEach((laneId, i) => {
+    const t = setTimeout(
+      () => memoPlayBoumbi(laneId),
+      MEMO_SHOW_START_DELAY + i * (MEMO_SHOW_PAD_MS + MEMO_SHOW_GAP_MS)
+    );
+    memoTimers.push(t);
+  });
+  memoTimers.push(setTimeout(() => {
+    if (currentScreen !== 'memo') return;
+    memoPhase = 'awaiting';
+    memoSetStatus('🥁 À toi !', 'player');
+  }, MEMO_SHOW_START_DELAY + totalShowMs + 80));
+}
+
+function memoPlayBoumbi(laneId) {
+  if (currentScreen !== 'memo') return;
+  const el = document.querySelector(`.memo-pad[data-lane="${laneId}"]`);
+  if (el) {
+    el.classList.add('boumbi-play');
+    setTimeout(() => el.classList.remove('boumbi-play'), MEMO_SHOW_PAD_MS - 80);
+  }
+  // Joue le son via MIDI out si dispo
+  const note = LANE_TO_NOTE[laneId];
+  if (midiOutput && note != null) {
+    midiOutput.send([0x99, note, 100]);
+    setTimeout(() => midiOutput.send([0x89, note, 0]), 60);
+  }
+}
+
+function memoUserTap(laneId) {
+  if (memoPhase !== 'awaiting') return;
+  if (!MEMO_LANES_V1.includes(laneId)) return;  // pad hors pool → ignore
+  const el = document.querySelector(`.memo-pad[data-lane="${laneId}"]`);
+  const expected = memoSeq[memoUserIdx];
+  if (laneId === expected) {
+    if (el) {
+      el.classList.add('user-tap');
+      setTimeout(() => el.classList.remove('user-tap'), 200);
+    }
+    memoUserIdx++;
+    if (memoUserIdx >= memoSeq.length) {
+      // Round réussi
+      memoPhase = 'success';
+      memoSetStatus('🎉 Bravo !', 'success');
+      memoTimers.push(setTimeout(memoNextRound, 700));
+    }
+  } else {
+    // Mauvais pad
+    if (el) {
+      el.classList.add('wrong-tap');
+      setTimeout(() => el.classList.remove('wrong-tap'), 400);
+    }
+    memoGameOver();
+  }
+}
+
+function memoGameOver() {
+  memoPhase = 'gameover';
+  memoClearTimers();
+  // Rounds réussis = memoRound - 1 (on a fail au round courant)
+  const completed = Math.max(0, memoRound - 1);
+  memoSetStatus('😅 Raté !', 'fail');
+  // Save best round per-profile
+  const bestKey = pkey('memo-best');
+  const prevBest = parseInt(localStorage.getItem(bestKey) || '0', 10);
+  let isNewBest = false;
+  if (completed > prevBest) {
+    localStorage.setItem(bestKey, String(completed));
+    isNewBest = true;
+  }
+  document.getElementById('memo-best').textContent = Math.max(prevBest, completed);
+
+  // Stars : alimente le compteur global comme les autres modes
+  const stars = memoStarsForRound(completed);
+  if (stars > 0) {
+    addStarsFor('memo', stars);  // utilise le système existant
+  }
+
+  // Save dans l'historique du mode (per-profile)
+  try {
+    const hKey = pkey('memo-history');
+    const arr = JSON.parse(localStorage.getItem(hKey) || '[]');
+    arr.push({ ts: Date.now(), round: completed, stars, record: isNewBest });
+    if (arr.length > 100) arr.splice(0, arr.length - 100);
+    localStorage.setItem(hKey, JSON.stringify(arr));
+  } catch {}
+
+  // Overlay
+  const overlay = document.getElementById('memo-over');
+  document.getElementById('memo-over-rounds').textContent = completed;
+  document.getElementById('memo-over-rounds-s').textContent = completed === 1 ? '' : 's';
+  const starsEl = document.getElementById('memo-over-stars');
+  starsEl.textContent = stars > 0 ? '⭐'.repeat(stars) : '✨';
+  starsEl.style.opacity = stars > 0 ? '1' : '0.4';
+  const recEl = document.getElementById('memo-over-record');
+  if (isNewBest && completed > 0) recEl.classList.add('show');
+  else recEl.classList.remove('show');
+  // Adapte le titre/emoji selon la perf
+  const emojiEl = document.getElementById('memo-over-emoji');
+  const titleEl = document.getElementById('memo-over-title');
+  if (completed >= 10) { emojiEl.textContent = '🏆'; titleEl.textContent = 'Champion !'; }
+  else if (completed >= 6) { emojiEl.textContent = '🌟'; titleEl.textContent = 'Excellent !'; }
+  else if (completed >= 3) { emojiEl.textContent = '👏'; titleEl.textContent = 'Bien joué !'; }
+  else if (completed >= 1) { emojiEl.textContent = '💪'; titleEl.textContent = 'On retente ?'; }
+  else { emojiEl.textContent = '🦉'; titleEl.textContent = 'On essaie encore ?'; }
+  overlay.classList.add('active');
+}
+
+function memoStopAll() {
+  // Cleanup quand on quitte l'écran
+  memoClearTimers();
+  memoPhase = 'idle';
+  memoSeq = [];
+  memoRound = 0;
+  memoUserIdx = 0;
+}
+
+document.getElementById('memo-start').addEventListener('click', memoStart);
+document.getElementById('memo-over-again').addEventListener('click', () => {
+  document.getElementById('memo-over').classList.remove('active');
+  memoStart();
+});
+document.getElementById('memo-over-home').addEventListener('click', () => {
+  document.getElementById('memo-over').classList.remove('active');
+  goto('home');
 });
 
 // =====================================================================
@@ -4455,6 +4885,8 @@ function onMIDI(msg) {
     freePadHit(lane.id, /*sendMidi=*/false, /*isReplay=*/false, vel);
   } else if (currentScreen === 'reflex' && reflexActive) {
     rfxOnHit(lane.id);
+  } else if (currentScreen === 'memo' && memoPhase === 'awaiting') {
+    memoUserTap(lane.id);
   } else if (currentScreen === 'spotify' && spSchedule.length) {
     spRegisterHit(lane.id);
   } else if (currentScreen === 'play' && mode !== 'stopped') {
