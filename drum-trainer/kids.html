@@ -1062,6 +1062,91 @@ button:focus { outline: none; }
 }
 .reflex-start:hover { filter: brightness(1.05); }
 
+/* === Score attribution (re-assigne le score a un autre profil) === */
+.score-attrib {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.score-attrib .sa-label { font-size: 12px; }
+.score-attrib-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: white;
+  border: 1px solid #ddd;
+  padding: 4px 10px 4px 4px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+}
+.score-attrib-btn:hover { background: #f5f5f0; border-color: var(--accent); }
+.score-attrib-btn .sa-emoji {
+  width: 26px; height: 26px;
+  background: var(--accent);
+  border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.score-attrib-btn .sa-arrow { font-size: 10px; opacity: 0.6; }
+.score-attrib-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+  padding: 4px;
+  z-index: 250;
+  min-width: 220px;
+  max-height: 260px;
+  overflow-y: auto;
+  display: none;
+}
+.score-attrib-list.open { display: block; }
+.score-attrib-list button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 8px;
+  color: var(--text);
+}
+.score-attrib-list button:hover { background: #f5f5f0; }
+.score-attrib-list button.current { background: #e0f7f5; }
+.score-attrib-list button .sa-em {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: #f0eee5;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 18px;
+}
+.score-attrib-list button.current .sa-em { background: var(--accent); }
+.score-attrib-list button .sa-meta {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 600;
+  margin-left: auto;
+}
+
 /* === Mémo Boumbi (Simon-says) === */
 #screen-memo {
   padding: 0 24px 24px 24px;
@@ -1885,6 +1970,93 @@ button:focus { outline: none; }
   box-shadow: var(--shadow);
 }
 .runner-best strong { color: var(--text); font-size: 13px; }
+
+/* Bouton de musique d'accompagnement (en haut, sous la HUD) */
+.runner-music-btn {
+  position: absolute;
+  top: 64px;
+  left: 12px;
+  z-index: 5;
+  background: rgba(255,255,255,0.92);
+  border: none;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 260px;
+}
+.runner-music-btn:hover { background: white; transform: translateY(-1px); }
+.runner-music-btn span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.runner-music-picker {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+.runner-music-picker.active { display: flex; }
+.runner-music-picker-content {
+  background: var(--panel);
+  border-radius: 24px;
+  padding: 22px 28px;
+  width: 90%;
+  max-width: 540px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+.rmp-header { display: flex; align-items: center; justify-content: space-between; }
+.rmp-pin {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #f5f5f0;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  user-select: none;
+}
+.rmp-pin input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+.runner-music-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+.runner-music-item {
+  background: white;
+  border: 2px solid #eee;
+  border-radius: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  text-align: left;
+  transition: transform 0.08s, border-color 0.1s, background 0.1s;
+}
+.runner-music-item:hover { transform: translateY(-1px); border-color: var(--accent); }
+.runner-music-item.active { border-color: var(--accent); background: #e0f7f5; }
+.runner-music-item .rmi-emoji { font-size: 20px; }
+.runner-music-item .rmi-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Légende basse : rappel pad ↔ obstacle */
 .runner-legend {
@@ -2781,6 +2953,16 @@ button:focus { outline: none; }
       <div style="font-size:64px;font-weight:800;line-height:1;color:var(--accent);" id="memo-over-rounds">3</div>
       <div style="color:var(--muted);font-size:14px;">round<span id="memo-over-rounds-s">s</span></div>
       <div class="memo-over-stars" id="memo-over-stars">⭐</div>
+      <!-- Attribution du score : permet de re-attribuer a un autre profil -->
+      <div class="score-attrib">
+        <span class="sa-label">Score pour</span>
+        <button class="score-attrib-btn" id="memo-attrib-btn" type="button">
+          <span class="sa-emoji">🦁</span>
+          <span class="sa-name">—</span>
+          <span class="sa-arrow">▾</span>
+        </button>
+        <div class="score-attrib-list" id="memo-attrib-list"></div>
+      </div>
       <div id="memo-over-prev" style="margin-top:8px;font-size:13px;color:var(--muted);"></div>
       <div class="actions">
         <button class="primary" id="memo-over-again">🔁 Encore</button>
@@ -2804,6 +2986,29 @@ button:focus { outline: none; }
       <div class="runner-level">Niv <span id="runner-level">1</span></div>
     </div>
     <div class="runner-best" id="runner-best-hud">Best : <strong>0</strong>m</div>
+  </div>
+  <!-- Bouton de musique d'accompagnement -->
+  <button class="runner-music-btn" id="runner-music-btn" title="Changer la musique">
+    🎵 <span id="runner-music-name">—</span>
+    <span id="runner-music-pin-state" style="display:none">📌</span>
+  </button>
+  <!-- Modal picker de musique -->
+  <div id="runner-music-picker" class="runner-music-picker">
+    <div class="runner-music-picker-content">
+      <div class="rmp-header">
+        <h3 style="margin:0">🎵 Musique d'accompagnement</h3>
+        <button id="runner-music-close" style="background:#eee;border:none;width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer;">×</button>
+      </div>
+      <p style="color:var(--muted);font-size:13px;margin:6px 0 12px 0;">
+        Au démarrage d'un run, une musique aléatoire est choisie.
+        Sélectionne-en une pour la garder à chaque run.
+      </p>
+      <label class="rmp-pin">
+        <input type="checkbox" id="runner-music-pin-toggle">
+        <span>📌 Garder la musique sélectionnée pour les prochains runs</span>
+      </label>
+      <div class="runner-music-list" id="runner-music-list"></div>
+    </div>
   </div>
   <!-- Légende des pads en bas (rappel visuel des obstacles → pads) -->
   <div class="runner-legend" id="runner-legend"></div>
@@ -2831,6 +3036,15 @@ button:focus { outline: none; }
       <div style="font-size:64px;font-weight:800;line-height:1;color:var(--accent);"><span id="runner-over-dist">0</span><span style="font-size:30px;opacity:0.6">m</span></div>
       <div style="color:var(--muted);font-size:14px;">Niveau atteint : <strong id="runner-over-level">1</strong></div>
       <div class="runner-over-stars" id="runner-over-stars">⭐</div>
+      <div class="score-attrib">
+        <span class="sa-label">Score pour</span>
+        <button class="score-attrib-btn" id="runner-attrib-btn" type="button">
+          <span class="sa-emoji">🦁</span>
+          <span class="sa-name">—</span>
+          <span class="sa-arrow">▾</span>
+        </button>
+        <div class="score-attrib-list" id="runner-attrib-list"></div>
+      </div>
       <div id="runner-over-prev" style="margin-top:8px;font-size:13px;color:var(--muted);"></div>
       <div class="actions">
         <button class="primary" id="runner-over-again">🔁 Rejouer</button>
@@ -2888,6 +3102,15 @@ button:focus { outline: none; }
       <div style="color:var(--muted);font-size:14px;">Score moyen</div>
       <div style="font-size:64px;font-weight:800;line-height:1;color:var(--accent);"><span id="echo-over-score">0</span><span style="font-size:30px;opacity:0.6">%</span></div>
       <div class="echo-over-stars" id="echo-over-stars">⭐</div>
+      <div class="score-attrib">
+        <span class="sa-label">Score pour</span>
+        <button class="score-attrib-btn" id="echo-attrib-btn" type="button">
+          <span class="sa-emoji">🦁</span>
+          <span class="sa-name">—</span>
+          <span class="sa-arrow">▾</span>
+        </button>
+        <div class="score-attrib-list" id="echo-attrib-list"></div>
+      </div>
       <div class="echo-over-breakdown" id="echo-over-breakdown"></div>
       <div id="echo-over-prev" style="margin-top:8px;font-size:13px;color:var(--muted);"></div>
       <div class="actions">
@@ -3782,6 +4005,160 @@ document.getElementById('profile-modal').addEventListener('click', e => {
     document.getElementById('profile-modal').classList.remove('active');
   }
 });
+
+// =====================================================================
+// Score attribution : re-attribue le dernier score a un autre profil
+// (utile si Lucas a joue mais c'est le profil Arthur qui etait selectionne)
+// =====================================================================
+// Helper generique. Le caller fournit les cles + recompute via callbacks.
+function reassignLastAttempt(newName, opts) {
+  // opts: {historyKey, scoreField, filterKeyFn?, bestKeyFn, starsPatternFn}
+  //  - historyKey: 'memo-history' / 'runner-history' / 'echo-history'
+  //  - scoreField: (attempt) → numeric (round, distance, score)
+  //  - filterKeyFn(attempt, h): true si h "joue dans la meme categorie"
+  //                              (ex: meme difficulte pour Memo, meme niveau pour Echo)
+  //  - bestKeyFn(attempt): 'memo-best-medium' / 'runner-best' / 'echo-best-lv1'
+  //  - starsPatternFn(attempt): 'memo-medium' / 'runner' / 'echo-lv1'
+  const oldName = getCurrentProfileName();
+  if (oldName === newName) return false;
+  const oldHistKey = `boumbi-${oldName}-${opts.historyKey}`;
+  let oldHist = [];
+  try { oldHist = JSON.parse(localStorage.getItem(oldHistKey) || '[]'); } catch {}
+  if (oldHist.length === 0) return false;
+  const last = oldHist[oldHist.length - 1];
+
+  // 1) Remove last entry from old profile history
+  oldHist = oldHist.slice(0, -1);
+  localStorage.setItem(oldHistKey, JSON.stringify(oldHist));
+
+  // 2) Recompute old profile's best for this category
+  const bestKey = opts.bestKeyFn(last);
+  const sameCat = oldHist.filter(h => opts.filterKeyFn ? opts.filterKeyFn(last, h) : true);
+  const oldNewBest = sameCat.length > 0 ? Math.max(...sameCat.map(opts.scoreField)) : 0;
+  localStorage.setItem(`boumbi-${oldName}-${bestKey}`, String(oldNewBest));
+
+  // 3) Recompute old profile's stars for this pattern
+  const starsPatternId = opts.starsPatternFn(last);
+  let oldStars = {};
+  try { oldStars = JSON.parse(localStorage.getItem(`boumbi-${oldName}-stars`) || '{}'); } catch {}
+  const oldMaxStars = sameCat.length > 0 ? Math.max(...sameCat.map(h => h.stars || 0)) : 0;
+  oldStars[starsPatternId] = oldMaxStars;
+  localStorage.setItem(`boumbi-${oldName}-stars`, JSON.stringify(oldStars));
+
+  // 4) Append last attempt to new profile's history
+  const newHistKey = `boumbi-${newName}-${opts.historyKey}`;
+  let newHist = [];
+  try { newHist = JSON.parse(localStorage.getItem(newHistKey) || '[]'); } catch {}
+  newHist.push(last);
+  if (newHist.length > 100) newHist = newHist.slice(-100);
+  localStorage.setItem(newHistKey, JSON.stringify(newHist));
+
+  // 5) Update new profile's best (Math.max behavior)
+  const movedScore = opts.scoreField(last);
+  const newBestKey = `boumbi-${newName}-${bestKey}`;
+  const newBestPrev = parseInt(localStorage.getItem(newBestKey) || '0', 10);
+  if (movedScore > newBestPrev) {
+    localStorage.setItem(newBestKey, String(movedScore));
+  }
+
+  // 6) Update new profile's stars
+  let newStars = {};
+  try { newStars = JSON.parse(localStorage.getItem(`boumbi-${newName}-stars`) || '{}'); } catch {}
+  newStars[starsPatternId] = Math.max(newStars[starsPatternId] || 0, last.stars || 0);
+  localStorage.setItem(`boumbi-${newName}-stars`, JSON.stringify(newStars));
+
+  // 7) Switch active profile + refresh UIs
+  setCurrentProfileName(newName);
+  updateProfileDisplay();
+  updateStarsCounter();
+  return true;
+}
+
+// Renvoie une fonction pour rafraichir le bouton d'attribution apres maj.
+function setupScoreAttribution(btnId, listId, moveLastFn, onAfterMove) {
+  const btn = document.getElementById(btnId);
+  const list = document.getElementById(listId);
+  if (!btn || !list) return null;
+  function refreshButton() {
+    const p = getCurrentProfile();
+    btn.querySelector('.sa-emoji').textContent = p.emoji;
+    btn.querySelector('.sa-name').textContent = p.name;
+  }
+  function buildList() {
+    list.innerHTML = '';
+    const current = getCurrentProfileName();
+    for (const p of getProfiles()) {
+      const item = document.createElement('button');
+      item.type = 'button';
+      if (p.name === current) item.classList.add('current');
+      item.innerHTML = `
+        <span class="sa-em">${p.emoji}</span>
+        <span>${p.name}</span>
+        ${p.name === current ? '<span class="sa-meta">actuel</span>' : ''}
+      `;
+      item.addEventListener('click', e => {
+        e.stopPropagation();
+        if (p.name !== current) {
+          const ok = moveLastFn(p.name);
+          if (ok) {
+            refreshButton();
+            if (onAfterMove) onAfterMove();
+          }
+        }
+        list.classList.remove('open');
+      });
+      list.appendChild(item);
+    }
+  }
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const isOpen = list.classList.contains('open');
+    // Ferme tous les autres dropdowns d'attribution
+    document.querySelectorAll('.score-attrib-list.open').forEach(l => {
+      if (l !== list) l.classList.remove('open');
+    });
+    if (isOpen) {
+      list.classList.remove('open');
+    } else {
+      buildList();
+      list.classList.add('open');
+    }
+  });
+  document.addEventListener('click', e => {
+    if (!list.classList.contains('open')) return;
+    if (e.target.closest('#' + listId) || e.target.closest('#' + btnId)) return;
+    list.classList.remove('open');
+  });
+  return refreshButton;
+}
+
+// === Move functions par mode ===
+function memoMoveLastTo(newName) {
+  return reassignLastAttempt(newName, {
+    historyKey: 'memo-history',
+    scoreField: a => a.round || 0,
+    filterKeyFn: (last, h) => (h.diff || 'medium') === (last.diff || 'medium'),
+    bestKeyFn: a => `memo-best-${a.diff || 'medium'}`,
+    starsPatternFn: a => `memo-${a.diff || 'medium'}`,
+  });
+}
+function runnerMoveLastTo(newName) {
+  return reassignLastAttempt(newName, {
+    historyKey: 'runner-history',
+    scoreField: a => a.distance || 0,
+    bestKeyFn: () => 'runner-best',
+    starsPatternFn: () => 'runner',
+  });
+}
+function echoMoveLastTo(newName) {
+  return reassignLastAttempt(newName, {
+    historyKey: 'echo-history',
+    scoreField: a => a.score || 0,
+    filterKeyFn: (last, h) => (h.level || 1) === (last.level || 1),
+    bestKeyFn: a => `echo-best-lv${a.level || 1}`,
+    starsPatternFn: a => `echo-lv${a.level || 1}`,
+  });
+}
 
 // === Switcher global : dropdown rapide pour switcher de profil ===
 function renderProfileDropdown() {
@@ -4890,6 +5267,7 @@ function memoGameOver() {
   }
   overlay.classList.add('active');
   updateStarsCounter();
+  if (typeof memoAttribRefresh === 'function') memoAttribRefresh();
 }
 
 function memoStopAll() {
@@ -4916,6 +5294,25 @@ document.getElementById('memo-difficulty').addEventListener('click', e => {
   if (!btn) return;
   memoSetDifficulty(btn.dataset.diff);
 });
+
+// Score attribution UI pour Memo (refresh apres switch)
+const memoAttribRefresh = setupScoreAttribution(
+  'memo-attrib-btn', 'memo-attrib-list', memoMoveLastTo,
+  () => {
+    // Refresh modal display avec les nouvelles donnees du profil
+    const overlay = document.getElementById('memo-over');
+    if (!overlay.classList.contains('active')) return;
+    // Rafraichit le best affiche en haut
+    document.getElementById('memo-best').textContent = memoGetBest();
+    // Petit toast visuel
+    const status = document.getElementById('memo-status');
+    if (status) {
+      status.textContent = '↪ Score deplace';
+      status.style.color = 'var(--accent)';
+      setTimeout(() => { status.style.color = ''; }, 1500);
+    }
+  }
+);
 
 // =====================================================================
 // Boumbi Runner — dino-style avec contrôle batterie
@@ -5109,6 +5506,9 @@ function runnerStart() {
   document.getElementById('runner-level').textContent = '1';
   document.getElementById('runner-lives').textContent = '❤️'.repeat(RUNNER_LIVES);
   runnerRenderLegend();
+  // Pick + play music (random ou pinned)
+  const trackIdx = runnerMusicPickAtStart();
+  runnerMusicStart(trackIdx);
   runnerCountdown(() => {
     runner.active = true;
     runner.startedAt = performance.now();
@@ -5557,6 +5957,7 @@ function runnerDrawBoumbi(ctx, x, groundY) {
 
 function runnerGameOver() {
   runner.active = false;
+  runnerMusicStop();
   // Persist
   const final = Math.floor(runner.distance);
   const prevBest = runnerGetBest();
@@ -5608,6 +6009,7 @@ function runnerGameOver() {
   overlay.classList.add('active');
   updateStarsCounter();
   document.getElementById('runner-best-hud').innerHTML = `Best : <strong>${Math.max(prevBest, final)}</strong>m`;
+  if (typeof runnerAttribRefresh === 'function') runnerAttribRefresh();
 }
 
 function runnerStopAll() {
@@ -5618,6 +6020,214 @@ function runnerStopAll() {
   if (cd) { cd.classList.remove('active'); cd.style.display = 'none'; }
   const ov = document.getElementById('runner-over');
   if (ov) ov.classList.remove('active');
+  runnerMusicStop();
+}
+
+// =====================================================================
+// Runner — Musique d'accompagnement (10 tracks synthe melodiques)
+// Loop a 100 BPM, melodie + basse, tempo fixe. Random a chaque run sauf
+// si l'utilisateur a "pin" un track particulier.
+// =====================================================================
+// Format des tracks : melody/bass = [[stepIndex, midiNote, durationInSteps], ...]
+// 32 steps par loop (2 mesures de 4 temps en double-croches) → ~4.8s a 100 BPM.
+const RUNNER_TRACKS = [
+  // 1) Promenade - C major, doux et calme
+  { name: 'Promenade', emoji: '🌳',
+    melody: [[0,72,4],[4,76,4],[8,79,4],[12,76,4],[16,74,4],[20,76,4],[24,72,8]],
+    bass:   [[0,48,8],[8,55,8],[16,53,8],[24,55,8]],
+    mt:'sine', bt:'triangle', mg:0.14, bg:0.12 },
+  // 2) Aventure - A minor, plus intense
+  { name: 'Aventure', emoji: '⛰️',
+    melody: [[0,69,2],[2,72,2],[4,76,4],[8,77,4],[12,76,2],[14,72,2],[16,69,4],[20,67,4],[24,69,8]],
+    bass:   [[0,45,4],[4,45,4],[8,52,4],[12,52,4],[16,48,4],[20,48,4],[24,45,8]],
+    mt:'triangle', bt:'sawtooth', mg:0.14, bg:0.08 },
+  // 3) Funky - G major, syncope
+  { name: 'Funky', emoji: '🕺',
+    melody: [[0,67,2],[2,71,2],[6,74,4],[10,71,2],[12,67,2],[16,69,2],[18,72,2],[22,69,4],[26,67,4]],
+    bass:   [[0,43,3],[6,43,3],[12,43,4],[16,48,3],[22,48,3],[28,43,4]],
+    mt:'square', bt:'square', mg:0.10, bg:0.10 },
+  // 4) Galop - D major, rapide
+  { name: 'Galop', emoji: '🐎',
+    melody: [[0,74,2],[2,78,2],[4,81,2],[6,78,2],[8,74,2],[10,78,2],[12,74,4],
+             [16,72,2],[18,76,2],[20,79,2],[22,76,2],[24,72,2],[26,76,2],[28,74,4]],
+    bass:   [[0,50,4],[4,50,4],[8,50,4],[12,50,4],[16,53,4],[20,53,4],[24,50,4],[28,50,4]],
+    mt:'sawtooth', bt:'triangle', mg:0.10, bg:0.10 },
+  // 5) Reggae - F major, off-beats
+  { name: 'Reggae', emoji: '🌴',
+    melody: [[2,77,2],[6,77,2],[10,81,2],[14,77,2],[18,79,2],[22,79,2],[26,81,2],[30,77,2]],
+    bass:   [[0,41,4],[4,48,2],[8,41,4],[12,48,2],[16,41,4],[20,48,2],[24,41,4],[28,48,2]],
+    mt:'triangle', bt:'sine', mg:0.14, bg:0.14 },
+  // 6) Mystere - E minor (descending)
+  { name: 'Mystère', emoji: '🦇',
+    melody: [[0,76,8],[8,75,8],[16,72,4],[20,71,4],[24,76,8]],
+    bass:   [[0,40,16],[16,38,8],[24,40,8]],
+    mt:'sine', bt:'triangle', mg:0.13, bg:0.12 },
+  // 7) Énergie - C major arpèges
+  { name: 'Énergie', emoji: '⚡',
+    melody: [[0,72,2],[2,76,2],[4,79,2],[6,84,2],[8,79,2],[10,76,2],[12,72,4],
+             [16,74,2],[18,77,2],[20,81,2],[22,86,2],[24,81,2],[26,77,2],[28,74,4]],
+    bass:   [[0,48,4],[4,48,4],[8,48,4],[12,48,4],[16,50,4],[20,50,4],[24,50,4],[28,50,4]],
+    mt:'square', bt:'triangle', mg:0.09, bg:0.10 },
+  // 8) Melancolie - D minor lent
+  { name: 'Mélancolie', emoji: '🌧️',
+    melody: [[0,77,4],[4,76,4],[8,74,8],[16,72,4],[20,70,4],[24,72,8]],
+    bass:   [[0,50,16],[16,46,16]],
+    mt:'sine', bt:'triangle', mg:0.13, bg:0.10 },
+  // 9) Espace - E pentatonic atmospherique
+  { name: 'Espace', emoji: '🚀',
+    melody: [[0,76,4],[4,83,4],[8,80,4],[16,76,4],[20,88,4],[24,83,4]],
+    bass:   [[0,40,32]],
+    mt:'sine', bt:'sine', mg:0.13, bg:0.07 },
+  // 10) Carnaval - G major festif
+  { name: 'Carnaval', emoji: '🎉',
+    melody: [[0,79,2],[2,76,2],[4,79,2],[6,83,2],[8,79,2],[10,76,2],[12,74,4],
+             [16,76,2],[18,79,2],[20,83,2],[22,86,2],[24,83,2],[26,79,2],[28,76,4]],
+    bass:   [[0,43,4],[4,43,4],[8,38,4],[12,38,4],[16,43,4],[20,43,4],[24,38,4],[28,38,4]],
+    mt:'sawtooth', bt:'square', mg:0.10, bg:0.09 },
+];
+const RUNNER_MUSIC_BPM = 100;
+
+const runnerMusic = {
+  playing: false,
+  trackIdx: 0,
+  scheduledUpTo: 0,
+  schedulerId: null,
+  master: null,   // GainNode pour fade in/out
+};
+
+function runnerSynthNote(midi, when, durSec, type, gain) {
+  if (!audioCtx) return;
+  const freq = 440 * Math.pow(2, (midi - 69) / 12);
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, when);
+  // Enveloppe ADSR douce
+  g.gain.setValueAtTime(0, when);
+  g.gain.linearRampToValueAtTime(gain, when + 0.015);
+  g.gain.setValueAtTime(gain, when + Math.min(durSec * 0.6, durSec - 0.05));
+  g.gain.exponentialRampToValueAtTime(0.0001, when + durSec);
+  // Filtre passe-bas pour adoucir
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = (type === 'sine') ? 8000 : 2500;
+  filter.Q.value = 0.5;
+  o.connect(filter).connect(g);
+  if (runnerMusic.master) {
+    g.connect(runnerMusic.master);
+  } else {
+    g.connect(audioCtx.destination);
+  }
+  o.start(when);
+  o.stop(when + durSec + 0.05);
+}
+
+function runnerMusicStart(trackIdx) {
+  ensureAudio();
+  if (trackIdx == null) trackIdx = runnerMusic.trackIdx;
+  if (trackIdx < 0 || trackIdx >= RUNNER_TRACKS.length) trackIdx = 0;
+  // Stop précédent
+  runnerMusicStop();
+  runnerMusic.trackIdx = trackIdx;
+  runnerMusic.playing = true;
+  // Master gain pour fade in/out
+  runnerMusic.master = audioCtx.createGain();
+  runnerMusic.master.gain.value = 0;
+  runnerMusic.master.connect(audioCtx.destination);
+  const startT = audioCtx.currentTime + 0.1;
+  runnerMusic.master.gain.linearRampToValueAtTime(0.7, startT + 0.4);
+  runnerMusic.scheduledUpTo = startT;
+  // Boucle de scheduler look-ahead
+  function scheduler() {
+    if (!runnerMusic.playing) return;
+    const track = RUNNER_TRACKS[runnerMusic.trackIdx];
+    const stepSec = 60 / RUNNER_MUSIC_BPM / 4;  // 16th note
+    const loopSec = 32 * stepSec;
+    while (runnerMusic.scheduledUpTo < audioCtx.currentTime + 1.5) {
+      const start = runnerMusic.scheduledUpTo;
+      // Melody
+      track.melody.forEach(([s, n, d]) => {
+        runnerSynthNote(n, start + s * stepSec, d * stepSec, track.mt, track.mg);
+      });
+      // Bass
+      track.bass.forEach(([s, n, d]) => {
+        runnerSynthNote(n, start + s * stepSec, d * stepSec, track.bt, track.bg);
+      });
+      runnerMusic.scheduledUpTo += loopSec;
+    }
+    runnerMusic.schedulerId = setTimeout(scheduler, 250);
+  }
+  scheduler();
+  // Update UI
+  runnerUpdateMusicUI();
+}
+
+function runnerMusicStop() {
+  runnerMusic.playing = false;
+  if (runnerMusic.schedulerId) { clearTimeout(runnerMusic.schedulerId); runnerMusic.schedulerId = null; }
+  if (runnerMusic.master && audioCtx) {
+    // Fade out
+    const now = audioCtx.currentTime;
+    try {
+      runnerMusic.master.gain.cancelScheduledValues(now);
+      runnerMusic.master.gain.setValueAtTime(runnerMusic.master.gain.value, now);
+      runnerMusic.master.gain.linearRampToValueAtTime(0, now + 0.3);
+    } catch {}
+    const master = runnerMusic.master;
+    setTimeout(() => { try { master.disconnect(); } catch {} }, 500);
+    runnerMusic.master = null;
+  }
+}
+
+// === Lock / pin : si pinned, on garde le meme track entre les runs ===
+function runnerMusicIsPinned() {
+  return localStorage.getItem('boumbi-runner-music-pinned') === '1';
+}
+function runnerMusicSetPinned(v, trackIdx) {
+  if (v) {
+    localStorage.setItem('boumbi-runner-music-pinned', '1');
+    if (trackIdx != null) localStorage.setItem('boumbi-runner-music-track', String(trackIdx));
+  } else {
+    localStorage.removeItem('boumbi-runner-music-pinned');
+  }
+}
+function runnerMusicPickAtStart() {
+  // Si pinned, on garde le track stocke. Sinon random.
+  if (runnerMusicIsPinned()) {
+    const stored = parseInt(localStorage.getItem('boumbi-runner-music-track') || '0', 10);
+    return Math.max(0, Math.min(RUNNER_TRACKS.length - 1, stored));
+  }
+  return Math.floor(Math.random() * RUNNER_TRACKS.length);
+}
+
+function runnerUpdateMusicUI() {
+  const nameEl = document.getElementById('runner-music-name');
+  const pinEl = document.getElementById('runner-music-pin-state');
+  if (nameEl) {
+    const track = RUNNER_TRACKS[runnerMusic.trackIdx];
+    nameEl.textContent = `${track.emoji} ${track.name}`;
+  }
+  if (pinEl) pinEl.style.display = runnerMusicIsPinned() ? 'inline' : 'none';
+  const pinCheckbox = document.getElementById('runner-music-pin-toggle');
+  if (pinCheckbox) pinCheckbox.checked = runnerMusicIsPinned();
+}
+
+function runnerRenderMusicList() {
+  const list = document.getElementById('runner-music-list');
+  if (!list) return;
+  list.innerHTML = '';
+  RUNNER_TRACKS.forEach((t, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'runner-music-item' + (i === runnerMusic.trackIdx ? ' active' : '');
+    btn.innerHTML = `<span class="rmi-emoji">${t.emoji}</span> <span class="rmi-name">${t.name}</span>`;
+    btn.addEventListener('click', () => {
+      runnerMusicSetPinned(true, i);  // pick = pin auto (l'utilisateur choisit explicitement)
+      runnerMusicStart(i);
+      runnerRenderMusicList();
+      runnerUpdateMusicUI();
+    });
+    list.appendChild(btn);
+  });
 }
 
 document.getElementById('runner-start-btn').addEventListener('click', runnerStart);
@@ -5649,6 +6259,34 @@ document.addEventListener('keydown', e => {
 // Click sur canvas → kick (action la plus utile, surtout au niveau 1)
 runnerCanvas.addEventListener('click', () => {
   if (runner.active) runnerTap('kick');
+});
+
+// Score attribution UI pour Runner
+const runnerAttribRefresh = setupScoreAttribution(
+  'runner-attrib-btn', 'runner-attrib-list', runnerMoveLastTo,
+  () => {
+    // Refresh le best affiche dans la HUD
+    document.getElementById('runner-best-hud').innerHTML = `Best : <strong>${runnerGetBest()}</strong>m`;
+  }
+);
+
+// Music picker handlers
+document.getElementById('runner-music-btn').addEventListener('click', () => {
+  runnerRenderMusicList();
+  runnerUpdateMusicUI();
+  document.getElementById('runner-music-picker').classList.add('active');
+});
+document.getElementById('runner-music-close').addEventListener('click', () => {
+  document.getElementById('runner-music-picker').classList.remove('active');
+});
+document.getElementById('runner-music-picker').addEventListener('click', e => {
+  if (e.target.id === 'runner-music-picker') {
+    document.getElementById('runner-music-picker').classList.remove('active');
+  }
+});
+document.getElementById('runner-music-pin-toggle').addEventListener('change', e => {
+  runnerMusicSetPinned(e.target.checked, runnerMusic.trackIdx);
+  runnerUpdateMusicUI();
 });
 
 // =====================================================================
@@ -6066,6 +6704,7 @@ function echoSessionOver() {
   }
   overlay.classList.add('active');
   updateStarsCounter();
+  if (typeof echoAttribRefresh === 'function') echoAttribRefresh();
 }
 
 function echoStopAll() {
@@ -6092,6 +6731,14 @@ document.getElementById('echo-level').addEventListener('click', e => {
   if (!btn) return;
   echoSetLevel(parseInt(btn.dataset.lv, 10));
 });
+
+// Score attribution UI pour Echo
+const echoAttribRefresh = setupScoreAttribution(
+  'echo-attrib-btn', 'echo-attrib-list', echoMoveLastTo,
+  () => {
+    document.getElementById('echo-best').textContent = echoGetBest() || '—';
+  }
+);
 
 // =====================================================================
 // Studio Boumbi — step sequencer
