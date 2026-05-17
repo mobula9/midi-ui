@@ -193,6 +193,24 @@ button:focus { outline: none; }
 /* === Home === */
 #screen-home { justify-content: center; align-items: center; }
 .boumbi-hello { text-align: center; margin-bottom: 24px; }
+.profile-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 10px 22px;
+  border-radius: 999px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+  font-family: inherit;
+}
+.profile-pill:hover { filter: brightness(1.05); }
+.profile-pill .emoji { font-size: 26px; }
 .boumbi-hello .speech {
   display: inline-block;
   background: var(--panel);
@@ -204,6 +222,65 @@ button:focus { outline: none; }
   margin-bottom: 14px;
   position: relative;
 }
+
+/* === Modal de gestion des profils === */
+.profile-modal {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75);
+  display: none; align-items: center; justify-content: center;
+  z-index: 150;
+}
+.profile-modal.active { display: flex; }
+.profile-modal-content {
+  background: var(--panel);
+  border-radius: 24px;
+  padding: 24px 32px;
+  width: 90%; max-width: 720px;
+  max-height: 88vh;
+  overflow-y: auto;
+}
+.profile-modal-content h2 { margin: 0 0 16px 0; font-size: 24px; }
+.profile-list-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.profile-item {
+  background: white;
+  border-radius: 16px;
+  padding: 16px 12px 12px 12px;
+  text-align: center;
+  border: 3px solid #eee;
+  cursor: pointer;
+  transition: transform 0.1s, border-color 0.1s, background 0.1s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.profile-item:hover { transform: translateY(-2px); }
+.profile-item.active { border-color: var(--accent); background: #e0f7f5; }
+.profile-item .pem { font-size: 56px; line-height: 1; }
+.profile-item .pname { font-size: 18px; font-weight: 700; color: var(--text); }
+.profile-item .pmeta { font-size: 11px; color: var(--muted); }
+.profile-item .pactions { display: flex; gap: 4px; margin-top: 4px; }
+.profile-item .pactions button {
+  font-size: 10px; padding: 4px 8px; border-radius: 6px; border: 1px solid #ddd;
+  background: white; cursor: pointer; font-family: inherit; color: var(--text);
+}
+.profile-item .pactions button.danger { background: #fef0f0; color: var(--bad); border-color: #fbb; }
+.profile-add-card {
+  background: #f5f5f0;
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  border: 3px dashed #ccc;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700; color: var(--muted);
+}
+.profile-add-card:hover { border-color: var(--accent); color: var(--accent); }
 .boumbi-hello .speech::after {
   content: '';
   position: absolute;
@@ -754,7 +831,12 @@ button:focus { outline: none; }
   <div class="stars" id="stars-counter">0</div>
 
   <div class="boumbi-hello">
-    <div class="speech" id="boumbi-greeting">Salut, on joue ? 🥁</div>
+    <button class="profile-pill" id="profile-pill">
+      <span class="emoji" id="profile-emoji">🦁</span>
+      <span id="profile-name">Lucas</span>
+      <span style="font-size:13px;opacity:0.8">▾</span>
+    </button>
+    <div class="speech" id="boumbi-greeting">Salut <span id="boumbi-name">Lucas</span>, on joue ? 🥁</div>
     <div class="boumbi-large"><svg viewBox="0 0 200 200" id="boumbi-svg">
       <!-- corps -->
       <ellipse cx="100" cy="135" rx="75" ry="62" fill="#8B5A2B"/>
@@ -925,6 +1007,18 @@ button:focus { outline: none; }
     <div class="cal-actions">
       <button class="skip" id="cal-skip">Passer ce pad</button>
       <button class="cancel" id="cal-cancel">Quitter</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modale de gestion des profils -->
+<div id="profile-modal" class="profile-modal">
+  <div class="profile-modal-content">
+    <h2>👥 Choisis ton profil</h2>
+    <p style="color:var(--muted);font-size:13px;margin:0 0 16px 0;">Chaque profil a ses propres étoiles et sa propre courbe de progression.</p>
+    <div class="profile-list-grid" id="profile-list"></div>
+    <div style="display:flex;gap:12px;justify-content:flex-end;">
+      <button id="profile-close" style="padding:10px 20px;border:none;background:var(--accent);color:white;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;">Fermer</button>
     </div>
   </div>
 </div>
@@ -1259,14 +1353,75 @@ document.querySelectorAll('[data-goto]').forEach(el => {
 });
 
 // =====================================================================
-// Étoiles (localStorage)
+// Profils (Lucas / Arthur / Léo / Wendy par défaut)
+// Chaque profil a ses propres étoiles + historique.
+// Le kit + le mapping MIDI restent globaux (= la batterie physique).
+// =====================================================================
+const DEFAULT_PROFILES = [
+  { name: 'Lucas',  emoji: '🦁' },
+  { name: 'Arthur', emoji: '🐯' },
+  { name: 'Léo',    emoji: '🦊' },
+  { name: 'Wendy',  emoji: '🦄' },
+];
+
+function getProfiles() {
+  try {
+    const raw = localStorage.getItem('boumbi-profiles');
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr) && arr.length > 0) return arr;
+    }
+  } catch {}
+  return DEFAULT_PROFILES.slice();
+}
+function saveProfiles(arr) {
+  localStorage.setItem('boumbi-profiles', JSON.stringify(arr));
+}
+function getCurrentProfileName() {
+  const n = localStorage.getItem('boumbi-current-profile');
+  const profs = getProfiles();
+  if (n && profs.some(p => p.name === n)) return n;
+  return profs[0].name;
+}
+function setCurrentProfileName(name) {
+  localStorage.setItem('boumbi-current-profile', name);
+}
+function getCurrentProfile() {
+  const n = getCurrentProfileName();
+  return getProfiles().find(p => p.name === n) || getProfiles()[0];
+}
+function pkey(suffix) {
+  return `boumbi-${getCurrentProfileName()}-${suffix}`;
+}
+
+// Migration : si l'ancien storage existe (avant les profils), on le bascule
+// sur le profil Lucas par défaut, une seule fois.
+function migrateOldData() {
+  if (!localStorage.getItem('boumbi-migrated-profiles')) {
+    const oldStars = localStorage.getItem('boumbi-stars');
+    const oldHist  = localStorage.getItem('boumbi-history');
+    if (oldStars) {
+      localStorage.setItem('boumbi-Lucas-stars', oldStars);
+      localStorage.removeItem('boumbi-stars');
+    }
+    if (oldHist) {
+      localStorage.setItem('boumbi-Lucas-history', oldHist);
+      localStorage.removeItem('boumbi-history');
+    }
+    localStorage.setItem('boumbi-migrated-profiles', '1');
+  }
+}
+migrateOldData();
+
+// =====================================================================
+// Étoiles (per-profile)
 // =====================================================================
 function getStars() {
-  try { return JSON.parse(localStorage.getItem('boumbi-stars') || '{}'); }
+  try { return JSON.parse(localStorage.getItem(pkey('stars')) || '{}'); }
   catch { return {}; }
 }
 function setStars(obj) {
-  localStorage.setItem('boumbi-stars', JSON.stringify(obj));
+  localStorage.setItem(pkey('stars'), JSON.stringify(obj));
 }
 function addStarsFor(patternId, count) {
   const s = getStars();
@@ -1285,7 +1440,7 @@ function updateStarsCounter() {
 // Historique des essais (pour la courbe de progression)
 // =====================================================================
 function getHistory() {
-  try { return JSON.parse(localStorage.getItem('boumbi-history') || '{}'); }
+  try { return JSON.parse(localStorage.getItem(pkey('history')) || '{}'); }
   catch { return {}; }
 }
 function saveAttempt(patternId, score, stars) {
@@ -1293,8 +1448,127 @@ function saveAttempt(patternId, score, stars) {
   if (!h[patternId]) h[patternId] = [];
   h[patternId].push({ ts: Date.now(), score, stars });
   if (h[patternId].length > 100) h[patternId] = h[patternId].slice(-100);
-  localStorage.setItem('boumbi-history', JSON.stringify(h));
+  localStorage.setItem(pkey('history'), JSON.stringify(h));
 }
+
+// =====================================================================
+// UI Profils
+// =====================================================================
+function updateProfileDisplay() {
+  const p = getCurrentProfile();
+  const emoji = document.getElementById('profile-emoji');
+  const name = document.getElementById('profile-name');
+  const boumbiName = document.getElementById('boumbi-name');
+  if (emoji) emoji.textContent = p.emoji;
+  if (name) name.textContent = p.name;
+  if (boumbiName) boumbiName.textContent = p.name;
+}
+
+function profileStats(profileName) {
+  // Compte rapide stars + nb d'essais pour affichage dans la modal
+  let stars = 0, attempts = 0;
+  try {
+    const s = JSON.parse(localStorage.getItem(`boumbi-${profileName}-stars`) || '{}');
+    stars = Object.values(s).reduce((a, b) => a + b, 0);
+  } catch {}
+  try {
+    const h = JSON.parse(localStorage.getItem(`boumbi-${profileName}-history`) || '{}');
+    attempts = Object.values(h).reduce((a, arr) => a + arr.length, 0);
+  } catch {}
+  return { stars, attempts };
+}
+
+function renderProfileList() {
+  const list = document.getElementById('profile-list');
+  list.innerHTML = '';
+  const current = getCurrentProfileName();
+  for (const p of getProfiles()) {
+    const { stars, attempts } = profileStats(p.name);
+    const item = document.createElement('div');
+    item.className = 'profile-item' + (p.name === current ? ' active' : '');
+    item.innerHTML = `
+      <div class="pem">${p.emoji}</div>
+      <div class="pname">${p.name}</div>
+      <div class="pmeta">⭐ ${stars} · ${attempts} essai${attempts !== 1 ? 's' : ''}</div>
+      <div class="pactions">
+        <button data-action="reset">Reset</button>
+        <button class="danger" data-action="delete">Supprimer</button>
+      </div>
+    `;
+    item.addEventListener('click', e => {
+      if (e.target.closest('.pactions')) return;
+      setCurrentProfileName(p.name);
+      updateProfileDisplay();
+      updateStarsCounter();
+      renderProfileList();
+    });
+    item.querySelector('[data-action="reset"]').addEventListener('click', e => {
+      e.stopPropagation();
+      if (confirm(`Reset les progrès de ${p.name} ?`)) {
+        localStorage.removeItem(`boumbi-${p.name}-stars`);
+        localStorage.removeItem(`boumbi-${p.name}-history`);
+        if (p.name === current) updateStarsCounter();
+        renderProfileList();
+      }
+    });
+    item.querySelector('[data-action="delete"]').addEventListener('click', e => {
+      e.stopPropagation();
+      const profiles = getProfiles();
+      if (profiles.length <= 1) {
+        alert("Il faut garder au moins 1 profil.");
+        return;
+      }
+      if (!confirm(`Supprimer ${p.name} ? Ses progrès seront effacés définitivement.`)) return;
+      const remaining = profiles.filter(x => x.name !== p.name);
+      saveProfiles(remaining);
+      localStorage.removeItem(`boumbi-${p.name}-stars`);
+      localStorage.removeItem(`boumbi-${p.name}-history`);
+      if (p.name === current) setCurrentProfileName(remaining[0].name);
+      updateProfileDisplay();
+      updateStarsCounter();
+      renderProfileList();
+    });
+    list.appendChild(item);
+  }
+  // Carte "ajouter"
+  const addCard = document.createElement('div');
+  addCard.className = 'profile-add-card';
+  addCard.innerHTML = '+ Nouveau profil';
+  addCard.addEventListener('click', addProfileFlow);
+  list.appendChild(addCard);
+}
+
+function addProfileFlow() {
+  const name = prompt('Nom du nouveau profil :');
+  if (!name) return;
+  const clean = name.trim();
+  if (!clean) return;
+  if (getProfiles().some(p => p.name === clean)) {
+    alert('Ce nom existe déjà.');
+    return;
+  }
+  const emoji = prompt('Choisis un emoji pour ce profil (ex : 🐶 🦊 🦄 🐯 🐸 🦋 🐧 🐻) :', '🐶');
+  const profiles = getProfiles();
+  profiles.push({ name: clean, emoji: emoji || '👤' });
+  saveProfiles(profiles);
+  setCurrentProfileName(clean);
+  updateProfileDisplay();
+  updateStarsCounter();
+  renderProfileList();
+}
+
+document.getElementById('profile-pill').addEventListener('click', () => {
+  renderProfileList();
+  document.getElementById('profile-modal').classList.add('active');
+});
+document.getElementById('profile-close').addEventListener('click', () => {
+  document.getElementById('profile-modal').classList.remove('active');
+});
+document.getElementById('profile-modal').addEventListener('click', e => {
+  if (e.target.id === 'profile-modal') {
+    document.getElementById('profile-modal').classList.remove('active');
+  }
+});
 
 function relativeDate(ts) {
   const diff = Date.now() - ts;
@@ -2211,6 +2485,7 @@ document.getElementById('cal-cancel').addEventListener('click', endCalibration);
 // Init
 // =====================================================================
 loadMapping();
+updateProfileDisplay();
 updateStarsCounter();
 updateKitDisplay();
 setupMIDI();
