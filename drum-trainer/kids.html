@@ -1,0 +1,1793 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Drum Trainer · Boumbi</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #FFF8E7;
+  --panel: #FFFFFF;
+  --text: #2A2A3A;
+  --muted: #8A8A99;
+  --kick: #FF6B6B;
+  --snare: #FFD93D;
+  --hihat: #6BCB77;
+  --crash: #C77DFF;
+  --accent: #4ECDC4;
+  --good: #4ade80;
+  --warn: #fbbf24;
+  --bad: #f87171;
+  --shadow: 0 8px 24px rgba(40,40,80,0.10);
+  --shadow-lg: 0 16px 40px rgba(40,40,80,0.18);
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: 'Atkinson Hyperlegible', -apple-system, system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+button { font-family: inherit; cursor: pointer; }
+button:focus { outline: none; }
+
+/* === Layout des écrans === */
+.screen {
+  position: fixed; inset: 0;
+  display: none;
+  flex-direction: column;
+}
+.screen.active { display: flex; }
+.screen-title {
+  padding: 16px 24px;
+  display: flex; align-items: center; gap: 12px;
+}
+.btn-back {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  font-size: 28px;
+  display: flex; align-items: center; justify-content: center;
+}
+.btn-back:active { transform: scale(0.92); }
+
+/* === Logo / brand === */
+.brand {
+  position: absolute;
+  top: 16px; left: 16px;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--muted);
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  z-index: 5;
+}
+
+/* === Star counter === */
+.stars {
+  position: absolute;
+  top: 16px; right: 16px;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  z-index: 5;
+}
+.stars::before { content: '⭐'; margin-right: 6px; }
+
+/* === Calibration accessible === */
+.cal-shortcut {
+  position: absolute;
+  top: 16px; right: 80px;
+  z-index: 5;
+  background: var(--panel);
+  border: none;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
+}
+.cal-shortcut:hover { background: #f8f4e7; }
+.cal-shortcut.attention { animation: shake 0.5s ease-in-out 3; background: var(--warn); color: #fff; }
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+
+/* === Home === */
+#screen-home { justify-content: center; align-items: center; }
+.boumbi-hello { text-align: center; margin-bottom: 24px; }
+.boumbi-hello .speech {
+  display: inline-block;
+  background: var(--panel);
+  padding: 14px 24px;
+  border-radius: 28px;
+  font-size: 24px;
+  font-weight: 700;
+  box-shadow: var(--shadow);
+  margin-bottom: 14px;
+  position: relative;
+}
+.boumbi-hello .speech::after {
+  content: '';
+  position: absolute;
+  bottom: -10px; left: 50%;
+  transform: translateX(-50%);
+  border: 12px solid transparent;
+  border-top-color: var(--panel);
+  border-bottom: none;
+}
+.boumbi-large {
+  width: 200px; height: 200px;
+  display: inline-block;
+  animation: bob 2s ease-in-out infinite;
+}
+@keyframes bob {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50%      { transform: translateY(-8px) rotate(2deg); }
+}
+
+.home-cards {
+  display: flex; gap: 32px;
+  margin-top: 32px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.card {
+  width: 280px; height: 280px;
+  border-radius: 32px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  border: none;
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s;
+  color: var(--text);
+}
+.card:hover { transform: translateY(-6px); box-shadow: var(--shadow-lg); }
+.card:active { transform: scale(0.95); }
+.card-emoji { font-size: 92px; }
+.card-title { font-size: 30px; font-weight: 700; }
+.card-sub { font-size: 16px; color: var(--muted); }
+
+/* MIDI state on home */
+.midi-state {
+  position: absolute;
+  bottom: 24px; left: 50%;
+  transform: translateX(-50%);
+  display: flex; gap: 8px; align-items: center;
+  background: var(--panel);
+  padding: 10px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  color: var(--muted);
+  box-shadow: var(--shadow);
+}
+.midi-led {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: #ccc;
+  transition: background 0.1s, box-shadow 0.1s;
+}
+.midi-led.connected { background: var(--good); }
+.midi-led.error { background: var(--bad); }
+.midi-led.pulse {
+  background: var(--accent);
+  box-shadow: 0 0 14px var(--accent);
+}
+
+/* === Mode libre — dispo physique DD-75 === */
+#screen-free { background: var(--bg); }
+#screen-free .pads-free {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr 1fr 0.8fr;
+  gap: 14px;
+  padding: 14px 24px 24px 24px;
+}
+.free-pad {
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 56px;
+  position: relative;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.08s;
+  overflow: hidden;
+  background: var(--lane-color);
+}
+.free-pad:active { transform: scale(0.94); }
+.free-pad .pad-label { font-size: 18px; font-weight: 700; color: rgba(0,0,0,0.55); }
+.free-pad .pad-id    { font-size: 11px; font-weight: 700; color: rgba(0,0,0,0.4); letter-spacing: 0.5px; position: absolute; top: 8px; left: 12px; }
+.free-pad.pedal { border-radius: 18px; font-size: 44px; }
+.free-pad.bounce {
+  animation: bounce 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Positions des pads sur la grille (vue de face du DD-75) */
+.free-pad[data-lane="crash"]   { grid-column: 1; grid-row: 1 / span 2; }     /* Pad 5 — haut gauche */
+.free-pad[data-lane="ridecup"] { grid-column: 5; grid-row: 1 / span 2; }     /* Pad 7 — haut droit */
+.free-pad[data-lane="tomL"]    { grid-column: 2 / span 2; grid-row: 1; }     /* Pad 2 — haut centre gauche */
+.free-pad[data-lane="tomM"]    { grid-column: 3 / span 2; grid-row: 2; }     /* Pad 3 — haut centre droit (offset) */
+.free-pad[data-lane="hihat"]   { grid-column: 1; grid-row: 3 / span 2; }     /* Pad 6 — mid gauche */
+.free-pad[data-lane="ride"]    { grid-column: 5; grid-row: 3 / span 2; }     /* Pad 8 — mid droit */
+.free-pad[data-lane="snare"]   { grid-column: 2 / span 2; grid-row: 3; }     /* Pad 1 — bas centre gauche */
+.free-pad[data-lane="tomH"]    { grid-column: 3 / span 2; grid-row: 4; }     /* Pad 4 — bas centre droit (offset) */
+.free-pad[data-lane="hhpedal"] { grid-column: 1 / span 2; grid-row: 5; }     /* Pedal 2 — bas gauche */
+.free-pad[data-lane="kick"]    { grid-column: 4 / span 2; grid-row: 5; }     /* Pedal 1 — bas droit */
+@keyframes bounce {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(0.85); }
+  100% { transform: scale(1); }
+}
+
+/* === Mode apprendre — sélection patterns === */
+#screen-learn-select { padding: 0 24px 24px 24px; }
+.pattern-list {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  overflow-y: auto;
+  align-content: start;
+}
+.pattern-card {
+  background: var(--panel);
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: var(--shadow);
+  border: none;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+.pattern-card:active { transform: scale(0.96); }
+.pattern-emoji { font-size: 60px; }
+.pattern-name { font-size: 22px; font-weight: 700; color: var(--text); }
+.pattern-stars { color: var(--warn); font-size: 18px; min-height: 22px; }
+.pattern-bpm { font-size: 14px; color: var(--muted); }
+
+/* === Mode apprendre — jeu === */
+#screen-play { background: #1a1530; color: #fff; }
+#screen-play canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+}
+#screen-play .play-pads {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 140px;
+  display: flex;
+  background: rgba(0,0,0,0.4);
+  border-top: 3px solid rgba(255,255,255,0.4);
+  z-index: 2;
+}
+.play-pad {
+  flex: 1;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 6px;
+  font-size: 64px;
+  position: relative;
+  border-right: 1px solid rgba(255,255,255,0.1);
+  overflow: hidden;
+}
+.play-pad:last-child { border-right: none; }
+.play-pad-label { font-size: 22px; font-weight: 700; color: rgba(255,255,255,0.7); }
+.play-pad-bar { position: absolute; top: 0; left: 0; right: 0; height: 6px; }
+.play-pad.flash::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: var(--lane-color);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.play-controls {
+  position: absolute;
+  top: 16px; left: 16px;
+  display: flex; gap: 12px;
+  z-index: 4;
+}
+.play-stop {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  border: none;
+  background: var(--panel);
+  font-size: 32px;
+  box-shadow: var(--shadow);
+}
+.countdown {
+  position: absolute;
+  top: 35%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 220px;
+  font-weight: 800;
+  color: white;
+  text-shadow: 0 0 40px rgba(78,205,196,0.7), 0 0 80px rgba(78,205,196,0.3);
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* === Timeline en haut du mode jeu === */
+.play-timeline {
+  position: absolute;
+  top: 16px; left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  max-width: 600px;
+  z-index: 4;
+  pointer-events: none;
+}
+.timeline-bar {
+  height: 14px;
+  background: rgba(255,255,255,0.18);
+  border-radius: 7px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.3);
+}
+#timeline-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4ECDC4, #FFD93D, #FF6B6B);
+  width: 0%;
+  border-radius: 7px;
+  transition: width 0.06s linear;
+}
+#timeline-text {
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.9);
+  margin-top: 8px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5px;
+}
+
+/* === Mode apprendre — fin === */
+#screen-done {
+  background: var(--bg);
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.done-emoji { font-size: 130px; animation: bob 1s ease-in-out infinite; }
+.done-score {
+  font-size: 130px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  margin: 4px 0;
+}
+.done-score-max { font-size: 50px; color: var(--muted); font-weight: 600; }
+.done-title { font-size: 40px; font-weight: 700; margin: 8px 0; }
+.done-stars { font-size: 60px; margin: 8px 0; }
+.done-actions { display: flex; gap: 16px; margin-top: 16px; }
+.done-actions .card { width: 180px; height: 180px; }
+.done-actions .card-emoji { font-size: 56px; }
+.done-actions .card-title { font-size: 20px; }
+
+/* === Mes progrès === */
+.progress-list {
+  flex: 1;
+  padding: 8px 24px 24px 24px;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+  align-content: start;
+}
+.progress-card {
+  background: var(--panel);
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+.progress-header {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 12px;
+}
+.progress-emoji { font-size: 40px; }
+.progress-name { font-size: 20px; font-weight: 700; flex: 1; }
+.progress-best {
+  background: var(--accent);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.progress-chart { width: 100%; height: 80px; display: block; }
+.progress-stats {
+  font-size: 13px; color: var(--muted);
+  margin-top: 8px;
+  display: flex; justify-content: space-between;
+  font-variant-numeric: tabular-nums;
+}
+.progress-empty {
+  height: 80px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted); font-size: 13px;
+}
+.no-progress {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--muted);
+  font-size: 22px;
+}
+
+/* === Settings (caché) === */
+#settings-modal {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75);
+  display: none;
+  align-items: center; justify-content: center;
+  z-index: 100;
+}
+#settings-modal.active { display: flex; }
+.settings-card {
+  background: var(--panel);
+  padding: 32px;
+  border-radius: 24px;
+  max-width: 600px; width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+}
+.settings-card h2 { margin-top: 0; }
+.settings-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+.settings-row label { font-size: 13px; color: var(--muted); font-weight: 700; }
+.settings-row select, .settings-row input {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+  font-family: inherit;
+}
+.settings-actions {
+  display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap;
+}
+.settings-actions button {
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: none;
+  font-size: 14px;
+  font-weight: 700;
+  background: #eee;
+}
+.settings-actions button.primary { background: var(--accent); color: white; }
+.settings-actions button.danger { background: var(--bad); color: white; }
+.midi-log {
+  background: #f5f5f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  color: var(--muted);
+  max-height: 100px;
+  overflow-y: auto;
+  margin-top: 8px;
+}
+
+/* === Calibration === */
+.cal-modal {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.85);
+  display: flex;
+  align-items: center; justify-content: center;
+  z-index: 200;
+}
+.cal-content {
+  background: var(--panel);
+  padding: 40px 56px;
+  border-radius: 32px;
+  text-align: center;
+  max-width: 500px;
+}
+.cal-content .prompt {
+  font-size: 36px;
+  font-weight: 700;
+  margin: 20px 0;
+  color: var(--accent);
+}
+.cal-content .icon { font-size: 100px; }
+.cal-content .recent {
+  background: #f5f5f0;
+  padding: 12px 20px;
+  border-radius: 12px;
+  font-family: "SF Mono", Menlo, monospace;
+  margin: 16px 0;
+  font-size: 16px;
+}
+.cal-actions { display: flex; gap: 12px; justify-content: center; margin-top: 16px; }
+.cal-actions button { padding: 10px 24px; border-radius: 10px; border: none; font-size: 16px; font-weight: 700; }
+.cal-actions button.skip { background: #ddd; }
+.cal-actions button.cancel { background: var(--bad); color: white; }
+
+/* Confetti canvas overlay */
+#confetti-canvas {
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 50;
+}
+</style>
+</head>
+<body>
+
+<!-- =================================================================== -->
+<!-- ÉCRAN ACCUEIL -->
+<!-- =================================================================== -->
+<section id="screen-home" class="screen active">
+  <div class="brand" id="brand">Drum Trainer</div>
+  <button class="cal-shortcut" id="home-calibrate">🎯 Calibrer ma batterie</button>
+  <div class="stars" id="stars-counter">0</div>
+
+  <div class="boumbi-hello">
+    <div class="speech" id="boumbi-greeting">Salut, on joue ? 🥁</div>
+    <div class="boumbi-large"><svg viewBox="0 0 200 200" id="boumbi-svg">
+      <!-- corps -->
+      <ellipse cx="100" cy="135" rx="75" ry="62" fill="#8B5A2B"/>
+      <!-- ventre -->
+      <ellipse cx="100" cy="148" rx="42" ry="42" fill="#F5DEB3"/>
+      <!-- aigrettes -->
+      <path d="M 62 65 L 50 80 L 72 75 Z" fill="#6B4221"/>
+      <path d="M 138 65 L 150 80 L 128 75 Z" fill="#6B4221"/>
+      <!-- yeux blancs -->
+      <circle cx="74" cy="92" r="24" fill="white"/>
+      <circle cx="126" cy="92" r="24" fill="white"/>
+      <!-- pupilles -->
+      <circle cx="74" cy="95" r="11" fill="#1a1a1a"/>
+      <circle cx="126" cy="95" r="11" fill="#1a1a1a"/>
+      <!-- reflets -->
+      <circle cx="78" cy="90" r="3.5" fill="white"/>
+      <circle cx="130" cy="90" r="3.5" fill="white"/>
+      <!-- bec -->
+      <path d="M 90 113 L 110 113 L 100 128 Z" fill="#FF8C00"/>
+      <!-- baguettes -->
+      <rect x="14" y="125" width="56" height="7" rx="3.5" fill="#D2691E" transform="rotate(-18 42 128)"/>
+      <rect x="130" y="125" width="56" height="7" rx="3.5" fill="#D2691E" transform="rotate(18 158 128)"/>
+      <!-- bout des baguettes -->
+      <circle cx="14" cy="115" r="5" fill="#D2691E"/>
+      <circle cx="186" cy="115" r="5" fill="#D2691E"/>
+    </svg></div>
+  </div>
+
+  <div class="home-cards">
+    <button class="card" data-goto="free">
+      <div class="card-emoji">🥁</div>
+      <div class="card-title">Jouer libre</div>
+      <div class="card-sub">tape comme tu veux</div>
+    </button>
+    <button class="card" data-goto="learn-select">
+      <div class="card-emoji">🎓</div>
+      <div class="card-title">Apprendre</div>
+      <div class="card-sub">suis les barres</div>
+    </button>
+    <button class="card" data-goto="progress">
+      <div class="card-emoji">📈</div>
+      <div class="card-title">Mes progrès</div>
+      <div class="card-sub">vois ta courbe</div>
+    </button>
+  </div>
+
+  <div class="midi-state">
+    <div class="midi-led" id="home-led"></div>
+    <span id="home-midi-text">en attente du MIDI…</span>
+  </div>
+</section>
+
+<!-- =================================================================== -->
+<!-- MODE LIBRE -->
+<!-- =================================================================== -->
+<section id="screen-free" class="screen">
+  <div class="screen-title">
+    <button class="btn-back" data-goto="home">←</button>
+    <h2 style="margin:0">🥁 Joue ce que tu veux !</h2>
+    <span style="margin-left:auto;color:var(--muted);font-size:13px;">Dispo Yamaha DD-75 · Kit 1</span>
+  </div>
+  <div class="pads-free" id="pads-free"></div>
+</section>
+
+<!-- =================================================================== -->
+<!-- SÉLECTION DES PATTERNS -->
+<!-- =================================================================== -->
+<section id="screen-learn-select" class="screen">
+  <div class="screen-title">
+    <button class="btn-back" data-goto="home">←</button>
+    <h2 style="margin:0">🎓 Choisis un rythme</h2>
+  </div>
+  <div class="pattern-list" id="pattern-list"></div>
+</section>
+
+<!-- =================================================================== -->
+<!-- MODE JEU -->
+<!-- =================================================================== -->
+<section id="screen-play" class="screen">
+  <div class="play-controls">
+    <button class="play-stop" id="play-stop">←</button>
+  </div>
+  <canvas id="play-canvas"></canvas>
+  <div class="play-timeline">
+    <div class="timeline-bar"><div id="timeline-fill"></div></div>
+    <div id="timeline-text">0:00 / 0:00</div>
+  </div>
+  <div class="play-pads" id="play-pads"></div>
+  <div class="countdown" id="countdown" style="display:none"></div>
+</section>
+
+<!-- =================================================================== -->
+<!-- MES PROGRÈS -->
+<!-- =================================================================== -->
+<section id="screen-progress" class="screen">
+  <div class="screen-title">
+    <button class="btn-back" data-goto="home">←</button>
+    <h2 style="margin:0">📈 Mes progrès</h2>
+  </div>
+  <div class="progress-list" id="progress-list"></div>
+</section>
+
+<!-- =================================================================== -->
+<!-- ÉCRAN DE FIN -->
+<!-- =================================================================== -->
+<section id="screen-done" class="screen">
+  <div class="done-emoji" id="done-emoji">🎉</div>
+  <div class="done-score"><span id="done-score-num">0</span><span class="done-score-max">/100</span></div>
+  <div class="done-title" id="done-title">Bravo !</div>
+  <div class="done-stars" id="done-stars">⭐⭐⭐</div>
+  <div class="done-actions">
+    <button class="card" id="done-again">
+      <div class="card-emoji">🔁</div>
+      <div class="card-title">Encore !</div>
+      <div class="card-sub">ou tape la snare 🥁</div>
+    </button>
+    <button class="card" data-goto="learn-select">
+      <div class="card-emoji">📋</div>
+      <div class="card-title">Autre rythme</div>
+      <div class="card-sub">ou tape Tom H</div>
+    </button>
+    <button class="card" data-goto="home">
+      <div class="card-emoji">🏠</div>
+      <div class="card-title">Maison</div>
+    </button>
+  </div>
+</section>
+
+<!-- =================================================================== -->
+<!-- SETTINGS (parent, caché) -->
+<!-- =================================================================== -->
+<div id="settings-modal">
+  <div class="settings-card">
+    <h2>⚙️ Réglages parent</h2>
+    <div class="settings-row">
+      <label>MIDI Input</label>
+      <select id="sett-midi-in"></select>
+    </div>
+    <div class="settings-row">
+      <label>MIDI Output (pour la demo)</label>
+      <select id="sett-midi-out"></select>
+    </div>
+    <div class="settings-row">
+      <label>Mapping des pads</label>
+      <div id="mapping-display" style="font-family:Menlo;font-size:13px;background:#f5f5f0;padding:10px;border-radius:8px;"></div>
+    </div>
+    <div class="settings-row">
+      <label>Log MIDI (en direct)</label>
+      <div class="midi-log" id="settings-midi-log">en attente…</div>
+    </div>
+    <div class="settings-actions">
+      <button class="primary" id="sett-calibrate">🎯 Calibrer les pads</button>
+      <button id="sett-reset-map">↺ Reset mapping DD-75</button>
+      <button class="danger" id="sett-reset-stars">Reset étoiles</button>
+      <button class="danger" id="sett-reset-history">Reset historique</button>
+      <button id="sett-close">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Calibration overlay -->
+<div id="cal-overlay" style="display:none" class="cal-modal">
+  <div class="cal-content">
+    <div class="icon" id="cal-icon">🥁</div>
+    <h2 id="cal-step">1 / 4</h2>
+    <div class="prompt" id="cal-prompt">Tape ton kick</div>
+    <div class="recent" id="cal-recent">en attente…</div>
+    <div class="cal-actions">
+      <button class="skip" id="cal-skip">Passer</button>
+      <button class="cancel" id="cal-cancel">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<canvas id="confetti-canvas"></canvas>
+
+<script>
+// =====================================================================
+// LANES + Mapping
+// =====================================================================
+// Default mapping = Yamaha DD-75, Kit 1 (Maple Kit 1)
+// Voir drum-trainer/DD-75-reference.md pour les détails et la dispo physique.
+const LANES = [
+  // Pads + pédales du DD-75. L'ordre = ordre de calibration.
+  { id: 'kick',    name: 'Kick',     defaultNote: 36, color: '#FF6B6B', emoji: '🦶', dd75: 'Pedal 1' },
+  { id: 'snare',   name: 'Snare',    defaultNote: 40, color: '#FFD93D', emoji: '🥁', dd75: 'Pad 1' },
+  { id: 'hihat',   name: 'Hi-Hat',   defaultNote: 42, color: '#6BCB77', emoji: '🎩', dd75: 'Pad 6' },
+  { id: 'crash',   name: 'Crash',    defaultNote: 57, color: '#C77DFF', emoji: '💥', dd75: 'Pad 5' },
+  // Pads supplémentaires (utilisés uniquement en Mode Libre, pas dans les patterns)
+  { id: 'tomL',    name: 'Tom L',    defaultNote: 48, color: '#FFA94D', emoji: '🥁', dd75: 'Pad 2' },
+  { id: 'tomM',    name: 'Tom M',    defaultNote: 47, color: '#FFB85C', emoji: '🥁', dd75: 'Pad 3' },
+  { id: 'tomH',    name: 'Tom H',    defaultNote: 43, color: '#FFCC70', emoji: '🥁', dd75: 'Pad 4' },
+  { id: 'ridecup', name: 'Ride Cup', defaultNote: 53, color: '#A88BFA', emoji: '🔔', dd75: 'Pad 7' },
+  { id: 'ride',    name: 'Ride',     defaultNote: 51, color: '#5CC8FF', emoji: '🪙', dd75: 'Pad 8' },
+  { id: 'hhpedal', name: 'HH foot',  defaultNote: 44, color: '#94A3B8', emoji: '🦶', dd75: 'Pedal 2' },
+];
+
+// Lanes utilisées par les patterns du Mode Apprendre (sous-ensemble simple).
+const PATTERN_LANES = ['kick', 'snare', 'hihat', 'crash'];
+let NOTE_TO_LANE = {};
+let LANE_TO_NOTE = {};
+
+function rebuildMaps() {
+  NOTE_TO_LANE = {}; LANE_TO_NOTE = {};
+  for (const l of LANES) {
+    const n = l.note ?? l.defaultNote;
+    NOTE_TO_LANE[n] = l;
+    LANE_TO_NOTE[l.id] = n;
+  }
+}
+function loadMapping() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('boumbi-mapping') || '{}');
+    for (const l of LANES) l.note = saved[l.id] ?? l.defaultNote;
+  } catch {}
+  rebuildMaps();
+}
+function saveMapping() {
+  const out = {};
+  for (const l of LANES) out[l.id] = l.note ?? l.defaultNote;
+  localStorage.setItem('boumbi-mapping', JSON.stringify(out));
+}
+
+// =====================================================================
+// PATTERNS
+// =====================================================================
+const PATTERNS = [
+  { id: 'kick1',  name: 'Boum boum', emoji: '👣', stars: 1, bpm: 50, steps: 4,
+    notes: { kick: [1,1,1,1] } },
+  { id: 'snare1', name: 'Tac tac', emoji: '🎩', stars: 1, bpm: 50, steps: 4,
+    notes: { snare: [1,1,1,1] } },
+  { id: 'kicksnare', name: 'Boum tac', emoji: '🥁', stars: 2, bpm: 50, steps: 4,
+    notes: { kick: [1,0,1,0], snare: [0,1,0,1] } },
+
+  // --- Intermédiaires (entre Boum tac et Rock doux) ---
+  { id: 'boumtachat', name: 'Boum tac + chapeau', emoji: '🎩', stars: 2, bpm: 50, steps: 4,
+    notes: { kick: [1,0,1,0], snare: [0,1,0,1], hihat: [1,1,1,1] } },
+  { id: 'tictichat', name: 'Tic tic chapeau', emoji: '⏱️', stars: 2, bpm: 55, steps: 8,
+    notes: { hihat: [1,1,1,1, 1,1,1,1] } },
+  { id: 'rockcool', name: 'Rock très cool', emoji: '😎', stars: 2, bpm: 55, steps: 8,
+    notes: {
+      kick:  [1,0,0,0, 1,0,0,0],
+      snare: [0,0,1,0, 0,0,1,0],
+      hihat: [1,0,1,0, 1,0,1,0],
+    }
+  },
+
+  { id: 'rocksoft', name: 'Rock doux', emoji: '🎸', stars: 3, bpm: 60, steps: 8,
+    notes: {
+      kick:  [1,0,0,0, 1,0,0,0],
+      snare: [0,0,1,0, 0,0,1,0],
+      hihat: [1,1,1,1, 1,1,1,1],
+    }
+  },
+  { id: 'rockstd', name: 'Rock normal', emoji: '🤘', stars: 3, bpm: 80, steps: 16,
+    notes: {
+      kick:  [1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0],
+      snare: [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0],
+      hihat: [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0],
+    }
+  },
+  { id: 'disco', name: 'Disco', emoji: '🪩', stars: 4, bpm: 100, steps: 16,
+    notes: {
+      kick:  [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0],
+      snare: [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0],
+      hihat: [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0],
+    }
+  },
+];
+
+// =====================================================================
+// État
+// =====================================================================
+let currentScreen = 'home';
+let currentPattern = null;
+let mode = 'stopped';
+let startTime = 0;
+let scheduledNotes = [];
+let hits = 0, totalSeen = 0;
+let bpm = 60;
+let lastClickBeat = -1;
+let audioCtx = null;
+let midiAccess = null;
+let midiInput = null;
+let midiOutput = null;
+let calibrationActive = false;
+let calibrationIdx = 0;
+const CAL_LANES = ['kick', 'snare', 'hihat', 'crash'];
+
+const HIT_WINDOW_MS = 250;
+const LEAD_IN_BEATS = 4;
+const FALL_TIME_SEC = 2.0;
+let floatingEmojis = [];
+
+function formatTime(sec) {
+  const m = Math.floor(sec / 60);
+  const s = Math.max(0, Math.floor(sec % 60));
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function spawnFloatingEmoji(laneId, emoji, size = 64) {
+  const lanes = activeLanes();
+  const idx = lanes.findIndex(l => l.id === laneId);
+  if (idx < 0) return;
+  const laneW = pW / lanes.length;
+  const PAD_H = 140;
+  floatingEmojis.push({
+    x: (idx + 0.5) * laneW + (Math.random() - 0.5) * 20,
+    y: pH - PAD_H - 10,
+    emoji,
+    size,
+    life: 1.5,
+    vy: -1.5 - Math.random(),
+    wobble: Math.random() * Math.PI * 2,
+  });
+}
+
+// =====================================================================
+// Navigation entre écrans
+// =====================================================================
+function goto(screen) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + screen).classList.add('active');
+  currentScreen = screen;
+  if (screen === 'home') updateStarsCounter();
+  if (screen === 'learn-select') renderPatternList();
+  if (screen === 'progress') renderProgress();
+  if (screen === 'home') stop();
+}
+document.querySelectorAll('[data-goto]').forEach(el => {
+  el.addEventListener('click', () => goto(el.dataset.goto));
+});
+
+// =====================================================================
+// Étoiles (localStorage)
+// =====================================================================
+function getStars() {
+  try { return JSON.parse(localStorage.getItem('boumbi-stars') || '{}'); }
+  catch { return {}; }
+}
+function setStars(obj) {
+  localStorage.setItem('boumbi-stars', JSON.stringify(obj));
+}
+function addStarsFor(patternId, count) {
+  const s = getStars();
+  s[patternId] = Math.max(s[patternId] || 0, count);
+  setStars(s);
+  updateStarsCounter();
+}
+function totalStars() {
+  return Object.values(getStars()).reduce((a, b) => a + b, 0);
+}
+function updateStarsCounter() {
+  document.getElementById('stars-counter').textContent = totalStars();
+}
+
+// =====================================================================
+// Historique des essais (pour la courbe de progression)
+// =====================================================================
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem('boumbi-history') || '{}'); }
+  catch { return {}; }
+}
+function saveAttempt(patternId, score, stars) {
+  const h = getHistory();
+  if (!h[patternId]) h[patternId] = [];
+  h[patternId].push({ ts: Date.now(), score, stars });
+  if (h[patternId].length > 100) h[patternId] = h[patternId].slice(-100);
+  localStorage.setItem('boumbi-history', JSON.stringify(h));
+}
+
+function relativeDate(ts) {
+  const diff = Date.now() - ts;
+  const m = Math.floor(diff / 60000);
+  const h = Math.floor(m / 60);
+  const d = Math.floor(h / 24);
+  if (m < 1) return "à l'instant";
+  if (m < 60) return `il y a ${m} min`;
+  if (h < 24) return `il y a ${h} h`;
+  if (d === 1) return 'hier';
+  if (d < 7) return `il y a ${d} jours`;
+  if (d < 30) return `il y a ${Math.floor(d/7)} sem.`;
+  if (d < 365) return `il y a ${Math.floor(d/30)} mois`;
+  return `il y a ${Math.floor(d/365)} an${d/365>=2?'s':''}`;
+}
+function absoluteDate(ts) {
+  const d = new Date(ts);
+  return d.toLocaleString('fr-FR', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+}
+
+function bucketOf(ts) {
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const yesterdayStart = todayStart - 86_400_000;
+  const weekStart = todayStart - 7 * 86_400_000;
+  if (ts >= todayStart) return "Aujourd'hui";
+  if (ts >= yesterdayStart) return 'Hier';
+  if (ts >= weekStart) return 'Cette semaine';
+  return 'Il y a plus longtemps';
+}
+
+function renderProgress() {
+  const list = document.getElementById('progress-list');
+  list.innerHTML = '';
+  const history = getHistory();
+  const played = PATTERNS.filter(p => history[p.id]?.length > 0);
+  if (played.length === 0) {
+    list.innerHTML = '<div class="no-progress">Joue un rythme pour commencer ta progression 🎵</div>';
+    return;
+  }
+
+  // Bucket par période (basé sur le DERNIER essai du pattern)
+  const buckets = { "Aujourd'hui": [], 'Hier': [], 'Cette semaine': [], 'Il y a plus longtemps': [] };
+  for (const p of played) {
+    const att = history[p.id];
+    const last = att[att.length - 1];
+    buckets[bucketOf(last.ts)].push({ pattern: p, attempts: att, last });
+  }
+  for (const bk of Object.keys(buckets)) {
+    if (buckets[bk].length === 0) continue;
+    const section = document.createElement('div');
+    section.style.gridColumn = '1 / -1';
+    section.innerHTML = `<h3 style="margin:24px 0 8px 0;color:var(--muted);font-size:14px;letter-spacing:1px;text-transform:uppercase;">${bk}</h3>`;
+    list.appendChild(section);
+    for (const { pattern: p, attempts: att, last } of buckets[bk]) {
+      const best = Math.max(...att.map(a => a.score));
+      const avg = Math.round(att.reduce((s, a) => s + a.score, 0) / att.length);
+      const card = document.createElement('div');
+      card.className = 'progress-card';
+      card.innerHTML = `
+        <button class="progress-header" style="background:none;border:none;cursor:pointer;width:100%;text-align:left;padding:0;" data-play="${p.id}">
+          <div class="progress-emoji">${p.emoji}</div>
+          <div class="progress-name">${p.name} <span style="font-size:13px;color:var(--accent);font-weight:600;">▶ challenger</span></div>
+          <div class="progress-best">Best ${best}/100</div>
+        </button>
+        ${renderSparkline(att)}
+        <div class="progress-stats">
+          <span>${att.length} essai${att.length > 1 ? 's' : ''}</span>
+          <span>Moyenne ${avg}</span>
+          <span title="${absoluteDate(last.ts)}">Dernier ${last.score} · ${relativeDate(last.ts)}</span>
+        </div>
+      `;
+      const btn = card.querySelector('[data-play]');
+      btn.addEventListener('click', () => startPattern(p));
+      list.appendChild(card);
+    }
+  }
+}
+
+function renderSparkline(attempts) {
+  if (attempts.length < 2) {
+    return `<div class="progress-empty">Encore 1 essai pour voir une courbe…</div>`;
+  }
+  const W = 300, H = 80, pad = 6;
+  const pts = attempts.slice(-30);
+  const xs = pts.map((_, i) => pad + i * (W - 2*pad) / (pts.length - 1));
+  const ys = pts.map(a => pad + (1 - a.score/100) * (H - 2*pad));
+  const poly = pts.map((_, i) => `${xs[i].toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
+  const last = pts[pts.length - 1].score;
+  const color = last >= 70 ? '#6BCB77' : last >= 50 ? '#FFD93D' : '#FF6B6B';
+  const y50 = pad + 0.5 * (H - 2*pad);
+  const y75 = pad + 0.25 * (H - 2*pad);
+  // Aire sous la courbe (esthétique)
+  const area = poly + ` ${xs[xs.length-1].toFixed(1)},${H-pad} ${xs[0].toFixed(1)},${H-pad}`;
+  return `<svg class="progress-chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <line x1="0" y1="${y75}" x2="${W}" y2="${y75}" stroke="#eef0e8" stroke-dasharray="3,3"/>
+    <line x1="0" y1="${y50}" x2="${W}" y2="${y50}" stroke="#dfe5d8" stroke-dasharray="3,3"/>
+    <polygon points="${area}" fill="${color}" opacity="0.15"/>
+    <polyline points="${poly}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    ${pts.map((a, i) => `<circle cx="${xs[i].toFixed(1)}" cy="${ys[i].toFixed(1)}" r="2.5" fill="${color}"/>`).join('')}
+    <circle cx="${xs[xs.length-1].toFixed(1)}" cy="${ys[ys.length-1].toFixed(1)}" r="6" fill="${color}" stroke="white" stroke-width="2"/>
+  </svg>`;
+}
+
+// =====================================================================
+// Pattern list
+// =====================================================================
+function renderPatternList() {
+  const list = document.getElementById('pattern-list');
+  list.innerHTML = '';
+  const stars = getStars();
+  for (const p of PATTERNS) {
+    const earned = stars[p.id] || 0;
+    const card = document.createElement('button');
+    card.className = 'pattern-card';
+    card.innerHTML = `
+      <div class="pattern-emoji">${p.emoji}</div>
+      <div class="pattern-name">${p.name}</div>
+      <div class="pattern-stars">${'⭐'.repeat(earned)}${'☆'.repeat(p.stars - earned)}</div>
+      <div class="pattern-bpm">${p.bpm} BPM</div>
+    `;
+    card.addEventListener('click', () => startPattern(p));
+    list.appendChild(card);
+  }
+}
+
+// =====================================================================
+// Mode libre
+// =====================================================================
+// Génération dynamique des pads en dispo DD-75
+function buildFreePads() {
+  const root = document.getElementById('pads-free');
+  if (!root) return;
+  root.innerHTML = '';
+  for (const lane of LANES) {
+    const isPedal = lane.dd75?.startsWith('Pedal');
+    const el = document.createElement('button');
+    el.className = 'free-pad' + (isPedal ? ' pedal' : '');
+    el.dataset.lane = lane.id;
+    el.style.setProperty('--lane-color', lane.color);
+    el.innerHTML = `
+      <div class="pad-id">${lane.dd75}</div>
+      <div>${lane.emoji}</div>
+      <div class="pad-label">${lane.name.toUpperCase()}</div>
+    `;
+    el.addEventListener('click', () => freePadHit(lane.id, true));
+    root.appendChild(el);
+  }
+}
+buildFreePads();
+
+function freePadHit(laneId, sendMidi = false) {
+  const el = document.querySelector(`.free-pad[data-lane="${laneId}"]`);
+  if (!el) return;
+  el.classList.remove('bounce');
+  void el.offsetWidth;
+  el.classList.add('bounce');
+  spawnConfetti(el, 12, LANES.find(l => l.id === laneId)?.color);
+  // Si déclenché par clic souris et qu'on a un MIDI out → fait sonner la batterie
+  if (sendMidi && midiOutput) {
+    const note = LANE_TO_NOTE[laneId];
+    if (note != null) {
+      midiOutput.send([0x99, note, 110]);                       // note_on ch 10
+      setTimeout(() => midiOutput.send([0x89, note, 0]), 60);  // note_off
+    }
+  }
+}
+
+// =====================================================================
+// Mode apprendre — jeu
+// =====================================================================
+let awaitingStart = false;
+function startPattern(pattern, autostart = false) {
+  currentPattern = pattern;
+  bpm = pattern.bpm;
+  goto('play');
+  buildPlayPads();
+  scheduleNotes();
+  hits = 0; totalSeen = 0;
+  if (autostart) {
+    awaitingStart = false;
+    startMode('play');
+  } else {
+    awaitingStart = true;
+    showAwaitingMessage();
+  }
+}
+
+function showAwaitingMessage() {
+  const cdEl = document.getElementById('countdown');
+  cdEl.style.fontSize = '64px';
+  cdEl.style.display = 'block';
+  cdEl.innerHTML = `<div style="text-align:center;line-height:1.1">Tape sur n'importe quel<br/>pad pour commencer 🥁</div>`;
+}
+function clearAwaitingMessage() {
+  const cdEl = document.getElementById('countdown');
+  cdEl.style.fontSize = '220px';
+  cdEl.style.display = 'none';
+  cdEl.textContent = '';
+}
+
+function buildPlayPads() {
+  const padsEl = document.getElementById('play-pads');
+  padsEl.innerHTML = '';
+  for (const lane of activeLanes()) {
+    const el = document.createElement('div');
+    el.className = 'play-pad';
+    el.dataset.lane = lane.id;
+    el.style.setProperty('--lane-color', lane.color);
+    el.innerHTML = `
+      <div class="play-pad-bar" style="background:${lane.color}"></div>
+      <div>${lane.emoji}</div>
+      <div class="play-pad-label">${lane.name}</div>
+    `;
+    padsEl.appendChild(el);
+  }
+}
+function activeLanes() {
+  if (!currentPattern) return [];
+  return LANES.filter(l => currentPattern.notes[l.id]);
+}
+
+function scheduleNotes() {
+  scheduledNotes = [];
+  const pat = currentPattern;
+  const beatsPerStep = 4 / pat.steps;
+  // Loop limité : 4 répétitions du pattern de base pour les petits
+  const TARGET_BEATS = pat.steps * beatsPerStep * 4; // ~4 mesures à apprendre
+  const REPEATS = 4;
+  for (let r = 0; r < REPEATS; r++) {
+    for (let step = 0; step < pat.steps; step++) {
+      for (const lane of activeLanes()) {
+        if (pat.notes[lane.id]?.[step]) {
+          const beat = (r * pat.steps + step) * beatsPerStep;
+          scheduledNotes.push({ lane: lane.id, beat, hit: false, missed: false });
+        }
+      }
+    }
+  }
+}
+function patternTotalBeats() {
+  const pat = currentPattern;
+  if (!pat) return 0;
+  return 4 * 4 / pat.steps * pat.steps; // 4 mesures
+}
+
+// =====================================================================
+// Render canvas
+// =====================================================================
+const playCanvas = document.getElementById('play-canvas');
+const playCtx = playCanvas.getContext('2d');
+let pW = 0, pH = 0;
+function resizePlay() {
+  const r = playCanvas.getBoundingClientRect();
+  pW = r.width; pH = r.height;
+  playCanvas.width = pW * devicePixelRatio;
+  playCanvas.height = pH * devicePixelRatio;
+  playCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+}
+new ResizeObserver(resizePlay).observe(playCanvas);
+
+function loop() {
+  requestAnimationFrame(loop);
+  if (currentScreen !== 'play') return;
+  drawPlay();
+}
+function drawPlay() {
+  playCtx.fillStyle = '#1a1530';
+  playCtx.fillRect(0, 0, pW, pH);
+  const lanes = activeLanes();
+  if (!lanes.length) return;
+  const laneW = pW / lanes.length;
+  const PAD_H = 140;
+  const nowY = pH - PAD_H;
+  const beatsPerSec = bpm / 60;
+  const pxPerBeat = nowY / (FALL_TIME_SEC * beatsPerSec);
+
+  // Lane backgrounds
+  for (let i = 0; i < lanes.length; i++) {
+    playCtx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)';
+    playCtx.fillRect(i * laneW, 0, laneW, nowY);
+  }
+
+  // Beat grid
+  if (mode !== 'stopped') {
+    const elapsed = (performance.now() - startTime) / 1000;
+    const currentBeat = elapsed * beatsPerSec;
+    playCtx.strokeStyle = 'rgba(255,255,255,0.08)';
+    playCtx.lineWidth = 1;
+    const startB = Math.floor(currentBeat);
+    for (let b = startB; b < startB + 8; b++) {
+      const y = nowY - (b - currentBeat) * pxPerBeat;
+      if (y < 0 || y > nowY) continue;
+      playCtx.beginPath(); playCtx.moveTo(0, y); playCtx.lineTo(pW, y); playCtx.stroke();
+    }
+  }
+
+  // Now line
+  const grad = playCtx.createLinearGradient(0, nowY - 20, 0, nowY);
+  grad.addColorStop(0, 'rgba(78,205,196,0)');
+  grad.addColorStop(1, 'rgba(78,205,196,0.5)');
+  playCtx.fillStyle = grad;
+  playCtx.fillRect(0, nowY - 20, pW, 20);
+  playCtx.strokeStyle = '#4ECDC4';
+  playCtx.lineWidth = 4;
+  playCtx.beginPath(); playCtx.moveTo(0, nowY); playCtx.lineTo(pW, nowY); playCtx.stroke();
+
+  if (mode === 'stopped') return;
+
+  const elapsed = (performance.now() - startTime) / 1000;
+  const currentBeat = elapsed * beatsPerSec;
+
+  // Notes (bigger and rounder for kids)
+  for (const n of scheduledNotes) {
+    const beatOffset = n.beat - currentBeat;
+    if (beatOffset < -0.7) continue;
+    if (beatOffset * pxPerBeat > nowY + 40) continue;
+    const y = nowY - beatOffset * pxPerBeat;
+    if (y < -40 || y > pH) continue;
+    const laneIdx = lanes.findIndex(l => l.id === n.lane);
+    if (laneIdx < 0) continue;
+    const lane = lanes[laneIdx];
+
+    const x = laneIdx * laneW + 12;
+    const w = laneW - 24;
+    const h = 34;
+    let color = lane.color;
+    if (n.hit) color = '#4ade80';
+    else if (n.missed) color = '#555';
+
+    if (!n.hit && !n.missed) {
+      // Halo
+      const halo = playCtx.createRadialGradient(x + w/2, y, 4, x + w/2, y, 70);
+      halo.addColorStop(0, color + '99');
+      halo.addColorStop(1, color + '00');
+      playCtx.fillStyle = halo;
+      playCtx.fillRect(x - 25, y - 40, w + 50, 80);
+    }
+    playCtx.fillStyle = color;
+    drawRound(playCtx, x, y - h/2, w, h, 10);
+    playCtx.fill();
+    playCtx.strokeStyle = 'rgba(0,0,0,0.3)';
+    playCtx.lineWidth = 2;
+    drawRound(playCtx, x, y - h/2, w, h, 10);
+    playCtx.stroke();
+  }
+
+  // Missed detection (silencieux, juste grisé + emoji discret)
+  for (const n of scheduledNotes) {
+    if (n.hit || n.missed) continue;
+    const beatOffset = n.beat - currentBeat;
+    const msOffset = beatOffset / beatsPerSec * 1000;
+    if (msOffset < -HIT_WINDOW_MS) {
+      n.missed = true;
+      totalSeen++;
+      spawnFloatingEmoji(n.lane, '🙈', 38);
+    }
+  }
+
+  // Floating emojis (montent comme une fumée depuis la pad row)
+  floatingEmojis = floatingEmojis.filter(e => e.life > 0);
+  for (const e of floatingEmojis) {
+    e.life -= 0.016;
+    e.y += e.vy;
+    e.vy -= 0.03;
+    const alpha = Math.min(1, e.life / 1.5);
+    const t = 1.5 - e.life;
+    const wobbleX = Math.sin(e.wobble + t * 5) * 14;
+    playCtx.save();
+    playCtx.globalAlpha = alpha;
+    playCtx.font = `${e.size}px sans-serif`;
+    playCtx.textAlign = 'center';
+    playCtx.textBaseline = 'middle';
+    playCtx.fillText(e.emoji, e.x + wobbleX, e.y);
+    playCtx.restore();
+  }
+
+  // Timeline + temps restant
+  const lastNote = scheduledNotes[scheduledNotes.length - 1];
+  const totalBeats = lastNote ? lastNote.beat + 1 : 16;
+  const elapsedBeats = Math.max(0, Math.min(currentBeat, totalBeats));
+  const progress = totalBeats > 0 ? elapsedBeats / totalBeats : 0;
+  const fillEl = document.getElementById('timeline-fill');
+  const txtEl = document.getElementById('timeline-text');
+  if (fillEl) fillEl.style.width = (progress * 100) + '%';
+  if (txtEl) {
+    const elapsedSec = elapsedBeats / beatsPerSec;
+    const totalSec = totalBeats / beatsPerSec;
+    txtEl.textContent = `${formatTime(elapsedSec)} / ${formatTime(totalSec)}`;
+  }
+
+  // Fin du pattern
+  if (lastNote && currentBeat > lastNote.beat + 1) {
+    onPatternEnd();
+  }
+
+  // Métronome
+  const flooredBeat = Math.floor(currentBeat);
+  if (flooredBeat > lastClickBeat && flooredBeat >= 0) {
+    playClick(flooredBeat % 4 === 0);
+    lastClickBeat = flooredBeat;
+  }
+}
+function drawRound(c, x, y, w, h, r) {
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.lineTo(x + w - r, y); c.quadraticCurveTo(x + w, y, x + w, y + r);
+  c.lineTo(x + w, y + h - r); c.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  c.lineTo(x + r, y + h); c.quadraticCurveTo(x, y + h, x, y + h - r);
+  c.lineTo(x, y + r); c.quadraticCurveTo(x, y, x + r, y);
+  c.closePath();
+}
+
+// =====================================================================
+// Modes
+// =====================================================================
+function startMode(newMode) {
+  mode = newMode;
+  scheduleNotes();
+  floatingEmojis = [];
+  const leadInMs = LEAD_IN_BEATS / (bpm / 60) * 1000;
+  startTime = performance.now() + leadInMs;
+  lastClickBeat = -1;
+
+  const cdEl = document.getElementById('countdown');
+  let n = LEAD_IN_BEATS;
+  cdEl.style.display = 'block';
+  cdEl.textContent = n;
+  playClick(true);
+  const tick = () => {
+    n--;
+    if (n <= 0) { cdEl.style.display = 'none'; cdEl.textContent = 'GO!'; setTimeout(() => cdEl.style.display='none', 400); cdEl.style.display='block'; return; }
+    cdEl.textContent = n;
+    playClick(false);
+    setTimeout(tick, 60_000 / bpm);
+  };
+  setTimeout(tick, 60_000 / bpm);
+}
+
+function stop() {
+  mode = 'stopped';
+  document.getElementById('countdown').style.display = 'none';
+}
+
+document.getElementById('play-stop').addEventListener('click', () => {
+  stop();
+  goto('learn-select');
+});
+
+function onPatternEnd() {
+  if (mode === 'stopped') return;
+  stop();
+  // Calcul étoiles selon précision
+  const total = scheduledNotes.length;
+  const hitCount = scheduledNotes.filter(n => n.hit).length;
+  const ratio = total > 0 ? hitCount / total : 0;
+  let earned = 1;
+  if (ratio >= 0.5) earned = 2;
+  if (ratio >= 0.8) earned = 3;
+  // Maxe par la difficulté du pattern
+  earned = Math.min(earned, currentPattern.stars);
+  showDone(earned);
+}
+
+function showDone(earned) {
+  // Score sur 100 basé sur la précision réelle
+  const total = scheduledNotes.length;
+  const hitCount = scheduledNotes.filter(n => n.hit).length;
+  const ratio = total > 0 ? hitCount / total : 0;
+  const score = Math.round(ratio * 100);
+
+  let grade, gradeEmoji;
+  if (score >= 90)      { grade = 'Excellent !'; gradeEmoji = '🌟'; }
+  else if (score >= 70) { grade = 'Très bien !'; gradeEmoji = '👏'; }
+  else if (score >= 50) { grade = 'Bien joué !'; gradeEmoji = '🙂'; }
+  else if (score >= 25) { grade = 'Pas mal !';   gradeEmoji = '💪'; }
+  else                  { grade = 'On réessaie ?'; gradeEmoji = '🦉'; }
+
+  document.getElementById('done-score-num').textContent = score;
+  document.getElementById('done-title').textContent = grade;
+  document.getElementById('done-emoji').textContent = gradeEmoji;
+  document.getElementById('done-stars').textContent = '⭐'.repeat(earned) + '☆'.repeat(currentPattern.stars - earned);
+  addStarsFor(currentPattern.id, earned);
+  saveAttempt(currentPattern.id, score, earned);
+  goto('done');
+  // Confettis proportionnels à la perf
+  const burst = Math.round(40 + ratio * 80);
+  for (let i = 0; i < burst; i++) {
+    setTimeout(() => spawnConfetti(null, 1), Math.random() * 1500);
+  }
+  if (score >= 50) playReward();
+}
+
+document.getElementById('done-again').addEventListener('click', () => {
+  if (currentPattern) startPattern(currentPattern, /*autostart=*/true);
+});
+
+// =====================================================================
+// WebAudio (click + récompense)
+// =====================================================================
+function ensureAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+function playClick(strong) {
+  ensureAudio();
+  const t = audioCtx.currentTime;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.frequency.value = strong ? 1500 : 900;
+  g.gain.setValueAtTime(strong ? 0.18 : 0.08, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+  o.connect(g).connect(audioCtx.destination);
+  o.start(t); o.stop(t + 0.06);
+}
+function playReward() {
+  ensureAudio();
+  const t = audioCtx.currentTime;
+  const notes = [523, 659, 784, 1047]; // C, E, G, C
+  notes.forEach((f, i) => {
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'sine';
+    o.frequency.value = f;
+    g.gain.setValueAtTime(0, t + i*0.12);
+    g.gain.linearRampToValueAtTime(0.3, t + i*0.12 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, t + i*0.12 + 0.4);
+    o.connect(g).connect(audioCtx.destination);
+    o.start(t + i*0.12); o.stop(t + i*0.12 + 0.4);
+  });
+}
+
+// =====================================================================
+// Confetti
+// =====================================================================
+const confettiCanvas = document.getElementById('confetti-canvas');
+const confettiCtx = confettiCanvas.getContext('2d');
+let particles = [];
+function resizeConfetti() {
+  confettiCanvas.width = innerWidth * devicePixelRatio;
+  confettiCanvas.height = innerHeight * devicePixelRatio;
+  confettiCanvas.style.width = innerWidth + 'px';
+  confettiCanvas.style.height = innerHeight + 'px';
+  confettiCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+}
+resizeConfetti();
+addEventListener('resize', resizeConfetti);
+
+const CONFETTI_COLORS = ['#FF6B6B','#FFD93D','#6BCB77','#C77DFF','#4ECDC4','#FFA500'];
+function spawnConfetti(el, count = 1, forcedColor) {
+  let cx, cy;
+  if (el) {
+    const r = el.getBoundingClientRect();
+    cx = r.left + r.width/2;
+    cy = r.top + r.height/2;
+  } else {
+    cx = innerWidth/2;
+    cy = innerHeight * 0.3;
+  }
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x: cx, y: cy,
+      vx: (Math.random() - 0.5) * 12,
+      vy: -Math.random() * 14 - 4,
+      g: 0.4,
+      life: 1.4,
+      size: 6 + Math.random() * 8,
+      color: forcedColor || CONFETTI_COLORS[Math.floor(Math.random()*CONFETTI_COLORS.length)],
+      angle: Math.random() * Math.PI * 2,
+      vAngle: (Math.random() - 0.5) * 0.4,
+    });
+  }
+}
+function animateConfetti() {
+  confettiCtx.clearRect(0, 0, innerWidth, innerHeight);
+  particles = particles.filter(p => p.life > 0);
+  for (const p of particles) {
+    p.vy += p.g;
+    p.x += p.vx;
+    p.y += p.vy;
+    p.angle += p.vAngle;
+    p.life -= 0.016;
+    confettiCtx.save();
+    confettiCtx.translate(p.x, p.y);
+    confettiCtx.rotate(p.angle);
+    confettiCtx.fillStyle = p.color;
+    confettiCtx.globalAlpha = Math.max(0, p.life);
+    confettiCtx.fillRect(-p.size/2, -p.size/4, p.size, p.size/2);
+    confettiCtx.restore();
+  }
+  requestAnimationFrame(animateConfetti);
+}
+animateConfetti();
+
+// =====================================================================
+// MIDI
+// =====================================================================
+async function setupMIDI() {
+  if (!navigator.requestMIDIAccess) {
+    setMIDIIndicator('error', 'Pas de Web MIDI');
+    return;
+  }
+  try {
+    midiAccess = await navigator.requestMIDIAccess();
+    refreshMIDI();
+    midiAccess.onstatechange = refreshMIDI;
+  } catch (e) {
+    setMIDIIndicator('error', 'Erreur MIDI');
+  }
+}
+function refreshMIDI() {
+  const inputs = Array.from(midiAccess.inputs.values());
+  const outputs = Array.from(midiAccess.outputs.values());
+
+  const inSel = document.getElementById('sett-midi-in');
+  inSel.innerHTML = '';
+  for (const inp of inputs) {
+    const o = document.createElement('option');
+    o.value = inp.id; o.textContent = inp.name;
+    inSel.appendChild(o);
+  }
+  const outSel = document.getElementById('sett-midi-out');
+  outSel.innerHTML = '<option value="">aucun</option>';
+  for (const out of outputs) {
+    const o = document.createElement('option');
+    o.value = out.id; o.textContent = out.name;
+    outSel.appendChild(o);
+  }
+
+  if (inputs.length === 0) {
+    setMIDIIndicator('error', 'pas de MIDI');
+    return;
+  }
+  const preferredIn = inputs.find(i => !/IAC|virtual/i.test(i.name)) || inputs[0];
+  inSel.value = preferredIn.id;
+  connectMIDIInput(preferredIn);
+  if (outputs.length) {
+    const preferredOut = outputs.find(o => !/IAC|virtual/i.test(o.name)) || outputs[0];
+    outSel.value = preferredOut.id;
+    midiOutput = preferredOut;
+  }
+  updateMappingDisplay();
+}
+
+document.getElementById('sett-midi-in').addEventListener('change', e => {
+  const inp = midiAccess.inputs.get(e.target.value);
+  if (inp) connectMIDIInput(inp);
+});
+document.getElementById('sett-midi-out').addEventListener('change', e => {
+  midiOutput = midiAccess.outputs.get(e.target.value) || null;
+});
+
+function connectMIDIInput(input) {
+  if (midiInput) midiInput.onmidimessage = null;
+  midiInput = input;
+  midiInput.onmidimessage = onMIDI;
+  setMIDIIndicator('connected', input.name);
+}
+
+function setMIDIIndicator(state, label) {
+  const led = document.getElementById('home-led');
+  const txt = document.getElementById('home-midi-text');
+  led.classList.remove('connected', 'error', 'pulse');
+  if (state === 'connected') led.classList.add('connected');
+  if (state === 'error') led.classList.add('error');
+  txt.textContent = label;
+}
+
+function pulseLed() {
+  const led = document.getElementById('home-led');
+  led.classList.add('pulse');
+  clearTimeout(pulseLed._t);
+  pulseLed._t = setTimeout(() => led.classList.remove('pulse'), 150);
+}
+
+function logMIDI(note, vel) {
+  const lane = NOTE_TO_LANE[note];
+  const time = new Date().toLocaleTimeString();
+  const logEl = document.getElementById('settings-midi-log');
+  if (logEl.textContent.startsWith('en attente')) logEl.innerHTML = '';
+  const line = document.createElement('div');
+  line.textContent = `${time} · note ${note} · vel ${vel}${lane ? ' → ' + lane.name : ' (?)'}`;
+  logEl.prepend(line);
+  while (logEl.children.length > 8) logEl.lastChild.remove();
+}
+
+let unmappedCount = 0;
+function onMIDI(msg) {
+  const [status, note, vel] = msg.data;
+  const cmd = status & 0xf0;
+  if (cmd !== 0x90 || vel === 0) return;
+  pulseLed();
+  logMIDI(note, vel);
+  if (calibrationActive) {
+    calibrationReceive(note);
+    return;
+  }
+  const lane = NOTE_TO_LANE[note];
+  if (!lane) {
+    // Note reçue mais pas mappée → on suggère de calibrer après 3 hits
+    unmappedCount++;
+    if (unmappedCount >= 3) {
+      const btn = document.getElementById('home-calibrate');
+      if (btn) {
+        btn.classList.add('attention');
+        btn.textContent = '🎯 Calibre ta batterie !';
+      }
+    }
+    return;
+  }
+  unmappedCount = 0;
+  // Si on attend le 1er coup pour démarrer l'exercice
+  if (awaitingStart && currentScreen === 'play') {
+    awaitingStart = false;
+    clearAwaitingMessage();
+    startMode('play');
+    return;
+  }
+  // Sur l'écran de fin : snare (Pad 1) = rejouer, tomH (Pad 4) = retour menu
+  if (currentScreen === 'done') {
+    if (lane.id === 'snare') {
+      if (currentPattern) startPattern(currentPattern, /*autostart=*/true);
+    } else if (lane.id === 'tomH') {
+      goto('learn-select');
+    }
+    return;
+  }
+  // Feedback selon écran
+  if (currentScreen === 'free') {
+    freePadHit(lane.id);
+  } else if (currentScreen === 'play' && mode !== 'stopped') {
+    // Flash pad
+    const padEl = document.querySelector(`.play-pad[data-lane="${lane.id}"]`);
+    if (padEl) {
+      padEl.classList.add('flash');
+      setTimeout(() => padEl.classList.remove('flash'), 90);
+    }
+    // Check hit
+    const elapsed = (performance.now() - startTime) / 1000;
+    const beatsPerSec = bpm / 60;
+    const currentBeat = elapsed * beatsPerSec;
+    let best = null, bestMs = Infinity;
+    for (const n of scheduledNotes) {
+      if (n.lane !== lane.id || n.hit || n.missed) continue;
+      const dist = Math.abs(n.beat - currentBeat) / beatsPerSec * 1000;
+      if (dist < bestMs) { best = n; bestMs = dist; }
+    }
+    if (best && bestMs <= HIT_WINDOW_MS) {
+      best.hit = true;
+      hits++; totalSeen++;
+      if (padEl) spawnConfetti(padEl, 8, lane.color);
+      // 👍 qui monte comme une fumée depuis la pad
+      spawnFloatingEmoji(lane.id, '👍', 64);
+    }
+  }
+}
+
+// =====================================================================
+// Mapping display
+// =====================================================================
+function updateMappingDisplay() {
+  const el = document.getElementById('mapping-display');
+  if (!el) return;
+  el.innerHTML = LANES.map(l => `${l.emoji} ${l.name}: note ${l.note ?? l.defaultNote}`).join(' · ');
+}
+
+// =====================================================================
+// Settings (long-press 3s sur brand)
+// =====================================================================
+let brandPressTimer = null;
+const brand = document.getElementById('brand');
+brand.addEventListener('mousedown', () => {
+  brandPressTimer = setTimeout(() => {
+    document.getElementById('settings-modal').classList.add('active');
+  }, 1500); // 1.5s = un peu plus rapide que 3s, parent friendly
+});
+brand.addEventListener('mouseup', () => clearTimeout(brandPressTimer));
+brand.addEventListener('mouseleave', () => clearTimeout(brandPressTimer));
+
+document.getElementById('sett-close').addEventListener('click', () => {
+  document.getElementById('settings-modal').classList.remove('active');
+});
+document.getElementById('sett-calibrate').addEventListener('click', startCalibration);
+document.getElementById('home-calibrate').addEventListener('click', startCalibration);
+document.getElementById('sett-reset-stars').addEventListener('click', () => {
+  if (confirm('Effacer toutes les étoiles ?')) {
+    localStorage.removeItem('boumbi-stars');
+    updateStarsCounter();
+  }
+});
+document.getElementById('sett-reset-history').addEventListener('click', () => {
+  if (confirm('Effacer tout l\'historique des progrès ?')) {
+    localStorage.removeItem('boumbi-history');
+  }
+});
+document.getElementById('sett-reset-map').addEventListener('click', () => {
+  localStorage.removeItem('boumbi-mapping');
+  for (const l of LANES) l.note = l.defaultNote;
+  rebuildMaps();
+  updateMappingDisplay();
+  buildFreePads();
+  alert('Mapping réinitialisé sur les valeurs DD-75 Kit 1.');
+});
+
+// =====================================================================
+// Calibration
+// =====================================================================
+function startCalibration() {
+  calibrationActive = true;
+  calibrationIdx = 0;
+  document.getElementById('settings-modal').classList.remove('active');
+  showCalStep();
+  document.getElementById('cal-overlay').style.display = 'flex';
+}
+function showCalStep() {
+  const laneId = CAL_LANES[calibrationIdx];
+  const lane = LANES.find(l => l.id === laneId);
+  document.getElementById('cal-step').textContent = `${calibrationIdx + 1} / ${CAL_LANES.length}`;
+  document.getElementById('cal-icon').textContent = lane.emoji;
+  document.getElementById('cal-prompt').textContent = `Tape ton ${lane.name}`;
+  document.getElementById('cal-recent').textContent = 'en attente…';
+}
+function calibrationReceive(note) {
+  const laneId = CAL_LANES[calibrationIdx];
+  const lane = LANES.find(l => l.id === laneId);
+  document.getElementById('cal-recent').textContent = `Reçu note ${note} → ${lane.name} ✓`;
+  lane.note = note;
+  setTimeout(nextCal, 500);
+}
+function nextCal() {
+  calibrationIdx++;
+  if (calibrationIdx >= CAL_LANES.length) {
+    endCalibration();
+  } else {
+    showCalStep();
+  }
+}
+function endCalibration() {
+  calibrationActive = false;
+  document.getElementById('cal-overlay').style.display = 'none';
+  rebuildMaps();
+  saveMapping();
+  updateMappingDisplay();
+  // Reset l'avertissement
+  unmappedCount = 0;
+  const btn = document.getElementById('home-calibrate');
+  if (btn) {
+    btn.classList.remove('attention');
+    btn.textContent = '🎯 Calibrer ma batterie';
+  }
+}
+document.getElementById('cal-skip').addEventListener('click', nextCal);
+document.getElementById('cal-cancel').addEventListener('click', endCalibration);
+
+// =====================================================================
+// Init
+// =====================================================================
+loadMapping();
+updateStarsCounter();
+setupMIDI();
+loop();
+resizePlay();
+</script>
+</body>
+</html>

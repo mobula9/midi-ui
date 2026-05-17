@@ -1,0 +1,19 @@
+# Bibliothèque MIDI (sources + sortie annotée) — trop volumineuse + copyrights
+midi/
+!midi/.gitkeep
+
+# Python venv
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# macOS
+.DS_Store
+
+# Mémoire personnelle (chemins absolus, info Lucas-specific)
+memory/
+
+# Test inputs/outputs
+test_input.mid
+test_input.annotated.*

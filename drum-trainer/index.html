@@ -1,0 +1,956 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Drum Trainer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root {
+  --bg: #0a0a12;
+  --panel: #161624;
+  --panel-2: #1e1e30;
+  --border: #2a2a40;
+  --text: #e8e8f0;
+  --muted: #7a7a90;
+  --accent: #5cc8ff;
+  --good: #4ade80;
+  --bad: #f87171;
+  --warn: #fbbf24;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: -apple-system, system-ui, "SF Pro Display", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+header {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+h1 { margin: 0; font-size: 17px; font-weight: 600; }
+.controls { display: flex; gap: 12px; align-items: center; flex: 1; flex-wrap: wrap; }
+.controls label { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+select, button, input[type=range] {
+  background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border);
+  padding: 6px 10px; border-radius: 6px; font-size: 13px;
+  outline: none;
+}
+input[type=range] { padding: 0; width: 100px; }
+button { cursor: pointer; transition: background 0.15s; }
+button:hover { background: #2a2a40; }
+button.primary { background: var(--accent); color: #001; font-weight: 700; border-color: transparent; }
+button.primary:hover { background: #7ad6ff; }
+button.demo { background: #5b4cba; color: #fff; font-weight: 600; border-color: transparent; }
+button.demo:hover { background: #6d5dd2; }
+button.demo.active { background: var(--warn); color: #111; }
+button.danger { background: var(--bad); color: #111; font-weight: 600; border-color: transparent; }
+.bpm-val { min-width: 28px; text-align: right; color: var(--text); }
+.score { font-size: 13px; color: var(--muted); display: flex; gap: 12px; align-items: baseline; }
+.score strong { color: var(--text); font-size: 18px; font-variant-numeric: tabular-nums; }
+.accuracy { font-size: 14px; color: var(--accent); }
+
+/* === MIDI indicateur === */
+.midi-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--panel-2);
+  padding: 4px 12px 4px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+.midi-led {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: #333;
+  box-shadow: inset 0 0 4px rgba(0,0,0,0.5);
+  transition: background 50ms, box-shadow 50ms;
+}
+.midi-led.on {
+  background: var(--good);
+  box-shadow: 0 0 14px var(--good), inset 0 0 4px rgba(255,255,255,0.4);
+}
+.midi-led.connected {
+  background: #1a4d2e;
+}
+.midi-text { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 90px; }
+.midi-text strong { color: var(--text); }
+
+main {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.pad-row {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 110px;
+  display: flex;
+  background: var(--panel);
+  border-top: 2px solid rgba(255,255,255,0.15);
+  z-index: 2;
+}
+.pad {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-right: 1px solid var(--border);
+  transition: background 0.05s;
+  overflow: hidden;
+}
+.pad:last-child { border-right: none; }
+.pad.flash::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: var(--lane-color);
+  opacity: 0.45;
+  pointer-events: none;
+}
+.pad-bar {
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 5px;
+  background: var(--lane-color);
+}
+.pad-name { font-weight: 700; font-size: 17px; letter-spacing: 0.5px; }
+.pad-note { color: var(--muted); font-size: 11px; }
+
+/* === MIDI log === */
+.midi-log {
+  position: absolute;
+  bottom: 120px;
+  right: 14px;
+  width: 220px;
+  background: rgba(0,0,0,0.65);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 11px;
+  color: var(--muted);
+  font-family: "SF Mono", Menlo, monospace;
+  z-index: 4;
+  max-height: 160px;
+  overflow: hidden;
+}
+.midi-log h3 { margin: 0 0 4px 0; font-size: 10px; color: var(--text); letter-spacing: 1px; text-transform: uppercase; font-family: -apple-system, sans-serif; }
+.midi-log-row { line-height: 1.5; }
+.midi-log-row .ts { color: #555; }
+.midi-log-row .nt { color: var(--accent); font-weight: 600; }
+.midi-log-row .lb { color: var(--good); }
+
+/* === Banner status === */
+.banner {
+  position: absolute;
+  top: 18px; left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.7);
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--muted);
+  z-index: 3;
+  pointer-events: none;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+.banner.error { color: var(--bad); border-color: var(--bad); }
+.banner.ok { color: var(--good); border-color: var(--good); }
+.banner.warn { color: var(--warn); border-color: var(--warn); }
+
+.countdown {
+  position: absolute;
+  top: 45%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 140px;
+  font-weight: 800;
+  color: rgba(255,255,255,0.85);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  z-index: 3;
+  text-shadow: 0 0 40px rgba(92,200,255,0.5);
+}
+
+/* === Calibration modal === */
+.modal-bg {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.85);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal {
+  background: var(--panel);
+  padding: 32px 40px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  max-width: 480px;
+  text-align: center;
+}
+.modal h2 { margin: 0 0 8px 0; font-size: 22px; }
+.modal p { color: var(--muted); margin: 8px 0; }
+.modal .prompt {
+  font-size: 32px;
+  margin: 24px 0;
+  color: var(--accent);
+  font-weight: 700;
+}
+.modal .actions { display: flex; gap: 12px; justify-content: center; margin-top: 16px; }
+.modal .recent-note {
+  background: var(--panel-2);
+  padding: 8px 14px;
+  border-radius: 6px;
+  margin: 12px 0;
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 14px;
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>🥁 Drum Trainer <span style="font-size:13px;font-weight:400;color:var(--muted);margin-left:8px">debug</span></h1>
+  <a href="kids.html" style="color:var(--accent);text-decoration:none;font-weight:700;font-size:14px;padding:6px 12px;border-radius:6px;border:1px solid var(--accent);">→ Version kids</a>
+  <div class="controls">
+    <label>Pattern <select id="pattern"></select></label>
+    <label>BPM <input type="range" id="bpm" min="40" max="180" value="60"><span class="bpm-val" id="bpm-val">60</span></label>
+    <label>MIDI In <select id="midi-in"><option>—</option></select></label>
+    <label>MIDI Out <select id="midi-out"><option>—</option></select></label>
+    <label><input type="checkbox" id="metronome" checked> Click</label>
+    <button id="calibrate">🎯 Calibrer</button>
+    <button id="reset-map">↺ Reset GM</button>
+    <button id="demo" class="demo">🎧 Demo</button>
+    <button id="play" class="primary">▶ Play</button>
+  </div>
+  <div class="midi-indicator" title="État de l'input MIDI">
+    <div class="midi-led" id="midi-led"></div>
+    <div class="midi-text" id="midi-text">—</div>
+  </div>
+  <div class="score">
+    <span>Score</span>
+    <strong id="score-text">0 / 0</strong>
+    <span class="accuracy" id="accuracy">—</span>
+  </div>
+</header>
+<main>
+  <canvas id="canvas"></canvas>
+  <div class="pad-row" id="pad-row"></div>
+  <div class="midi-log" id="midi-log">
+    <h3>MIDI in (en direct)</h3>
+    <div id="midi-log-body">Tape sur ta batterie…</div>
+  </div>
+  <div class="banner" id="banner">Charge…</div>
+  <div class="countdown" id="countdown" style="display:none"></div>
+</main>
+
+<script>
+// =====================================================================
+// LANES + GM map
+// =====================================================================
+const LANES = [
+  { id: 'hihat', name: 'Hi-Hat', defaultNote: 42, color: '#6bcb77' },
+  { id: 'snare', name: 'Snare',  defaultNote: 38, color: '#ffd93d' },
+  { id: 'kick',  name: 'Kick',   defaultNote: 36, color: '#ff6b6b' },
+  { id: 'crash', name: 'Crash',  defaultNote: 49, color: '#c77dff' },
+];
+
+// Mapping note → lane id (peut être édité par calibration, sauvegardé en localStorage)
+let NOTE_TO_LANE = {};
+let LANE_TO_NOTE = {};
+function rebuildMaps() {
+  NOTE_TO_LANE = {};
+  LANE_TO_NOTE = {};
+  for (const l of LANES) {
+    const n = l.note ?? l.defaultNote;
+    NOTE_TO_LANE[n] = l;
+    LANE_TO_NOTE[l.id] = n;
+  }
+}
+function loadMapping() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('drum-mapping') || '{}');
+    for (const l of LANES) {
+      l.note = saved[l.id] ?? l.defaultNote;
+    }
+  } catch { /* ignore */ }
+  rebuildMaps();
+}
+function saveMapping() {
+  const out = {};
+  for (const l of LANES) out[l.id] = l.note ?? l.defaultNote;
+  localStorage.setItem('drum-mapping', JSON.stringify(out));
+}
+
+// =====================================================================
+// Patterns
+// =====================================================================
+const PATTERNS = {
+  '1 · Kick seul': { bpm: 60, steps: 4, notes: { kick: [1,1,1,1] } },
+  '2 · Kick + Snare alternés': {
+    bpm: 60, steps: 4,
+    notes: { kick: [1,0,1,0], snare: [0,1,0,1] }
+  },
+  '3 · Rock simple (croches)': {
+    bpm: 70, steps: 8,
+    notes: {
+      kick:  [1,0,0,0, 1,0,0,0],
+      snare: [0,0,1,0, 0,0,1,0],
+      hihat: [1,1,1,1, 1,1,1,1],
+    }
+  },
+  '4 · Rock standard': {
+    bpm: 90, steps: 16,
+    notes: {
+      kick:  [1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0],
+      snare: [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0],
+      hihat: [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0],
+    }
+  },
+  '5 · Disco': {
+    bpm: 110, steps: 16,
+    notes: {
+      kick:  [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0],
+      snare: [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0],
+      hihat: [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0],
+    }
+  },
+  '6 · Funk basique': {
+    bpm: 95, steps: 16,
+    notes: {
+      kick:  [1,0,0,0, 0,0,1,0, 0,1,0,0, 0,0,1,0],
+      snare: [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0],
+      hihat: [1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1],
+    }
+  },
+};
+
+// =====================================================================
+// Constantes
+// =====================================================================
+const HIT_WINDOW_MS = 180;
+const LEAD_IN_BEATS = 4;
+const FALL_TIME_SEC = 1.6;
+const PAD_HEIGHT = 110;
+const FLASH_MS = 90;
+const MIDI_LOG_MAX = 6;
+
+// =====================================================================
+// État
+// =====================================================================
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const banner = document.getElementById('banner');
+const countdownEl = document.getElementById('countdown');
+const padRowEl = document.getElementById('pad-row');
+const scoreEl = document.getElementById('score-text');
+const accuracyEl = document.getElementById('accuracy');
+const bpmInput = document.getElementById('bpm');
+const bpmValEl = document.getElementById('bpm-val');
+const patternSel = document.getElementById('pattern');
+const playBtn = document.getElementById('play');
+const demoBtn = document.getElementById('demo');
+const calBtn = document.getElementById('calibrate');
+const midiInSel = document.getElementById('midi-in');
+const midiOutSel = document.getElementById('midi-out');
+const clickToggle = document.getElementById('metronome');
+const midiLed = document.getElementById('midi-led');
+const midiText = document.getElementById('midi-text');
+const midiLogBody = document.getElementById('midi-log-body');
+
+let W = 0, H = 0;
+let bpm = 60;
+let currentPatternKey = '1 · Kick seul';
+let mode = 'stopped'; // 'stopped' | 'play' | 'demo'
+let startTime = 0;
+let scheduledNotes = [];
+let hits = 0, totalSeen = 0;
+let midiInput = null;
+let midiOutput = null;
+let midiAccess = null;
+let lastClickBeat = -1;
+let audioCtx = null;
+let demoTimers = [];
+
+function resizeCanvas() {
+  const r = canvas.getBoundingClientRect();
+  W = r.width; H = r.height;
+  canvas.width = W * devicePixelRatio;
+  canvas.height = H * devicePixelRatio;
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+}
+new ResizeObserver(resizeCanvas).observe(canvas);
+resizeCanvas();
+
+// =====================================================================
+// Lanes UI
+// =====================================================================
+function activeLanes() {
+  const pat = PATTERNS[currentPatternKey];
+  return LANES.filter(l => pat.notes[l.id]);
+}
+function buildPadRow() {
+  padRowEl.innerHTML = '';
+  for (const lane of activeLanes()) {
+    const el = document.createElement('div');
+    el.className = 'pad';
+    el.dataset.lane = lane.id;
+    el.style.setProperty('--lane-color', lane.color);
+    el.innerHTML = `
+      <div class="pad-bar"></div>
+      <div class="pad-name">${lane.name}</div>
+      <div class="pad-note">note ${lane.note ?? lane.defaultNote}</div>
+    `;
+    padRowEl.appendChild(el);
+  }
+}
+
+function scheduleNotes() {
+  scheduledNotes = [];
+  const pat = PATTERNS[currentPatternKey];
+  const beatsPerStep = 4 / pat.steps;
+  const LOOP_REPEATS = 200;
+  for (let r = 0; r < LOOP_REPEATS; r++) {
+    for (let step = 0; step < pat.steps; step++) {
+      for (const lane of activeLanes()) {
+        if (pat.notes[lane.id]?.[step]) {
+          const beat = (r * pat.steps + step) * beatsPerStep;
+          scheduledNotes.push({ lane: lane.id, beat, hit: false, missed: false });
+        }
+      }
+    }
+  }
+}
+
+// =====================================================================
+// Render loop
+// =====================================================================
+function loop() {
+  requestAnimationFrame(loop);
+  draw();
+}
+function draw() {
+  ctx.fillStyle = '#0a0a12';
+  ctx.fillRect(0, 0, W, H);
+
+  const lanes = activeLanes();
+  if (!lanes.length) return;
+
+  const laneW = W / lanes.length;
+  const nowY = H - PAD_HEIGHT;
+  const beatsPerSec = bpm / 60;
+  const pxPerBeat = nowY / (FALL_TIME_SEC * beatsPerSec);
+
+  for (let i = 0; i < lanes.length; i++) {
+    ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.015)' : 'rgba(255,255,255,0.03)';
+    ctx.fillRect(i * laneW, 0, laneW, nowY);
+  }
+
+  if (mode !== 'stopped') {
+    const elapsed = (performance.now() - startTime) / 1000;
+    const currentBeat = elapsed * beatsPerSec;
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 1;
+    const startB = Math.floor(currentBeat);
+    for (let b = startB; b < startB + 8; b++) {
+      const beatOffset = b - currentBeat;
+      const y = nowY - beatOffset * pxPerBeat;
+      if (y < 0 || y > nowY) continue;
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
+  }
+
+  const grad = ctx.createLinearGradient(0, nowY - 12, 0, nowY);
+  grad.addColorStop(0, 'rgba(92,200,255,0)');
+  grad.addColorStop(1, 'rgba(92,200,255,0.35)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, nowY - 12, W, 12);
+  ctx.strokeStyle = '#5cc8ff';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, nowY); ctx.lineTo(W, nowY); ctx.stroke();
+
+  if (mode === 'stopped') return;
+
+  const elapsed = (performance.now() - startTime) / 1000;
+  const currentBeat = elapsed * beatsPerSec;
+
+  for (const n of scheduledNotes) {
+    const beatOffset = n.beat - currentBeat;
+    if (beatOffset < -0.7) continue;
+    if (beatOffset * pxPerBeat > nowY + 40) continue;
+    const y = nowY - beatOffset * pxPerBeat;
+    if (y < -30 || y > H) continue;
+
+    const laneIdx = lanes.findIndex(l => l.id === n.lane);
+    if (laneIdx < 0) continue;
+    const lane = lanes[laneIdx];
+
+    const x = laneIdx * laneW + 10;
+    const w = laneW - 20;
+    const h = 22;
+
+    let color = lane.color, alpha = 1;
+    if (n.hit) { color = '#4ade80'; alpha = 0.45; }
+    else if (n.missed) { color = '#475569'; alpha = 0.35; }
+
+    if (!n.hit && !n.missed) {
+      const halo = ctx.createRadialGradient(x + w/2, y, 2, x + w/2, y, 50);
+      halo.addColorStop(0, color + '55');
+      halo.addColorStop(1, color + '00');
+      ctx.fillStyle = halo;
+      ctx.fillRect(x - 20, y - 30, w + 40, 60);
+    }
+
+    ctx.fillStyle = alpha < 1 ? color + Math.round(alpha * 255).toString(16).padStart(2,'0') : color;
+    roundRect(x, y - h/2, w, h, 6); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 1;
+    roundRect(x, y - h/2, w, h, 6); ctx.stroke();
+  }
+
+  // Missed (uniquement en mode play, pas demo)
+  if (mode === 'play') {
+    for (const n of scheduledNotes) {
+      if (n.hit || n.missed) continue;
+      const beatOffset = n.beat - currentBeat;
+      const msOffset = beatOffset / beatsPerSec * 1000;
+      if (msOffset < -HIT_WINDOW_MS) {
+        n.missed = true;
+        totalSeen++;
+        updateScoreUI();
+      }
+    }
+  }
+
+  // Métronome
+  if (clickToggle.checked) {
+    const flooredBeat = Math.floor(currentBeat);
+    if (flooredBeat > lastClickBeat && flooredBeat >= 0) {
+      playClick(flooredBeat % 4 === 0);
+      lastClickBeat = flooredBeat;
+    }
+  }
+}
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+// =====================================================================
+// WebAudio click
+// =====================================================================
+function playClick(strong) {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const t = audioCtx.currentTime;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.frequency.value = strong ? 1500 : 900;
+  g.gain.setValueAtTime(strong ? 0.18 : 0.08, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+  o.connect(g).connect(audioCtx.destination);
+  o.start(t); o.stop(t + 0.06);
+}
+
+// =====================================================================
+// MIDI
+// =====================================================================
+async function setupMIDI() {
+  if (!navigator.requestMIDIAccess) {
+    banner.textContent = "❌ Pas de Web MIDI (utilise Chrome).";
+    banner.className = 'banner error';
+    return;
+  }
+  try {
+    midiAccess = await navigator.requestMIDIAccess({ sysex: false });
+    refreshMIDILists();
+    midiAccess.onstatechange = refreshMIDILists;
+  } catch (e) {
+    banner.textContent = `Erreur MIDI : ${e.message}`;
+    banner.className = 'banner error';
+  }
+}
+
+function refreshMIDILists() {
+  // Inputs
+  const inputs = Array.from(midiAccess.inputs.values());
+  midiInSel.innerHTML = '';
+  for (const inp of inputs) {
+    const o = document.createElement('option');
+    o.value = inp.id; o.textContent = inp.name;
+    midiInSel.appendChild(o);
+  }
+  if (inputs.length === 0) {
+    midiInSel.innerHTML = '<option>aucun</option>';
+    setMIDIIndicator(false, 'pas d\'input');
+  } else {
+    const preferred = inputs.find(i => !/IAC|virtual/i.test(i.name)) || inputs[0];
+    midiInSel.value = preferred.id;
+    connectMIDIInput(preferred);
+  }
+
+  // Outputs
+  const outputs = Array.from(midiAccess.outputs.values());
+  midiOutSel.innerHTML = '<option value="">— (pas de son)</option>';
+  for (const out of outputs) {
+    const o = document.createElement('option');
+    o.value = out.id; o.textContent = out.name;
+    midiOutSel.appendChild(o);
+  }
+  if (outputs.length > 0) {
+    const preferred = outputs.find(o => !/IAC|virtual/i.test(o.name)) || outputs[0];
+    midiOutSel.value = preferred.id;
+    midiOutput = preferred;
+  }
+}
+
+function connectMIDIInput(input) {
+  if (midiInput) midiInput.onmidimessage = null;
+  midiInput = input;
+  midiInput.onmidimessage = onMIDI;
+  setMIDIIndicator(true, input.name);
+  banner.textContent = `🎹 MIDI in : ${input.name}`;
+  banner.className = 'banner ok';
+  setTimeout(() => { banner.style.opacity = '0'; banner.style.transition = 'opacity 1s'; }, 2000);
+}
+
+midiInSel.addEventListener('change', () => {
+  if (!midiAccess) return;
+  const inp = midiAccess.inputs.get(midiInSel.value);
+  if (inp) connectMIDIInput(inp);
+});
+midiOutSel.addEventListener('change', () => {
+  if (!midiAccess) return;
+  const id = midiOutSel.value;
+  midiOutput = id ? midiAccess.outputs.get(id) : null;
+});
+
+function setMIDIIndicator(connected, label) {
+  midiLed.classList.remove('on');
+  if (connected) midiLed.classList.add('connected');
+  else midiLed.classList.remove('connected');
+  midiText.innerHTML = connected
+    ? `<strong>${label.length > 14 ? label.slice(0, 14) + '…' : label}</strong>`
+    : `<span style="color: var(--bad)">${label}</span>`;
+}
+
+function pulseMIDILed() {
+  midiLed.classList.remove('connected');
+  midiLed.classList.add('on');
+  clearTimeout(pulseMIDILed._t);
+  pulseMIDILed._t = setTimeout(() => {
+    midiLed.classList.remove('on');
+    if (midiInput) midiLed.classList.add('connected');
+  }, 120);
+}
+
+function pushMidiLog(note, vel) {
+  const lane = NOTE_TO_LANE[note];
+  const time = new Date().toLocaleTimeString().slice(0, 8);
+  const row = document.createElement('div');
+  row.className = 'midi-log-row';
+  row.innerHTML = `<span class="ts">${time}</span> · note <span class="nt">${note}</span> · vel ${vel}` +
+    (lane ? ` <span class="lb">→ ${lane.name}</span>` : ' <span style="color:#f87171">?</span>');
+  // Vide le placeholder
+  if (midiLogBody.textContent.startsWith('Tape')) midiLogBody.innerHTML = '';
+  midiLogBody.prepend(row);
+  while (midiLogBody.children.length > MIDI_LOG_MAX) midiLogBody.lastChild.remove();
+}
+
+function onMIDI(msg) {
+  const [status, note, vel] = msg.data;
+  const cmd = status & 0xf0;
+  if (cmd !== 0x90) return;
+  if (vel === 0) return;  // note_off déguisé
+  pulseMIDILed();
+  pushMidiLog(note, vel);
+  if (calibrationActive) {
+    calibrationReceive(note);
+    return;
+  }
+  registerHit(note);
+}
+
+function midiOutSend(note, vel = 110, durMs = 80) {
+  if (!midiOutput) return;
+  midiOutput.send([0x99, note, vel]);   // channel 10
+  setTimeout(() => midiOutput.send([0x89, note, 0]), durMs);
+}
+
+function registerHit(noteNumber) {
+  const lane = NOTE_TO_LANE[noteNumber];
+  if (!lane) return;
+  flashPad(lane.id);
+  if (mode !== 'play') return;
+
+  const elapsed = (performance.now() - startTime) / 1000;
+  const beatsPerSec = bpm / 60;
+  const currentBeat = elapsed * beatsPerSec;
+  let best = null, bestMs = Infinity;
+  for (const n of scheduledNotes) {
+    if (n.lane !== lane.id || n.hit || n.missed) continue;
+    const dist = Math.abs(n.beat - currentBeat) / beatsPerSec * 1000;
+    if (dist < bestMs) { best = n; bestMs = dist; }
+  }
+  if (best && bestMs <= HIT_WINDOW_MS) {
+    best.hit = true;
+    hits++; totalSeen++; updateScoreUI();
+  }
+}
+
+function flashPad(laneId) {
+  const el = padRowEl.querySelector(`[data-lane="${laneId}"]`);
+  if (!el) return;
+  el.classList.add('flash');
+  setTimeout(() => el.classList.remove('flash'), FLASH_MS);
+}
+
+// =====================================================================
+// Modes : Play / Demo / Stop
+// =====================================================================
+function startPlay() { startMode('play'); }
+function startDemo() { startMode('demo'); }
+function startMode(newMode) {
+  stop();
+  mode = newMode;
+  hits = 0; totalSeen = 0; updateScoreUI();
+  scheduleNotes();
+  const leadInMs = LEAD_IN_BEATS / (bpm / 60) * 1000;
+  startTime = performance.now() + leadInMs;
+  lastClickBeat = -1;
+
+  // Compte à rebours
+  let n = LEAD_IN_BEATS;
+  countdownEl.style.display = 'block';
+  countdownEl.textContent = n;
+  if (clickToggle.checked) playClick(true);
+  const tick = () => {
+    n--;
+    if (n <= 0) { countdownEl.style.display = 'none'; return; }
+    countdownEl.textContent = n;
+    if (clickToggle.checked) playClick(false);
+    setTimeout(tick, 60_000 / bpm);
+  };
+  setTimeout(tick, 60_000 / bpm);
+
+  // Si mode demo : programme l'envoi MIDI out
+  if (newMode === 'demo') scheduleDemoNotes();
+
+  if (newMode === 'play') {
+    playBtn.textContent = '⏸ Stop';
+    playBtn.className = 'danger';
+    demoBtn.classList.remove('active');
+  } else {
+    demoBtn.textContent = '⏹ Stop Demo';
+    demoBtn.classList.add('active');
+    playBtn.className = 'primary';
+    playBtn.textContent = '▶ Play';
+  }
+}
+
+function scheduleDemoNotes() {
+  // Annule l'éventuel ancien
+  for (const t of demoTimers) clearTimeout(t);
+  demoTimers = [];
+  if (!midiOutput) {
+    banner.textContent = '⚠ Sélectionne un MIDI Out pour entendre la demo';
+    banner.className = 'banner warn';
+    banner.style.opacity = '1';
+    return;
+  }
+  const beatsPerSec = bpm / 60;
+  // Schedule des 30 prochaines secondes de notes
+  const HORIZON_SEC = 30;
+  for (const n of scheduledNotes) {
+    const tSec = n.beat / beatsPerSec;
+    if (tSec > HORIZON_SEC) continue;
+    const msFromNow = (startTime - performance.now()) + tSec * 1000;
+    if (msFromNow < 0) continue;
+    const note = LANE_TO_NOTE[n.lane];
+    if (!note) continue;
+    const timer = setTimeout(() => midiOutSend(note, 100, 80), msFromNow);
+    demoTimers.push(timer);
+  }
+  // Recharge l'horizon plus tard
+  const reloadAt = (startTime - performance.now()) + (HORIZON_SEC - 5) * 1000;
+  if (reloadAt > 0) {
+    const t = setTimeout(scheduleDemoNotes, reloadAt);
+    demoTimers.push(t);
+  }
+}
+
+function stop() {
+  if (mode === 'stopped') return;
+  mode = 'stopped';
+  for (const t of demoTimers) clearTimeout(t);
+  demoTimers = [];
+  playBtn.textContent = '▶ Play';
+  playBtn.className = 'primary';
+  demoBtn.textContent = '🎧 Demo';
+  demoBtn.classList.remove('active');
+  countdownEl.style.display = 'none';
+  // All notes off au cas où
+  if (midiOutput) for (const l of LANES) midiOutput.send([0x89, l.note ?? l.defaultNote, 0]);
+}
+
+playBtn.addEventListener('click', () => {
+  if (mode === 'play') stop(); else startPlay();
+});
+demoBtn.addEventListener('click', () => {
+  if (mode === 'demo') stop(); else startDemo();
+});
+
+// =====================================================================
+// Calibration
+// =====================================================================
+let calibrationActive = false;
+let calibrationIdx = 0;
+let calibrationModal = null;
+const CALIBRATION_LANES = ['kick', 'snare', 'hihat', 'crash'];
+
+calBtn.addEventListener('click', startCalibration);
+document.getElementById('reset-map').addEventListener('click', () => {
+  localStorage.removeItem('drum-mapping');
+  for (const l of LANES) l.note = l.defaultNote;
+  rebuildMaps();
+  buildPadRow();
+  banner.textContent = '✓ Mapping reset (GM par défaut : 36/38/42/49)';
+  banner.className = 'banner ok';
+  banner.style.opacity = '1';
+  banner.style.transition = 'none';
+  setTimeout(() => { banner.style.transition = 'opacity 1s'; banner.style.opacity = '0'; }, 1500);
+});
+
+function startCalibration() {
+  stop();
+  calibrationActive = true;
+  calibrationIdx = 0;
+  showCalibrationModal();
+}
+
+function showCalibrationModal() {
+  closeCalibrationModal();
+  const laneId = CALIBRATION_LANES[calibrationIdx];
+  const lane = LANES.find(l => l.id === laneId);
+  const bg = document.createElement('div');
+  bg.className = 'modal-bg';
+  bg.innerHTML = `
+    <div class="modal">
+      <h2>Calibration ${calibrationIdx + 1}/${CALIBRATION_LANES.length}</h2>
+      <p>Frappe ton pad <strong style="color:${lane.color}">${lane.name}</strong>.</p>
+      <div class="prompt">🎯 Tape ${lane.name} maintenant</div>
+      <p>(actuellement note ${lane.note ?? lane.defaultNote})</p>
+      <div class="recent-note" id="cal-recent">en attente…</div>
+      <div class="actions">
+        <button id="cal-skip">Passer</button>
+        <button id="cal-cancel" class="danger">Annuler</button>
+      </div>
+    </div>`;
+  document.body.appendChild(bg);
+  calibrationModal = bg;
+  document.getElementById('cal-skip').onclick = () => nextCalibration();
+  document.getElementById('cal-cancel').onclick = () => endCalibration();
+}
+
+function closeCalibrationModal() {
+  if (calibrationModal) calibrationModal.remove();
+  calibrationModal = null;
+}
+
+function calibrationReceive(note) {
+  const laneId = CALIBRATION_LANES[calibrationIdx];
+  const lane = LANES.find(l => l.id === laneId);
+  const recentEl = document.getElementById('cal-recent');
+  if (recentEl) recentEl.textContent = `Reçu note ${note} → ${lane.name}`;
+  lane.note = note;
+  setTimeout(nextCalibration, 600);
+}
+
+function nextCalibration() {
+  calibrationIdx++;
+  if (calibrationIdx >= CALIBRATION_LANES.length) {
+    endCalibration();
+    return;
+  }
+  showCalibrationModal();
+}
+
+function endCalibration() {
+  calibrationActive = false;
+  closeCalibrationModal();
+  rebuildMaps();
+  saveMapping();
+  buildPadRow();
+  banner.textContent = '✓ Calibration enregistrée';
+  banner.className = 'banner ok';
+  banner.style.opacity = '1';
+  setTimeout(() => { banner.style.transition = 'opacity 1s'; banner.style.opacity = '0'; }, 1500);
+}
+
+// =====================================================================
+// Score & UI
+// =====================================================================
+function updateScoreUI() {
+  scoreEl.textContent = `${hits} / ${totalSeen}`;
+  const pct = totalSeen === 0 ? 0 : Math.round(100 * hits / totalSeen);
+  accuracyEl.textContent = `${pct}%`;
+  accuracyEl.style.color = pct >= 80 ? 'var(--good)' : pct >= 50 ? 'var(--accent)' : 'var(--bad)';
+}
+
+for (const k of Object.keys(PATTERNS)) {
+  const opt = document.createElement('option');
+  opt.value = k; opt.textContent = k;
+  patternSel.appendChild(opt);
+}
+patternSel.value = currentPatternKey;
+
+function loadPattern(key) {
+  currentPatternKey = key;
+  bpm = PATTERNS[key].bpm;
+  bpmInput.value = bpm;
+  bpmValEl.textContent = bpm;
+  buildPadRow();
+  scheduleNotes();
+  hits = 0; totalSeen = 0; updateScoreUI();
+}
+patternSel.addEventListener('change', () => loadPattern(patternSel.value));
+
+bpmInput.addEventListener('input', () => {
+  bpm = parseInt(bpmInput.value);
+  bpmValEl.textContent = bpm;
+});
+
+// =====================================================================
+// Init
+// =====================================================================
+loadMapping();
+loadPattern(currentPatternKey);
+setupMIDI();
+loop();
+</script>
+</body>
+</html>
