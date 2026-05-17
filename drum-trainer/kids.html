@@ -8650,9 +8650,11 @@ function studioToggleCell(laneId, step) {
   if (el) {
     el.classList.toggle('on', studio.steps[laneId][step]);
     if (studio.steps[laneId][step]) {
-      // Joue un preview du son quand on active
+      // Preview du son quand on active : synth interne si pas de vrai MIDI
       const note = LANE_TO_NOTE[laneId];
-      if (midiOutput && note != null) {
+      if (typeof isVirtualMIDI === 'function' && isVirtualMIDI()) {
+        if (typeof playPadSound === 'function') playPadSound(laneId, 100);
+      } else if (midiOutput && note != null) {
         midiOutput.send([0x99, note, 100]);
         setTimeout(() => midiOutput.send([0x89, note, 0]), 60);
       }
@@ -8703,7 +8705,11 @@ function studioRenderStep() {
     if (isOn) {
       anyHit = true;
       const note = LANE_TO_NOTE[laneId];
-      if (midiOutput && note != null) {
+      // Pas de vrai MIDI branche → synth dans le browser (sinon le son va dans
+      // le vide vers IAC). Sinon, envoie au kit reel.
+      if (typeof isVirtualMIDI === 'function' && isVirtualMIDI()) {
+        if (typeof playPadSound === 'function') playPadSound(laneId, 100);
+      } else if (midiOutput && note != null) {
         midiOutput.send([0x99, note, 100]);
         setTimeout(() => midiOutput.send([0x89, note, 0]), 60);
       }
