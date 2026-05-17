@@ -1256,6 +1256,11 @@ button:focus { outline: none; }
       <div class="card-title">Réflexes</div>
       <div class="card-sub">tape avant que ça remplisse</div>
     </button>
+    <button class="card" data-goto="spotify">
+      <div class="card-emoji">🎵</div>
+      <div class="card-title">Spotify</div>
+      <div class="card-sub">joue sur tes morceaux</div>
+    </button>
     <button class="card" data-goto="progress">
       <div class="card-emoji">📈</div>
       <div class="card-title">Mes progrès</div>
@@ -1322,6 +1327,69 @@ button:focus { outline: none; }
   </div>
   <div class="play-pads" id="play-pads"></div>
   <div class="countdown" id="countdown" style="display:none"></div>
+</section>
+
+<!-- =================================================================== -->
+<!-- MODE SPOTIFY -->
+<!-- =================================================================== -->
+<section id="screen-spotify" class="screen">
+  <div class="screen-title">
+    <button class="btn-back" data-goto="home">←</button>
+    <h2 style="margin:0">🎵 Joue sur ta musique Spotify</h2>
+    <span id="sp-status" style="margin-left:auto;font-size:13px;color:var(--muted)"></span>
+  </div>
+
+  <!-- Vue : pas encore connecté -->
+  <div id="sp-disconnected" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;">
+    <div style="font-size:80px;line-height:1">🎶</div>
+    <h3 style="margin:8px 0;font-size:24px;">Joue ta batterie sur tes morceaux Spotify</h3>
+    <p style="color:var(--muted);max-width:520px;line-height:1.5;font-size:14px;">
+      Connecte ton compte Spotify (Premium requis), cherche un morceau, et joue la batterie en suivant le tempo détecté automatiquement.
+    </p>
+    <button id="sp-login" style="background:#1DB954;color:white;border:none;padding:14px 32px;border-radius:999px;font-weight:700;font-size:15px;cursor:pointer;font-family:inherit;">🟢 Connecter Spotify</button>
+    <details style="margin-top:16px;max-width:520px;font-size:13px;color:var(--muted)">
+      <summary style="cursor:pointer;font-weight:700">Première fois ? Setup en 1 min</summary>
+      <ol style="text-align:left;line-height:1.7;margin-top:12px">
+        <li>Va sur <a href="https://developer.spotify.com/dashboard" target="_blank" style="color:var(--accent);">developer.spotify.com/dashboard</a> et crée une app (gratuit).</li>
+        <li>Dans les settings de l'app, ajoute en <strong>Redirect URI</strong> : <code id="sp-redirect-help" style="background:#f5f5f0;padding:2px 6px;border-radius:4px;font-size:12px"></code></li>
+        <li>Coche au minimum <strong>"Web Playback SDK"</strong>.</li>
+        <li>Copie le <strong>CLIENT_ID</strong> de l'app.</li>
+        <li>Reviens ici, clique sur le bouton vert, colle le CLIENT_ID quand on te le demande.</li>
+      </ol>
+    </details>
+  </div>
+
+  <!-- Vue : connecté + recherche / lecture -->
+  <div id="sp-connected" style="display:none;flex:1;flex-direction:column;padding:16px 24px;gap:14px;overflow:hidden;">
+    <div style="display:flex;gap:10px;">
+      <input type="text" id="sp-search" placeholder="Cherche un morceau (titre ou artiste)…" style="flex:1;padding:12px 16px;border:1px solid #ddd;border-radius:12px;font-size:15px;font-family:inherit;">
+      <button id="sp-logout" style="background:#eee;color:var(--text);border:none;padding:10px 16px;border-radius:10px;font-size:13px;cursor:pointer;font-family:inherit;">Déconnecter</button>
+    </div>
+    <div id="sp-results" style="max-height:240px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;"></div>
+
+    <div id="sp-now-playing" style="display:none;background:linear-gradient(135deg,#1DB95422,#4ECDC433);padding:14px;border-radius:14px;display:flex;gap:14px;align-items:center;">
+      <img id="sp-album-art" src="" style="width:64px;height:64px;border-radius:8px;">
+      <div style="flex:1;min-width:0">
+        <div id="sp-track-name" style="font-weight:700;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+        <div id="sp-track-artist" style="color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+        <div id="sp-track-meta" style="font-size:11px;color:var(--muted);margin-top:4px"></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button id="sp-pause" style="background:white;border:1px solid #ddd;padding:10px 16px;border-radius:999px;font-weight:700;cursor:pointer;font-family:inherit;">⏸</button>
+        <button id="sp-stop" style="background:#eee;border:none;padding:10px 16px;border-radius:999px;cursor:pointer;font-family:inherit;font-size:13px;">⏹ Stop</button>
+      </div>
+    </div>
+
+    <!-- Zone de jeu : falling notes synced sur les beats Spotify -->
+    <div id="sp-game" style="flex:1;position:relative;background:#1a1530;border-radius:14px;overflow:hidden;display:none;">
+      <canvas id="sp-canvas" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+      <div id="sp-pads" style="position:absolute;bottom:0;left:0;right:0;height:220px;background:rgba(0,0,0,0.5);border-top:3px solid rgba(255,255,255,0.3);display:flex;justify-content:center;gap:14px;padding:12px 18px;"></div>
+      <div id="sp-stats" style="position:absolute;top:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.5);padding:6px 16px;border-radius:999px;color:white;font-weight:700;font-size:14px;font-variant-numeric:tabular-nums;">
+        <span>🎯 <span id="sp-hits">0</span></span>
+        <span style="margin-left:14px;color:var(--accent)">🔥 <span id="sp-combo">0</span></span>
+      </div>
+    </div>
+  </div>
 </section>
 
 <!-- =================================================================== -->
@@ -1832,7 +1900,7 @@ function spawnFloatingEmoji(laneId, emoji, size = 64) {
 // Navigation entre écrans
 // =====================================================================
 // Écrans qu'on persiste à travers les refresh (pas play/done : transient)
-const PERSISTED_SCREENS = new Set(['home', 'free', 'learn-select', 'reflex', 'progress']);
+const PERSISTED_SCREENS = new Set(['home', 'free', 'learn-select', 'reflex', 'progress', 'spotify']);
 
 function goto(screen) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -1846,6 +1914,17 @@ function goto(screen) {
   if (screen === 'progress') renderProgress();
   if (screen === 'free') renderRecordings();
   if (screen === 'reflex') buildReflexBoard();
+  if (screen === 'spotify') {
+    spUpdateUI();
+    if (!spCanvas) {
+      spCanvas = document.getElementById('sp-canvas');
+      spCtx = spCanvas.getContext('2d');
+      spBuildPads();
+      window.addEventListener('resize', spResizeCanvas);
+      spDrawLoop();
+    }
+    spResizeCanvas();
+  }
   // Quitte le Mode Libre → on stoppe record + replay en cours
   if (screen !== 'free') {
     if (recording) stopRecord();
@@ -3523,6 +3602,8 @@ function onMIDI(msg) {
     freePadHit(lane.id, /*sendMidi=*/false, /*isReplay=*/false, vel);
   } else if (currentScreen === 'reflex' && reflexActive) {
     rfxOnHit(lane.id);
+  } else if (currentScreen === 'spotify' && spSchedule.length) {
+    spRegisterHit(lane.id);
   } else if (currentScreen === 'play' && mode !== 'stopped') {
     // Flash le pad actif de la colonne correspondante (mini-widget DD-75)
     const col = document.querySelector(`.lane-column[data-lane="${lane.id}"]`);
@@ -3696,6 +3777,367 @@ updateKitDisplay();
 setupMIDI();
 loop();
 resizePlay();
+
+// =====================================================================
+// SPOTIFY — auth PKCE + Web Playback SDK + falling notes sur les beats
+// =====================================================================
+const SP_SCOPES = ['streaming','user-read-email','user-read-private','user-modify-playback-state','user-read-playback-state'];
+const SP_REDIRECT = window.location.href.split('?')[0].split('#')[0];
+
+// Affiche l'URI de redirect dans l'aide
+const redirectHelpEl = document.getElementById('sp-redirect-help');
+if (redirectHelpEl) redirectHelpEl.textContent = SP_REDIRECT;
+
+function spGetClientId() { return localStorage.getItem('sp-client-id') || ''; }
+function spGetToken() {
+  const t = localStorage.getItem('sp-token');
+  const exp = parseInt(localStorage.getItem('sp-token-exp') || '0', 10);
+  if (!t || Date.now() > exp) return null;
+  return t;
+}
+
+async function spPkceVerifier() {
+  const arr = new Uint8Array(64);
+  crypto.getRandomValues(arr);
+  return Array.from(arr).map(b => 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~'[b % 66]).join('');
+}
+async function spPkceChallenge(v) {
+  const data = new TextEncoder().encode(v);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  return btoa(String.fromCharCode(...new Uint8Array(hash))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+
+async function spLogin() {
+  let id = spGetClientId();
+  if (!id) {
+    id = prompt(`Spotify CLIENT_ID (depuis developer.spotify.com).\nN'oublie pas d'ajouter en Redirect URI dans l'app :\n${SP_REDIRECT}`);
+    if (!id) return;
+    localStorage.setItem('sp-client-id', id.trim());
+  }
+  const v = await spPkceVerifier();
+  const c = await spPkceChallenge(v);
+  localStorage.setItem('sp-pkce', v);
+  const p = new URLSearchParams({
+    client_id: spGetClientId(),
+    response_type: 'code',
+    redirect_uri: SP_REDIRECT,
+    code_challenge_method: 'S256',
+    code_challenge: c,
+    scope: SP_SCOPES.join(' '),
+  });
+  window.location.href = `https://accounts.spotify.com/authorize?${p}`;
+}
+
+async function spHandleRedirect() {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  if (!code) return false;
+  const v = localStorage.getItem('sp-pkce');
+  try {
+    const r = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: spGetClientId(),
+        grant_type: 'authorization_code',
+        code, redirect_uri: SP_REDIRECT, code_verifier: v,
+      }),
+    });
+    const data = await r.json();
+    if (data.access_token) {
+      localStorage.setItem('sp-token', data.access_token);
+      localStorage.setItem('sp-token-exp', Date.now() + (data.expires_in - 60) * 1000);
+      if (data.refresh_token) localStorage.setItem('sp-refresh', data.refresh_token);
+    }
+  } catch(e) { console.error('Spotify token exchange:', e); }
+  window.history.replaceState({}, '', SP_REDIRECT);
+  return true;
+}
+
+function spLogout() {
+  ['sp-token','sp-token-exp','sp-refresh','sp-pkce'].forEach(k => localStorage.removeItem(k));
+  if (spPlayer) try { spPlayer.disconnect(); } catch {}
+  spPlayer = null; spDeviceId = null;
+  spUpdateUI();
+}
+
+async function spApi(path, opts = {}) {
+  const t = spGetToken();
+  const r = await fetch(`https://api.spotify.com/v1${path}`, {
+    ...opts,
+    headers: { Authorization: `Bearer ${t}`, ...(opts.headers || {}) },
+  });
+  if (r.status === 401) { spLogout(); throw new Error('Token expired'); }
+  return r;
+}
+
+let spPlayer = null, spDeviceId = null;
+let spCurrentTrack = null, spAnalysis = null;
+let spStartedAt = 0, spPaused = true, spPosition = 0;
+let spHits = 0, spCombo = 0, spSchedule = [];
+
+function spLoadSdk() {
+  return new Promise(resolve => {
+    if (window.Spotify) return resolve();
+    window.onSpotifyWebPlaybackSDKReady = () => resolve();
+    const s = document.createElement('script');
+    s.src = 'https://sdk.scdn.co/spotify-player.js';
+    document.head.appendChild(s);
+  });
+}
+
+async function spInitPlayer() {
+  await spLoadSdk();
+  if (spPlayer) return;
+  const token = spGetToken();
+  spPlayer = new Spotify.Player({
+    name: 'Drum Trainer Boumbi',
+    getOAuthToken: cb => cb(spGetToken()),
+    volume: 0.7,
+  });
+  spPlayer.addListener('ready', ({ device_id }) => {
+    spDeviceId = device_id;
+    document.getElementById('sp-status').textContent = `🟢 Connecté · device prêt`;
+  });
+  spPlayer.addListener('not_ready', () => {
+    document.getElementById('sp-status').textContent = `⚠ device offline`;
+  });
+  spPlayer.addListener('player_state_changed', s => {
+    if (!s) return;
+    spPaused = s.paused;
+    spPosition = s.position;
+    spStartedAt = performance.now() - s.position;
+  });
+  spPlayer.addListener('initialization_error', e => console.error('SP init:', e));
+  spPlayer.addListener('authentication_error', e => { console.error('SP auth:', e); spLogout(); });
+  spPlayer.addListener('account_error', e => alert('Spotify : compte Premium requis. ' + (e.message || '')));
+  await spPlayer.connect();
+}
+
+async function spSearch(q) {
+  const r = await spApi(`/search?q=${encodeURIComponent(q)}&type=track&limit=12`);
+  const data = await r.json();
+  return data.tracks?.items || [];
+}
+
+async function spPlay(trackUri, trackId) {
+  if (!spDeviceId) {
+    document.getElementById('sp-status').textContent = '⌛ device en cours d\'init…';
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  await spApi(`/me/player/play?device_id=${spDeviceId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uris: [trackUri] }),
+  });
+  // Fetch audio-analysis
+  try {
+    const r = await spApi(`/audio-analysis/${trackId}`);
+    spAnalysis = await r.json();
+    spBuildSchedule();
+  } catch (e) {
+    console.error('audio-analysis:', e);
+    spAnalysis = null;
+  }
+}
+
+function spBuildSchedule() {
+  spSchedule = [];
+  if (!spAnalysis) return;
+  const beats = spAnalysis.beats || [];
+  // Pattern simple : kick sur temps 1+3 d'une mesure 4/4, snare sur 2+4, hi-hat sur tous
+  beats.forEach((b, i) => {
+    const inBar = i % 4;
+    spSchedule.push({ t: b.start * 1000, lane: 'hihat', hit: false, missed: false });
+    if (inBar === 0 || inBar === 2) spSchedule.push({ t: b.start * 1000, lane: 'kick', hit: false, missed: false });
+    if (inBar === 1 || inBar === 3) spSchedule.push({ t: b.start * 1000, lane: 'snare', hit: false, missed: false });
+  });
+  spHits = 0; spCombo = 0;
+  document.getElementById('sp-hits').textContent = 0;
+  document.getElementById('sp-combo').textContent = 0;
+}
+
+// Rendu canvas du mode Spotify (similaire à drawPlay mais piloté par la position du player)
+const SP_LANES = [
+  { id:'hihat', name:'Hi-Hat', color:'#6BCB77', emoji:'🎩' },
+  { id:'snare', name:'Snare',  color:'#FFD93D', emoji:'🥁' },
+  { id:'kick',  name:'Kick',   color:'#FF6B6B', emoji:'🦶' },
+];
+const SP_HIT_WINDOW_MS = 200;
+let spCanvas, spCtx;
+function spResizeCanvas() {
+  if (!spCanvas) return;
+  const r = spCanvas.getBoundingClientRect();
+  spCanvas.width = r.width * devicePixelRatio;
+  spCanvas.height = r.height * devicePixelRatio;
+  spCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+}
+
+function spBuildPads() {
+  const root = document.getElementById('sp-pads');
+  root.innerHTML = '';
+  for (const l of SP_LANES) {
+    const div = document.createElement('div');
+    div.style.cssText = `flex:1;max-width:200px;display:flex;flex-direction:column;align-items:center;gap:6px;color:white`;
+    div.dataset.lane = l.id;
+    div.innerHTML = `
+      <div style="font-size:16px;font-weight:700">${l.emoji} ${l.name}</div>
+      <div style="width:100%;aspect-ratio:1;max-width:120px;border-radius:50%;background:${l.color};border:4px solid rgba(255,255,255,0.4);box-shadow:0 4px 16px ${l.color}66;display:flex;align-items:center;justify-content:center;font-size:32px;" class="sp-pad-circle"></div>
+    `;
+    root.appendChild(div);
+  }
+}
+
+function spDrawLoop() {
+  requestAnimationFrame(spDrawLoop);
+  if (currentScreen !== 'spotify' || !spAnalysis) return;
+  const cw = spCanvas.clientWidth, ch = spCanvas.clientHeight;
+  spCtx.clearRect(0, 0, cw, ch);
+  const padH = 220;
+  const nowY = ch - padH;
+  const laneW = cw / SP_LANES.length;
+
+  // Background lanes
+  for (let i = 0; i < SP_LANES.length; i++) {
+    spCtx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)';
+    spCtx.fillRect(i * laneW, 0, laneW, nowY);
+  }
+  // Now line
+  spCtx.strokeStyle = '#4ECDC4';
+  spCtx.lineWidth = 3;
+  spCtx.beginPath(); spCtx.moveTo(0, nowY); spCtx.lineTo(cw, nowY); spCtx.stroke();
+
+  // Position courante du track (extrapolée depuis le dernier state)
+  const elapsed = spPaused ? spPosition : (performance.now() - spStartedAt);
+  const fallMs = 1600;  // temps pour qu'une note descende du haut au now-line
+
+  // Dessine les notes dans la fenêtre [elapsed - 400ms, elapsed + fallMs]
+  for (const n of spSchedule) {
+    if (n.hit) continue;
+    const dt = n.t - elapsed;  // ms avant que la note arrive au now-line
+    if (dt < -400) continue;
+    if (dt > fallMs + 100) continue;
+    const y = nowY - (dt / fallMs) * nowY;
+    if (y < -30 || y > ch) continue;
+    const li = SP_LANES.findIndex(l => l.id === n.lane);
+    if (li < 0) continue;
+    const lane = SP_LANES[li];
+    const x = li * laneW + 12;
+    const w = laneW - 24;
+    spCtx.fillStyle = n.missed ? '#444' : lane.color;
+    spCtx.fillRect(x, y - 14, w, 28);
+    spCtx.strokeStyle = 'rgba(0,0,0,0.3)';
+    spCtx.lineWidth = 1.5;
+    spCtx.strokeRect(x, y - 14, w, 28);
+    if (dt < -SP_HIT_WINDOW_MS) {
+      n.missed = true;
+      spCombo = 0;
+      document.getElementById('sp-combo').textContent = 0;
+    }
+  }
+}
+
+function spRegisterHit(laneId) {
+  if (currentScreen !== 'spotify' || !spSchedule.length) return;
+  const elapsed = spPaused ? spPosition : (performance.now() - spStartedAt);
+  let best = null, bestDt = Infinity;
+  for (const n of spSchedule) {
+    if (n.hit || n.missed || n.lane !== laneId) continue;
+    const dt = Math.abs(n.t - elapsed);
+    if (dt < bestDt) { best = n; bestDt = dt; }
+  }
+  if (best && bestDt <= SP_HIT_WINDOW_MS) {
+    best.hit = true;
+    spHits++; spCombo++;
+    document.getElementById('sp-hits').textContent = spHits;
+    document.getElementById('sp-combo').textContent = spCombo;
+    // Flash pad
+    const pad = document.querySelector(`#sp-pads [data-lane="${laneId}"] .sp-pad-circle`);
+    if (pad) {
+      pad.style.transform = 'scale(1.15)';
+      pad.style.background = 'white';
+      setTimeout(() => { pad.style.transform = ''; pad.style.background = SP_LANES.find(l => l.id === laneId).color; }, 100);
+    }
+  }
+}
+
+// UI handlers
+function spUpdateUI() {
+  const tok = spGetToken();
+  document.getElementById('sp-disconnected').style.display = tok ? 'none' : 'flex';
+  document.getElementById('sp-connected').style.display = tok ? 'flex' : 'none';
+  if (tok && !spPlayer) spInitPlayer().catch(e => console.error(e));
+}
+
+document.getElementById('sp-login').addEventListener('click', spLogin);
+document.getElementById('sp-logout').addEventListener('click', spLogout);
+
+let spSearchTimer = null;
+document.getElementById('sp-search').addEventListener('input', e => {
+  clearTimeout(spSearchTimer);
+  const q = e.target.value.trim();
+  if (!q) { document.getElementById('sp-results').innerHTML = ''; return; }
+  spSearchTimer = setTimeout(async () => {
+    try {
+      const items = await spSearch(q);
+      const root = document.getElementById('sp-results');
+      root.innerHTML = '';
+      for (const t of items) {
+        const card = document.createElement('button');
+        card.style.cssText = `display:flex;align-items:center;gap:12px;padding:10px;background:white;border:1px solid #eee;border-radius:10px;cursor:pointer;text-align:left;font-family:inherit;`;
+        card.innerHTML = `
+          <img src="${t.album.images[2]?.url || ''}" style="width:48px;height:48px;border-radius:6px">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:14px">${t.name}</div>
+            <div style="color:var(--muted);font-size:12px">${t.artists.map(a => a.name).join(', ')}</div>
+          </div>
+          <span style="color:var(--accent);font-weight:700;font-size:13px">▶</span>
+        `;
+        card.addEventListener('click', () => {
+          spCurrentTrack = t;
+          document.getElementById('sp-now-playing').style.display = 'flex';
+          document.getElementById('sp-album-art').src = t.album.images[1]?.url || t.album.images[0]?.url || '';
+          document.getElementById('sp-track-name').textContent = t.name;
+          document.getElementById('sp-track-artist').textContent = t.artists.map(a => a.name).join(', ');
+          document.getElementById('sp-game').style.display = 'block';
+          spResizeCanvas();
+          spPlay(t.uri, t.id);
+          setTimeout(() => {
+            if (spAnalysis) {
+              const tempo = Math.round(spAnalysis.track.tempo);
+              const beats = spAnalysis.beats.length;
+              document.getElementById('sp-track-meta').textContent = `Tempo ${tempo} BPM · ${beats} beats détectés`;
+            }
+          }, 800);
+        });
+        root.appendChild(card);
+      }
+    } catch (e) {
+      console.error('Spotify search:', e);
+    }
+  }, 350);
+});
+
+document.getElementById('sp-pause').addEventListener('click', () => {
+  if (spPlayer) spPlayer.togglePlay();
+});
+document.getElementById('sp-stop').addEventListener('click', () => {
+  if (spPlayer) spPlayer.pause();
+  document.getElementById('sp-now-playing').style.display = 'none';
+  document.getElementById('sp-game').style.display = 'none';
+  spAnalysis = null; spSchedule = [];
+});
+
+// Hook MIDI in pour le mode Spotify
+const _origOnMIDI = window.onMIDI;
+// (on patche ailleurs : ajouter au gros switch dans onMIDI plus bas)
+
+// Capture initial : si on revient d'un redirect OAuth
+(async () => {
+  await spHandleRedirect();
+  spUpdateUI();
+})();
+
 // Restaure l'écran courant depuis localStorage (sauf 'home' qui est déjà actif)
 const savedScreen = localStorage.getItem('boumbi-last-screen');
 if (savedScreen && PERSISTED_SCREENS.has(savedScreen) && savedScreen !== 'home') {
