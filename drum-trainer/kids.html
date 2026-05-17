@@ -279,6 +279,37 @@ button:focus { outline: none; }
 /* Vaut sa largeur réelle + un petit gap. */
 :root { --switcher-w: 210px; }
 
+/* === Bouton plein écran (visible apres une sortie de fullscreen) === */
+.fs-btn {
+  position: fixed;
+  bottom: 14px;
+  right: 14px;
+  z-index: 95;
+  display: none;
+  align-items: center;
+  gap: 7px;
+  background: rgba(0, 0, 0, 0.78);
+  color: white;
+  border: none;
+  padding: 9px 16px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+  backdrop-filter: blur(6px);
+  animation: fs-btn-pulse 2s ease-out;
+}
+.fs-btn.visible { display: inline-flex; }
+.fs-btn:hover { background: rgba(0, 0, 0, 0.92); transform: translateY(-2px); }
+.fs-btn .fs-icon { font-size: 18px; line-height: 1; }
+@keyframes fs-btn-pulse {
+  0% { transform: scale(0.6); opacity: 0; }
+  40% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 .profile-dropdown {
   position: fixed;
   top: 58px; right: 12px;
@@ -2397,6 +2428,11 @@ button:focus { outline: none; }
 </head>
 <body>
 
+<!-- Bouton pour repasser en plein écran (visible uniquement après une sortie de fullscreen) -->
+<button class="fs-btn" id="fs-btn" title="Passer en plein écran" aria-label="Plein écran">
+  <span class="fs-icon">⛶</span><span class="fs-label">Plein écran</span>
+</button>
+
 <!-- Switcher de profil global, visible sur toutes les pages -->
 <button class="profile-switcher" id="profile-switcher" aria-label="Changer de profil">
   <span class="ps-emoji" id="ps-emoji">🦁</span>
@@ -3467,6 +3503,53 @@ function goto(screen) {
 }
 document.querySelectorAll('[data-goto]').forEach(el => {
   el.addEventListener('click', () => goto(el.dataset.goto));
+});
+
+// =====================================================================
+// Plein écran — entree auto au 1er clic sur une carte du home, bouton
+// visible apres une sortie via Echap pour repasser en fullscreen rapidement
+// =====================================================================
+let fsAutoEntered = false;
+
+function fsIsActive() {
+  return !!(document.fullscreenElement || document.webkitFullscreenElement);
+}
+
+function fsEnter() {
+  const el = document.documentElement;
+  const req = el.requestFullscreen
+    || el.webkitRequestFullscreen
+    || el.mozRequestFullScreen
+    || el.msRequestFullscreen;
+  if (!req) return;
+  try {
+    const p = req.call(el);
+    if (p && typeof p.catch === 'function') p.catch(() => {});
+  } catch {}
+}
+
+function fsUpdateBtn() {
+  const btn = document.getElementById('fs-btn');
+  if (!btn) return;
+  // Visible uniquement quand pas en fullscreen ET qu'on a deja active
+  // fullscreen au moins une fois (sinon on l'affiche pas au tout debut).
+  const show = !fsIsActive() && fsAutoEntered;
+  btn.classList.toggle('visible', show);
+}
+
+['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange']
+  .forEach(ev => document.addEventListener(ev, fsUpdateBtn));
+
+document.getElementById('fs-btn').addEventListener('click', fsEnter);
+
+// 1er clic sur une carte du home → enter fullscreen
+document.querySelectorAll('.home-cards .card').forEach(card => {
+  card.addEventListener('click', () => {
+    if (!fsAutoEntered) {
+      fsAutoEntered = true;
+      if (!fsIsActive()) fsEnter();
+    }
+  });
 });
 
 // =====================================================================
