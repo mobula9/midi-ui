@@ -2212,6 +2212,21 @@ button:focus { outline: none; }
   cursor: pointer;
 }
 .runner-intro-cancel:hover { background: #f5f5f0; color: var(--text); }
+.runner-intro-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #f5f5f0;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+  margin: 4px 0 12px 0;
+  user-select: none;
+}
+.runner-intro-option input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
 .runner-intro-content h2 { margin: 12px 0 8px; font-size: 28px; }
 .runner-intro-content p { color: var(--muted); margin: 0 0 16px; line-height: 1.5; font-size: 14px; }
 .runner-intro-legend {
@@ -3150,6 +3165,10 @@ button:focus { outline: none; }
       <div style="font-size:88px;line-height:1;">🦖</div>
       <h2 data-title-tpl="{name}, prêt à courir ?">Prêt à courir ?</h2>
       <p>Tape le bon pad au bon moment pour éviter les obstacles.<br/>3 vies. Vas le plus loin possible !</p>
+      <label class="runner-intro-option">
+        <input type="checkbox" id="runner-skip-pedals">
+        <span>Sans les pédales 🦶 (pas de kick)</span>
+      </label>
       <div class="runner-intro-legend" id="runner-intro-legend"></div>
       <div class="runner-intro-actions">
         <button class="runner-start-btn" id="runner-start-btn">▶ Démarrer</button>
@@ -5674,6 +5693,21 @@ const RUNNER_LEVELS = [
   { lv: 6, threshold: 650, pool: ['kick', 'snare', 'tomL', 'crash', 'hihat'], speed: 390, beats: 1.5, offbeatChance: 0.4 },
   { lv: 7, threshold: 900, pool: ['kick', 'snare', 'tomL', 'crash', 'hihat'], speed: 440, beats: 1,   offbeatChance: 0.5 },
 ];
+
+// Variante "sans pedales" : on remplace kick par snare. Conserve la progression.
+const RUNNER_LEVELS_NO_PEDALS = [
+  { lv: 1, threshold:   0, pool: ['snare'],                              speed: 230, beats: 4 },
+  { lv: 2, threshold:  80, pool: ['snare', 'tomL'],                      speed: 260, beats: 3 },
+  { lv: 3, threshold: 180, pool: ['snare', 'tomL', 'crash'],             speed: 290, beats: 2 },
+  { lv: 4, threshold: 300, pool: ['snare', 'tomL', 'crash', 'hihat'],    speed: 320, beats: 2 },
+  { lv: 5, threshold: 450, pool: ['snare', 'tomL', 'crash', 'hihat'],    speed: 350, beats: 2, offbeatChance: 0.3 },
+  { lv: 6, threshold: 650, pool: ['snare', 'tomL', 'crash', 'hihat'],    speed: 390, beats: 1.5, offbeatChance: 0.4 },
+  { lv: 7, threshold: 900, pool: ['snare', 'tomL', 'crash', 'hihat'],    speed: 440, beats: 1,   offbeatChance: 0.5 },
+];
+
+function runnerSkipPedals() {
+  return localStorage.getItem(pkey('runner-skip-pedals')) === '1';
+}
 // Nouvelle mecanique : tu tapes AVANT que l'obstacle arrive sur Boumbi pour
 // declencher le saut. Boumbi saute, l'obstacle passe en dessous, Boumbi
 // retombe APRES. Donc le hit window est AHEAD de Boumbi (a sa droite).
@@ -5720,15 +5754,19 @@ const runner = {
   obstaclesPassed: 0,
 };
 
+function runnerCurrentLevels() {
+  return runnerSkipPedals() ? RUNNER_LEVELS_NO_PEDALS : RUNNER_LEVELS;
+}
 function runnerCurrentLevelCfg() {
-  // Plus haut threshold <= distance
-  let cfg = RUNNER_LEVELS[0];
-  for (const l of RUNNER_LEVELS) if (runner.distance >= l.threshold) cfg = l;
+  const levels = runnerCurrentLevels();
+  let cfg = levels[0];
+  for (const l of levels) if (runner.distance >= l.threshold) cfg = l;
   return cfg;
 }
 function runnerLevelByDistance(d) {
-  let cfg = RUNNER_LEVELS[0];
-  for (const l of RUNNER_LEVELS) if (d >= l.threshold) cfg = l;
+  const levels = runnerCurrentLevels();
+  let cfg = levels[0];
+  for (const l of levels) if (d >= l.threshold) cfg = l;
   return cfg.lv;
 }
 
@@ -5758,10 +5796,11 @@ function runnerRenderLegend() {
 }
 
 function runnerRenderIntroLegend() {
-  // Légende détaillée pour l'écran d'intro (tous les pads possibles à niveau max)
+  // Légende détaillée pour l'écran d'intro (filtre les pedales si option active)
   const root = document.getElementById('runner-intro-legend');
   root.innerHTML = '';
-  const pool = ['kick', 'snare', 'crash', 'tomL', 'hihat'];
+  let pool = ['kick', 'snare', 'crash', 'tomL', 'hihat'];
+  if (runnerSkipPedals()) pool = pool.filter(l => l !== 'kick');
   pool.forEach(laneId => {
     const o = RUNNER_OBS[laneId];
     const lane = LANES.find(l => l.id === laneId);
@@ -5799,6 +5838,9 @@ function runnerOpen() {
   if (runnerRO) runnerRO.disconnect();
   runnerRO = new ResizeObserver(resizeRunner);
   runnerRO.observe(runnerCanvas);
+  // Sync l'option "sans pedales" depuis le profil courant
+  const skipBox = document.getElementById('runner-skip-pedals');
+  if (skipBox) skipBox.checked = runnerSkipPedals();
   // Legend
   runnerRenderIntroLegend();
   runnerRenderLegend();
@@ -7170,6 +7212,10 @@ function runnerRenderMusicList() {
 
 document.getElementById('runner-start-btn').addEventListener('click', runnerStart);
 document.getElementById('runner-pause-resume').addEventListener('click', runnerResume);
+document.getElementById('runner-skip-pedals').addEventListener('change', e => {
+  localStorage.setItem(pkey('runner-skip-pedals'), e.target.checked ? '1' : '0');
+  runnerRenderIntroLegend();  // maj de la legende intro instant
+});
 document.getElementById('runner-over-again').addEventListener('click', () => {
   document.getElementById('runner-over').classList.remove('active');
   runnerStart();
