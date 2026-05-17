@@ -2303,6 +2303,27 @@ button:focus { outline: none; }
   background: white; color: var(--text); border: 1px solid #ddd;
 }
 
+/* Pause overlay */
+.runner-pause {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 14;
+  backdrop-filter: blur(6px);
+}
+.runner-pause.active { display: flex; }
+.runner-pause-content {
+  background: var(--panel);
+  padding: 28px 36px;
+  border-radius: 24px;
+  text-align: center;
+  max-width: 480px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+}
+
 /* Countdown 3-2-1-GO */
 .runner-countdown {
   position: absolute;
@@ -3170,6 +3191,18 @@ button:focus { outline: none; }
   </div>
   <!-- Countdown 3-2-1-GO -->
   <div class="runner-countdown" id="runner-countdown"></div>
+  <!-- Overlay pause -->
+  <div id="runner-pause" class="runner-pause">
+    <div class="runner-pause-content">
+      <div style="font-size:80px">⏸</div>
+      <h2 style="margin:8px 0;font-size:28px">En pause</h2>
+      <p style="color:var(--muted);font-size:13px;margin:0 0 16px 0">Appuie sur Espace ou tape un pad pour reprendre</p>
+      <div style="display:flex;gap:10px;justify-content:center;">
+        <button id="runner-pause-resume" class="runner-start-btn">▶ Reprendre</button>
+        <button id="runner-pause-quit" class="runner-intro-cancel" data-goto="home">🏠 Quitter</button>
+      </div>
+    </div>
+  </div>
 </section>
 
 <!-- =================================================================== -->
@@ -5665,6 +5698,8 @@ function resizeRunner() {
 
 const runner = {
   active: false,
+  paused: false,        // pause via Espace
+  pausedAt: 0,
   startedAt: 0,
   lastT: 0,
   musicStartT: 0,       // performance.now() au moment du start de la musique
@@ -5799,6 +5834,7 @@ function runnerCountdown(then) {
 function runnerStart() {
   document.getElementById('runner-intro').classList.add('hidden');
   document.getElementById('runner-over').classList.remove('active');
+  document.getElementById('runner-pause').classList.remove('active');
   // Reset state
   runner.distance = 0;
   runner.lives = RUNNER_LIVES;
@@ -5808,6 +5844,7 @@ function runnerStart() {
   runner.floatingText = [];
   runner.scrollX = 0;
   runner.obstaclesPassed = 0;
+  runner.paused = false;
   runner.boumbi = { y: 0, vy: 0, anim: null, animT: 0, jumpHeight: 110 };
   document.getElementById('runner-distance').textContent = '0';
   document.getElementById('runner-level').textContent = '1';
@@ -5842,7 +5879,8 @@ function runnerStartLoop() {
 function runnerLoop(t) {
   const dt = Math.min(50, t - runner.lastT) / 1000;  // s, cap pour éviter sauts si tab off
   runner.lastT = t;
-  if (runner.active) runnerUpdate(dt, t);
+  // Pause : on continue a rendre mais sans mettre a jour l'etat du jeu
+  if (runner.active && !runner.paused) runnerUpdate(dt, t);
   runnerDraw();
 }
 
@@ -6469,12 +6507,15 @@ function runnerGameOver() {
 
 function runnerStopAll() {
   runner.active = false;
+  runner.paused = false;
   if (runner.rafId) { cancelAnimationFrame(runner.rafId); runner.rafId = 0; }
   if (runnerRO) { runnerRO.disconnect(); runnerRO = null; }
   const cd = document.getElementById('runner-countdown');
   if (cd) { cd.classList.remove('active'); cd.style.display = 'none'; }
   const ov = document.getElementById('runner-over');
   if (ov) ov.classList.remove('active');
+  const pa = document.getElementById('runner-pause');
+  if (pa) pa.classList.remove('active');
   runnerMusicStop();
 }
 
@@ -6593,126 +6634,151 @@ function runnerNoiseBuf() {
   return _runnerNoiseBuffer;
 }
 
+// Drums TR-808 style : sons emblématiques synthétisés avec fidelité.
+// Le hi-hat utilise la fameuse formule "6 oscillateurs carrés a freqs fixes" du
+// TR-808 réel, le kick est un sub-bass deep, le snare a deux tones + noise.
 function runnerSynthDrum(type, when, gain) {
   if (!audioCtx) return;
   const target = runnerMusic.master || audioCtx.destination;
+
   if (type === 'k') {
-    // Kick : sine avec pitch enveloppe descendante + petit click noise
+    // === 808 Kick ===
+    // Sine bass profonde, pitch envelope rapide (~80Hz → 50Hz en 40ms)
+    // Long sustain exponentiel, pas de click. Le son emblematique du 808.
     const o = audioCtx.createOscillator();
     const g = audioCtx.createGain();
     o.type = 'sine';
-    o.frequency.setValueAtTime(150, when);
-    o.frequency.exponentialRampToValueAtTime(40, when + 0.08);
-    g.gain.setValueAtTime(gain * 1.1, when);
-    g.gain.exponentialRampToValueAtTime(0.0001, when + 0.18);
-    o.connect(g).connect(target);
-    o.start(when); o.stop(when + 0.2);
-    // Click bref
-    const noise = runnerNoiseBuf();
-    if (noise) {
-      const src = audioCtx.createBufferSource();
-      src.buffer = noise;
-      const ng = audioCtx.createGain();
-      ng.gain.setValueAtTime(gain * 0.5, when);
-      ng.gain.exponentialRampToValueAtTime(0.0001, when + 0.005);
-      src.connect(ng).connect(target);
-      src.start(when); src.stop(when + 0.006);
+    o.frequency.setValueAtTime(90, when);
+    o.frequency.exponentialRampToValueAtTime(48, when + 0.04);
+    g.gain.setValueAtTime(gain * 1.6, when);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + 0.7);
+    // Petit waveshaper pour la "chaleur 808"
+    const ws = audioCtx.createWaveShaper();
+    const curve = new Float32Array(256);
+    for (let i = 0; i < 256; i++) {
+      const x = (i / 128) - 1;
+      curve[i] = Math.tanh(x * 1.8);
     }
+    ws.curve = curve;
+    o.connect(ws).connect(g).connect(target);
+    o.start(when); o.stop(when + 0.75);
   } else if (type === 's') {
-    // Snare : tonal 200Hz + noise burst bandpass
-    const o = audioCtx.createOscillator();
-    const og = audioCtx.createGain();
-    o.type = 'triangle';
-    o.frequency.value = 200;
-    og.gain.setValueAtTime(gain * 0.6, when);
-    og.gain.exponentialRampToValueAtTime(0.0001, when + 0.06);
-    o.connect(og).connect(target);
-    o.start(when); o.stop(when + 0.08);
+    // === 808 Snare ===
+    // 2 tones (180Hz et 330Hz triangle) + noise highpass + amp env court.
+    const fundFreqs = [180, 330];
+    fundFreqs.forEach((f, i) => {
+      const o = audioCtx.createOscillator();
+      const og = audioCtx.createGain();
+      o.type = 'triangle';
+      o.frequency.value = f;
+      og.gain.setValueAtTime(gain * (i === 0 ? 0.55 : 0.35), when);
+      og.gain.exponentialRampToValueAtTime(0.0001, when + 0.08);
+      o.connect(og).connect(target);
+      o.start(when); o.stop(when + 0.1);
+    });
+    // Noise burst high-passed
     const noise = runnerNoiseBuf();
     if (noise) {
       const src = audioCtx.createBufferSource();
       src.buffer = noise;
-      const f = audioCtx.createBiquadFilter();
-      f.type = 'bandpass';
-      f.frequency.value = 1800;
-      f.Q.value = 0.7;
+      const hp = audioCtx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 1800;
+      const bp = audioCtx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 5000;
+      bp.Q.value = 0.5;
       const ng = audioCtx.createGain();
-      ng.gain.setValueAtTime(gain * 0.9, when);
-      ng.gain.exponentialRampToValueAtTime(0.0001, when + 0.13);
-      src.connect(f).connect(ng).connect(target);
-      src.start(when); src.stop(when + 0.15);
+      ng.gain.setValueAtTime(gain * 0.85, when);
+      ng.gain.exponentialRampToValueAtTime(0.0001, when + 0.18);
+      src.connect(hp).connect(bp).connect(ng).connect(target);
+      src.start(when); src.stop(when + 0.2);
     }
   } else if (type === 'h') {
-    // Hi-hat : noise high-pass court
-    const noise = runnerNoiseBuf();
-    if (noise) {
-      const src = audioCtx.createBufferSource();
-      src.buffer = noise;
-      const f = audioCtx.createBiquadFilter();
-      f.type = 'highpass';
-      f.frequency.value = 7000;
-      const ng = audioCtx.createGain();
-      ng.gain.setValueAtTime(gain * 0.7, when);
-      ng.gain.exponentialRampToValueAtTime(0.0001, when + 0.04);
-      src.connect(f).connect(ng).connect(target);
-      src.start(when); src.stop(when + 0.05);
+    // === 808 Hi-Hat ===
+    // 6 oscillateurs carrés a frequences FIXES (vrai algorithme TR-808)
+    // → highpass + bandpass pour le grain metallique court.
+    const FREQS = [205, 304, 369, 522, 540, 800];
+    const hp = audioCtx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 7000;
+    const bp = audioCtx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 10000;
+    bp.Q.value = 0.4;
+    const env = audioCtx.createGain();
+    env.gain.setValueAtTime(gain * 0.55, when);
+    env.gain.exponentialRampToValueAtTime(0.0001, when + 0.038);
+    hp.connect(bp).connect(env).connect(target);
+    for (const f of FREQS) {
+      const o = audioCtx.createOscillator();
+      o.type = 'square';
+      o.frequency.value = f;
+      o.connect(hp);
+      o.start(when); o.stop(when + 0.05);
     }
   }
 }
 
-// Synth ameliore : 2 oscillateurs detunes, filtre lowpass avec envelope,
-// envelope ADSR sur le gain. Sortie vers master (avec send delay).
+// Synth instrument plus stylé : 3 oscillateurs detunes (super-saw style) +
+// sub-oscillator (octave sous, sinus) pour la chaleur basse, filter envelope
+// dynamique, send delay.
 function runnerSynthNote(midi, when, durSec, type, gain) {
   if (!audioCtx) return;
   const freq = 440 * Math.pow(2, (midi - 69) / 12);
 
-  // Envelope sur le gain (ADSR)
+  // Envelope sur le gain (ADSR plus snappy)
   const env = audioCtx.createGain();
   env.gain.setValueAtTime(0, when);
-  env.gain.linearRampToValueAtTime(gain, when + 0.014);                                // attack
-  env.gain.exponentialRampToValueAtTime(Math.max(gain * 0.6, 0.0005), when + 0.1);      // decay -> sustain
-  env.gain.setValueAtTime(Math.max(gain * 0.6, 0.0005), when + Math.max(durSec - 0.1, 0.1));
-  env.gain.exponentialRampToValueAtTime(0.0001, when + durSec);                         // release
+  env.gain.linearRampToValueAtTime(gain, when + 0.012);
+  env.gain.exponentialRampToValueAtTime(Math.max(gain * 0.62, 0.0005), when + 0.09);
+  env.gain.setValueAtTime(Math.max(gain * 0.62, 0.0005), when + Math.max(durSec - 0.08, 0.1));
+  env.gain.exponentialRampToValueAtTime(0.0001, when + durSec);
 
-  // Filtre lowpass dynamique : ouvre a l'attaque pour donner du "brillance"
+  // Filtre lowpass avec envelope (style "TB-303" / lead synthe)
   const filter = audioCtx.createBiquadFilter();
   filter.type = 'lowpass';
-  const baseCut = (type === 'sine') ? 7000 : 1800;
-  filter.frequency.setValueAtTime(baseCut * 0.5, when);
-  filter.frequency.linearRampToValueAtTime(baseCut, when + 0.04);
-  filter.frequency.exponentialRampToValueAtTime(baseCut * 0.55, when + durSec * 0.6);
-  filter.Q.value = 0.8;
+  const baseCut = (type === 'sine') ? 8000 : (type === 'triangle') ? 4500 : 2200;
+  filter.frequency.setValueAtTime(baseCut * 0.4, when);
+  filter.frequency.linearRampToValueAtTime(baseCut, when + 0.05);
+  filter.frequency.exponentialRampToValueAtTime(baseCut * 0.5, when + durSec * 0.7);
+  filter.Q.value = (type === 'sawtooth') ? 2.2 : 1.0;  // resonance plus marquee pour saw
 
-  // 2 oscillateurs (main + detuned de 7 cents) pour epaisseur
+  // 3 oscillateurs : center + ±9 cents pour "super-saw" feel
   const o1 = audioCtx.createOscillator();
-  o1.type = type;
-  o1.frequency.value = freq;
-
+  o1.type = type; o1.frequency.value = freq;
   const o2 = audioCtx.createOscillator();
-  o2.type = type;
-  o2.frequency.value = freq;
-  o2.detune.value = 7;
+  o2.type = type; o2.frequency.value = freq; o2.detune.value = 9;
+  const o3 = audioCtx.createOscillator();
+  o3.type = type; o3.frequency.value = freq; o3.detune.value = -9;
+
+  // Sub-oscillateur (octave plus bas, sine pur) — donne du poids
+  const sub = audioCtx.createOscillator();
+  sub.type = 'sine';
+  sub.frequency.value = freq / 2;
+  const subG = audioCtx.createGain();
+  subG.gain.value = (midi < 60) ? 0.45 : 0.18;  // plus fort pour les notes graves
 
   const mix = audioCtx.createGain();
-  mix.gain.value = 0.55;
+  mix.gain.value = 0.4;
+  o1.connect(mix); o2.connect(mix); o3.connect(mix);
+  sub.connect(subG).connect(mix);
 
-  o1.connect(mix);
-  o2.connect(mix);
   mix.connect(filter).connect(env);
 
-  // Sortie vers master + send sur le delay (un peu de reverb-like)
   const target = runnerMusic.master || audioCtx.destination;
   env.connect(target);
   if (runnerMusic.delay) {
     const sendGain = audioCtx.createGain();
-    sendGain.gain.value = 0.25;
+    sendGain.gain.value = 0.22;
     env.connect(sendGain).connect(runnerMusic.delay);
   }
 
-  o1.start(when);
+  o1.start(when); o2.start(when); o3.start(when); sub.start(when);
   o1.stop(when + durSec + 0.1);
-  o2.start(when);
   o2.stop(when + durSec + 0.1);
+  o3.stop(when + durSec + 0.1);
+  sub.stop(when + durSec + 0.1);
 }
 
 function runnerMusicStart(trackIdx) {
@@ -6940,6 +7006,7 @@ function runnerRenderMusicList() {
 }
 
 document.getElementById('runner-start-btn').addEventListener('click', runnerStart);
+document.getElementById('runner-pause-resume').addEventListener('click', runnerResume);
 document.getElementById('runner-over-again').addEventListener('click', () => {
   document.getElementById('runner-over').classList.remove('active');
   runnerStart();
@@ -6949,11 +7016,50 @@ document.getElementById('runner-over-home').addEventListener('click', () => {
   goto('home');
 });
 
+// Pause / Reprise : Espace ou bouton.
+function runnerPauseToggle() {
+  if (!runner.active) return;
+  if (runner.paused) runnerResume();
+  else runnerPause();
+}
+function runnerPause() {
+  if (!runner.active || runner.paused) return;
+  runner.paused = true;
+  runner.pausedAt = performance.now();
+  document.getElementById('runner-pause').classList.add('active');
+  // Coupe la musique (fade rapide)
+  if (runnerMusic.master && audioCtx) {
+    try {
+      const now = audioCtx.currentTime;
+      runnerMusic.master.gain.cancelScheduledValues(now);
+      runnerMusic.master.gain.setValueAtTime(runnerMusic.master.gain.value, now);
+      runnerMusic.master.gain.linearRampToValueAtTime(0, now + 0.15);
+    } catch {}
+    // Stop le scheduler — les notes deja scheduled vont jouer puis silence
+    if (runnerMusic.schedulerId) { clearTimeout(runnerMusic.schedulerId); runnerMusic.schedulerId = null; }
+  }
+}
+function runnerResume() {
+  if (!runner.active || !runner.paused) return;
+  runner.paused = false;
+  document.getElementById('runner-pause').classList.remove('active');
+  // Decale les references de temps pour que rien ne saute
+  const pausedDur = performance.now() - runner.pausedAt;
+  runner.lastT = performance.now();
+  runner.musicStartT += pausedDur;
+  // Re-relance la musique du meme track
+  if (runnerMusic.trackIdx != null) {
+    runnerMusicStart(runnerMusic.trackIdx);
+  }
+}
+
 // Helper unique : recoit un tap (MIDI ou clavier) sur l'ecran runner.
-// Si une partie est en cours → runnerTap. Sinon → start si on est sur l'intro,
-// ou rejouer si on est sur le gameover. Permet au kid de demarrer/relancer
-// directement avec sa batterie, sans cliquer.
 function runnerHandlePadOrKey(laneId, velocity = 95) {
+  // Si en pause → tap reprend
+  if (runner.active && runner.paused) {
+    runnerResume();
+    return;
+  }
   if (runner.active) {
     runnerTap(laneId, velocity);
     return;
@@ -6969,14 +7075,24 @@ function runnerHandlePadOrKey(laneId, velocity = 95) {
 }
 
 // Keyboard fallback (pour tester sans MIDI)
-// kick=1, snare=2, crash=3, tomL=4, hihat=5 — Space déclenche kick (jump)
+// 1-5 = lanes ; Espace = PAUSE (en cours de jeu) ou START (sur intro/gameover)
 const RUNNER_KEY_MAP = {
   '1': 'kick', '2': 'snare', '3': 'crash', '4': 'tomL', '5': 'hihat',
-  ' ': 'kick', 'Spacebar': 'kick',
 };
 document.addEventListener('keydown', e => {
   if (currentScreen !== 'runner') return;
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+  // Espace : pause / reprise (en cours de jeu) — ou start si pas encore lance
+  if (e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar') {
+    e.preventDefault();
+    if (runner.active) {
+      runnerPauseToggle();
+    } else {
+      // Sur l'intro / gameover : tap pad simulé pour demarrer
+      runnerHandlePadOrKey('kick');
+    }
+    return;
+  }
   const laneId = RUNNER_KEY_MAP[e.key];
   if (laneId) {
     e.preventDefault();
