@@ -1023,18 +1023,59 @@ button:focus { outline: none; }
   align-items: center;
 }
 #screen-memo .screen-title { width: 100%; }
+.memo-controls {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 8px 0 12px 0;
+}
+.memo-difficulty {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  background: var(--panel);
+  padding: 4px 10px 4px 14px;
+  border-radius: 999px;
+  box-shadow: var(--shadow);
+}
+.memo-diff-label { font-size: 13px; color: var(--muted); margin-right: 4px; }
+.memo-difficulty button {
+  background: transparent;
+  border: none;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text);
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: background 0.1s, color 0.1s;
+}
+.memo-difficulty button:hover { background: #f5f5f0; }
+.memo-difficulty button.active {
+  background: var(--accent);
+  color: white;
+}
+.memo-difficulty button .diff-meta {
+  font-size: 10px;
+  opacity: 0.7;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
 .memo-stats {
   display: flex;
-  gap: 32px;
-  margin: 4px 0 10px 0;
-  font-size: 14px;
+  gap: 28px;
+  font-size: 13px;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 1px;
 }
 .memo-stats strong {
   display: block;
-  font-size: 28px;
+  font-size: 26px;
   color: var(--accent);
   line-height: 1;
   font-variant-numeric: tabular-nums;
@@ -1831,9 +1872,18 @@ button:focus { outline: none; }
     <h2 style="margin:0" data-title-tpl="🦉 {name}, retiens la séquence !">🦉 Mémo Boumbi</h2>
     <span style="margin-left:auto;color:var(--muted);font-size:13px;">Regarde, retiens, rejoue</span>
   </div>
-  <div class="memo-stats">
-    <div>Round <strong id="memo-round">—</strong></div>
-    <div>Best <strong id="memo-best">0</strong></div>
+  <!-- Sélecteur de difficulté + stats -->
+  <div class="memo-controls">
+    <div class="memo-difficulty" id="memo-difficulty">
+      <span class="memo-diff-label">Difficulté :</span>
+      <button data-diff="easy">🐣 Facile <span class="diff-meta">3 pads</span></button>
+      <button data-diff="medium" class="active">🦊 Normal <span class="diff-meta">5 pads</span></button>
+      <button data-diff="hard">🦁 Difficile <span class="diff-meta">8 pads</span></button>
+    </div>
+    <div class="memo-stats">
+      <div>Round <strong id="memo-round">—</strong></div>
+      <div>Best <strong id="memo-best">0</strong></div>
+    </div>
   </div>
   <div class="memo-status" id="memo-status">▶ Démarrer pour jouer</div>
   <div class="memo-widget-wrap">
@@ -1851,6 +1901,7 @@ button:focus { outline: none; }
       <div style="font-size:64px;font-weight:800;line-height:1;color:var(--accent);" id="memo-over-rounds">3</div>
       <div style="color:var(--muted);font-size:14px;">round<span id="memo-over-rounds-s">s</span></div>
       <div class="memo-over-stars" id="memo-over-stars">⭐</div>
+      <div id="memo-over-prev" style="margin-top:8px;font-size:13px;color:var(--muted);"></div>
       <div class="actions">
         <button class="primary" id="memo-over-again">🔁 Encore</button>
         <button class="secondary" id="memo-over-home">🏠 Maison</button>
@@ -2350,6 +2401,9 @@ function goto(screen) {
   if (screen === 'free') renderRecordings();
   if (screen === 'reflex') buildReflexBoard();
   if (screen === 'memo') {
+    // Restore la difficulté préférée du profil courant
+    const savedDiff = localStorage.getItem(pkey('memo-difficulty'));
+    if (savedDiff && MEMO_POOLS[savedDiff]) memoDifficulty = savedDiff;
     buildMemoWidget();
     memoSetStatus('▶ Démarrer pour jouer');
     document.getElementById('memo-round').textContent = '—';
@@ -2653,10 +2707,11 @@ function renderProfileDropdown() {
           }
         }
         if (currentScreen === 'memo') {
-          // Reset le mémo + affiche le best du nouveau profil
+          // Reset le mémo + restore les prefs du nouveau profil
           memoStopAll();
-          document.getElementById('memo-best').textContent =
-            parseInt(localStorage.getItem(pkey('memo-best')) || '0', 10);
+          const savedDiff = localStorage.getItem(pkey('memo-difficulty'));
+          if (savedDiff && MEMO_POOLS[savedDiff]) memoDifficulty = savedDiff;
+          buildMemoWidget();
           document.getElementById('memo-round').textContent = '—';
           memoSetStatus('▶ Démarrer pour jouer');
           document.getElementById('memo-start').style.display = '';
@@ -3420,21 +3475,42 @@ document.getElementById('rfx-skip-pedals').addEventListener('change', e => {
 });
 
 // =====================================================================
-// Mémo Boumbi (Simon-says) — V1
+// Mémo Boumbi (Simon-says) — V2 polish
 // Boumbi joue une séquence, le joueur la rejoue. La séquence grandit
 // d'un pad à chaque round réussi. Une erreur = game over.
-// V1 : 5 pads possibles (sans pédales) — niveau medium par défaut.
+// 3 difficultés : facile (3 pads), normal (5), difficile (8 — toutes sauf pédales).
+// La lecture accélère légèrement après round 8 pour ajouter du challenge.
 // =====================================================================
-const MEMO_LANES_V1 = ['snare', 'hihat', 'crash', 'tomL', 'tomH'];
-const MEMO_SHOW_PAD_MS = 480;   // durée d'illumination d'un pad par Boumbi
-const MEMO_SHOW_GAP_MS = 180;   // pause entre 2 pads
+const MEMO_POOLS = {
+  easy:   ['snare', 'hihat', 'crash'],
+  medium: ['snare', 'hihat', 'crash', 'tomL', 'tomH'],
+  hard:   ['snare', 'hihat', 'crash', 'tomL', 'tomM', 'tomH', 'ride', 'ridecup'],
+};
+const MEMO_DIFF_EMOJI = { easy: '🐣', medium: '🦊', hard: '🦁' };
+const MEMO_DIFF_LABEL = { easy: 'Facile', medium: 'Normal', hard: 'Difficile' };
 const MEMO_SHOW_START_DELAY = 600;  // pause avant de commencer la lecture
 
+let memoDifficulty = 'medium';
 let memoSeq = [];
 let memoUserIdx = 0;
 let memoRound = 0;
 let memoPhase = 'idle';  // idle | showing | awaiting | success | gameover
 let memoTimers = [];
+
+function memoActivePool() {
+  return MEMO_POOLS[memoDifficulty] || MEMO_POOLS.medium;
+}
+
+// Tempo de lecture : démarre confortable, accélère légèrement au-delà de round 8.
+// Plus la séquence est longue, moins on perd de temps à la regarder.
+function memoTimings(round) {
+  // round 1 = 480/180, round 12 = 320/120, round 20+ ≈ floor
+  const speedFactor = Math.max(0.65, 1 - Math.max(0, round - 4) * 0.04);
+  return {
+    padMs: Math.round(480 * speedFactor),
+    gapMs: Math.round(180 * speedFactor),
+  };
+}
 
 function memoClearTimers() {
   memoTimers.forEach(t => clearTimeout(t));
@@ -3448,11 +3524,17 @@ function memoSetStatus(text, klass) {
   if (klass) el.classList.add(klass);
 }
 
+function memoBestKey(diff) { return pkey(`memo-best-${diff || memoDifficulty}`); }
+function memoGetBest(diff) {
+  return parseInt(localStorage.getItem(memoBestKey(diff)) || '0', 10);
+}
+
 function buildMemoWidget() {
   const root = document.getElementById('memo-widget');
   root.innerHTML = '';
+  const pool = memoActivePool();
   for (const lane of LANES) {
-    const inPool = MEMO_LANES_V1.includes(lane.id);
+    const inPool = pool.includes(lane.id);
     const el = document.createElement('div');
     el.className = 'memo-pad' + (inPool ? '' : ' disabled');
     el.dataset.lane = lane.id;
@@ -3463,9 +3545,24 @@ function buildMemoWidget() {
     });
     root.appendChild(el);
   }
-  // Affiche le best round courant (per-profile)
-  document.getElementById('memo-best').textContent =
-    parseInt(localStorage.getItem(pkey('memo-best')) || '0', 10);
+  // Affiche le best du mode courant (per-profile)
+  document.getElementById('memo-best').textContent = memoGetBest();
+  // Sync les boutons de difficulté avec l'état
+  document.querySelectorAll('#memo-difficulty button').forEach(b => {
+    b.classList.toggle('active', b.dataset.diff === memoDifficulty);
+  });
+}
+
+function memoSetDifficulty(diff) {
+  if (!MEMO_POOLS[diff]) return;
+  memoDifficulty = diff;
+  localStorage.setItem(pkey('memo-difficulty'), diff);
+  // Si on est en plein jeu, on stoppe et on rebuild
+  memoStopAll();
+  buildMemoWidget();
+  document.getElementById('memo-round').textContent = '—';
+  memoSetStatus('▶ Démarrer pour jouer');
+  document.getElementById('memo-start').style.display = '';
 }
 
 function memoStarsForRound(round) {
@@ -3489,7 +3586,12 @@ function memoNextRound() {
   if (currentScreen !== 'memo') return;  // sécurité au cas où on quitte
   memoRound++;
   document.getElementById('memo-round').textContent = memoRound;
-  const next = MEMO_LANES_V1[Math.floor(Math.random() * MEMO_LANES_V1.length)];
+  const pool = memoActivePool();
+  // Éviter de répéter le même pad 2x de suite (plus musical)
+  const lastLane = memoSeq[memoSeq.length - 1];
+  let candidates = pool;
+  if (lastLane && pool.length > 1) candidates = pool.filter(l => l !== lastLane);
+  const next = candidates[Math.floor(Math.random() * candidates.length)];
   memoSeq.push(next);
   memoUserIdx = 0;
   memoShowSequence();
@@ -3499,12 +3601,12 @@ function memoShowSequence() {
   memoPhase = 'showing';
   memoSetStatus('👀 Regarde Boumbi…', 'boumbi');
   memoClearTimers();
-  const totalShowMs = memoSeq.length * (MEMO_SHOW_PAD_MS + MEMO_SHOW_GAP_MS);
-  // Délai initial pour respirer entre le "à toi" et le show suivant
+  const { padMs, gapMs } = memoTimings(memoRound);
+  const totalShowMs = memoSeq.length * (padMs + gapMs);
   memoSeq.forEach((laneId, i) => {
     const t = setTimeout(
-      () => memoPlayBoumbi(laneId),
-      MEMO_SHOW_START_DELAY + i * (MEMO_SHOW_PAD_MS + MEMO_SHOW_GAP_MS)
+      () => memoPlayBoumbi(laneId, padMs),
+      MEMO_SHOW_START_DELAY + i * (padMs + gapMs)
     );
     memoTimers.push(t);
   });
@@ -3515,12 +3617,12 @@ function memoShowSequence() {
   }, MEMO_SHOW_START_DELAY + totalShowMs + 80));
 }
 
-function memoPlayBoumbi(laneId) {
+function memoPlayBoumbi(laneId, padMs = 480) {
   if (currentScreen !== 'memo') return;
   const el = document.querySelector(`.memo-pad[data-lane="${laneId}"]`);
   if (el) {
     el.classList.add('boumbi-play');
-    setTimeout(() => el.classList.remove('boumbi-play'), MEMO_SHOW_PAD_MS - 80);
+    setTimeout(() => el.classList.remove('boumbi-play'), Math.max(120, padMs - 80));
   }
   // Joue le son via MIDI out si dispo
   const note = LANE_TO_NOTE[laneId];
@@ -3532,7 +3634,8 @@ function memoPlayBoumbi(laneId) {
 
 function memoUserTap(laneId) {
   if (memoPhase !== 'awaiting') return;
-  if (!MEMO_LANES_V1.includes(laneId)) return;  // pad hors pool → ignore
+  const pool = memoActivePool();
+  if (!pool.includes(laneId)) return;  // pad hors pool → ignore
   const el = document.querySelector(`.memo-pad[data-lane="${laneId}"]`);
   const expected = memoSeq[memoUserIdx];
   if (laneId === expected) {
@@ -3545,6 +3648,12 @@ function memoUserTap(laneId) {
       // Round réussi
       memoPhase = 'success';
       memoSetStatus('🎉 Bravo !', 'success');
+      // Petit confetti burst pour célébrer (réutilise existant)
+      if (typeof spawnConfetti === 'function') {
+        for (let i = 0; i < 12; i++) {
+          setTimeout(() => spawnConfetti(null, 1), Math.random() * 300);
+        }
+      }
       memoTimers.push(setTimeout(memoNextRound, 700));
     }
   } else {
@@ -3563,8 +3672,9 @@ function memoGameOver() {
   // Rounds réussis = memoRound - 1 (on a fail au round courant)
   const completed = Math.max(0, memoRound - 1);
   memoSetStatus('😅 Raté !', 'fail');
-  // Save best round per-profile
-  const bestKey = pkey('memo-best');
+
+  // Save best round per-mode + per-profile
+  const bestKey = memoBestKey();
   const prevBest = parseInt(localStorage.getItem(bestKey) || '0', 10);
   let isNewBest = false;
   if (completed > prevBest) {
@@ -3574,16 +3684,23 @@ function memoGameOver() {
   document.getElementById('memo-best').textContent = Math.max(prevBest, completed);
 
   // Stars : alimente le compteur global comme les autres modes
+  // patternId distinct par difficulté pour qu'on garde les 3 ⭐ par mode séparément
   const stars = memoStarsForRound(completed);
   if (stars > 0) {
-    addStarsFor('memo', stars);  // utilise le système existant
+    addStarsFor(`memo-${memoDifficulty}`, stars);
   }
 
   // Save dans l'historique du mode (per-profile)
   try {
     const hKey = pkey('memo-history');
     const arr = JSON.parse(localStorage.getItem(hKey) || '[]');
-    arr.push({ ts: Date.now(), round: completed, stars, record: isNewBest });
+    arr.push({
+      ts: Date.now(),
+      round: completed,
+      stars,
+      record: isNewBest,
+      diff: memoDifficulty,
+    });
     if (arr.length > 100) arr.splice(0, arr.length - 100);
     localStorage.setItem(hKey, JSON.stringify(arr));
   } catch {}
@@ -3598,6 +3715,15 @@ function memoGameOver() {
   const recEl = document.getElementById('memo-over-record');
   if (isNewBest && completed > 0) recEl.classList.add('show');
   else recEl.classList.remove('show');
+  // Ligne "ancien record / ton record"
+  const prevLine = document.getElementById('memo-over-prev');
+  if (isNewBest && prevBest > 0) {
+    prevLine.textContent = `Ancien record ${MEMO_DIFF_EMOJI[memoDifficulty]} : ${prevBest}`;
+  } else if (!isNewBest && prevBest > 0) {
+    prevLine.textContent = `Record ${MEMO_DIFF_EMOJI[memoDifficulty]} : ${prevBest}`;
+  } else {
+    prevLine.textContent = `Mode ${MEMO_DIFF_EMOJI[memoDifficulty]} ${MEMO_DIFF_LABEL[memoDifficulty]}`;
+  }
   // Adapte le titre/emoji selon la perf
   const emojiEl = document.getElementById('memo-over-emoji');
   const titleEl = document.getElementById('memo-over-title');
@@ -3606,7 +3732,13 @@ function memoGameOver() {
   else if (completed >= 3) { emojiEl.textContent = '👏'; titleEl.textContent = 'Bien joué !'; }
   else if (completed >= 1) { emojiEl.textContent = '💪'; titleEl.textContent = 'On retente ?'; }
   else { emojiEl.textContent = '🦉'; titleEl.textContent = 'On essaie encore ?'; }
+  // Sons de récompense
+  if (isNewBest && completed > 0 && typeof playReward === 'function') {
+    playReward();
+    setTimeout(playReward, 300);
+  }
   overlay.classList.add('active');
+  updateStarsCounter();
 }
 
 function memoStopAll() {
@@ -3626,6 +3758,12 @@ document.getElementById('memo-over-again').addEventListener('click', () => {
 document.getElementById('memo-over-home').addEventListener('click', () => {
   document.getElementById('memo-over').classList.remove('active');
   goto('home');
+});
+// Sélecteur de difficulté
+document.getElementById('memo-difficulty').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-diff]');
+  if (!btn) return;
+  memoSetDifficulty(btn.dataset.diff);
 });
 
 // =====================================================================
