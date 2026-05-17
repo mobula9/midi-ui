@@ -262,6 +262,14 @@ button:focus { outline: none; }
 .profile-switcher .ps-stars { font-size: 11px; color: var(--muted); font-weight: 600; }
 .profile-switcher .ps-arrow { font-size: 11px; opacity: 0.5; margin-left: 2px; }
 
+/* Pulse a chaque tap (Tap Tempo) */
+@keyframes tap-tempo-pulse {
+  0% { transform: translateX(-50%) scale(1); box-shadow: 0 0 30px rgba(78,205,196,0.5); }
+  35% { transform: translateX(-50%) scale(1.04); box-shadow: 0 0 50px rgba(78,205,196,0.85); }
+  100% { transform: translateX(-50%) scale(1); box-shadow: 0 0 30px rgba(78,205,196,0.5); }
+}
+#tap-tempo-bar.tap-pulse { animation: tap-tempo-pulse 0.18s ease-out; }
+
 /* Largeur réservée pour ne pas que la pill cache les autres éléments. */
 /* Vaut sa largeur réelle + un petit gap. */
 :root { --switcher-w: 210px; }
@@ -1509,7 +1517,7 @@ button:focus { outline: none; }
   <div class="play-accomp-row">
     <button id="accomp-toggle" class="play-accomp-btn" data-state="off">🎵 Synthé</button>
     <button id="sp-accomp-btn" class="play-accomp-btn">🎶 Spotify</button>
-    <button id="tap-tempo-btn" class="play-accomp-btn" title="Tape ESPACE en rythme pour caler le BPM">🥁 Tap</button>
+    <button id="tap-tempo-btn" class="play-accomp-btn" title="Tape ESPACE ou n'importe quel pad en rythme pour caler le BPM">🥁 Tap</button>
     <div id="sp-accomp-info" style="display:none;background:linear-gradient(135deg,#1DB95455,#4ECDC433);padding:6px 12px;border-radius:999px;color:white;font-weight:700;font-size:12px;align-items:center;gap:8px;border:1px solid rgba(255,255,255,0.2);max-width:380px;overflow:hidden;">
       <span id="sp-accomp-track" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">—</span>
       <button id="sp-accomp-stop" style="background:rgba(0,0,0,0.5);color:white;border:none;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:11px;line-height:1;flex-shrink:0;">×</button>
@@ -1517,10 +1525,14 @@ button:focus { outline: none; }
   </div>
   <canvas id="play-canvas"></canvas>
   <!-- Tap tempo overlay -->
-  <div id="tap-tempo-bar" style="display:none;position:absolute;top:90px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:white;padding:16px 32px;border-radius:16px;z-index:10;flex-direction:column;align-items:center;gap:6px;border:2px solid var(--accent);box-shadow:0 0 30px rgba(78,205,196,0.5);">
-    <div style="font-size:13px;font-weight:700;color:var(--accent);letter-spacing:1px;">TAPE ESPACE EN RYTHME</div>
-    <div style="font-size:42px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;">
+  <div id="tap-tempo-bar" style="display:none;position:absolute;top:90px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:white;padding:16px 28px;border-radius:18px;z-index:10;flex-direction:column;align-items:center;gap:10px;border:2px solid var(--accent);box-shadow:0 0 30px rgba(78,205,196,0.5);min-width:300px;">
+    <div style="font-size:12px;font-weight:700;color:var(--accent);letter-spacing:1.5px;">TAPE EN RYTHME · ESPACE ou N'IMPORTE QUEL PAD</div>
+    <div style="font-size:48px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;">
       <span id="tap-tempo-bpm">—</span> <span style="font-size:16px;opacity:0.6;">BPM</span>
+    </div>
+    <!-- Jauge qui se remplit a chaque tap -->
+    <div id="tap-tempo-gauge" style="width:100%;height:10px;background:rgba(255,255,255,0.12);border-radius:5px;overflow:hidden;position:relative;">
+      <div id="tap-tempo-gauge-fill" style="width:0%;height:100%;background:linear-gradient(90deg,#4ECDC4,#FFD93D);border-radius:5px;transition:width 0.15s ease-out;"></div>
     </div>
     <div style="font-size:11px;color:rgba(255,255,255,0.7);">
       <span id="tap-tempo-count">0</span> taps
@@ -3557,6 +3569,9 @@ async function tapTempoStart() {
   document.getElementById('tap-tempo-bar').style.display = 'flex';
   document.getElementById('tap-tempo-count').textContent = '0';
   document.getElementById('tap-tempo-bpm').textContent = '—';
+  // Reset la jauge
+  const fill0 = document.getElementById('tap-tempo-gauge-fill');
+  if (fill0) fill0.style.width = '0%';
   // Auto-stop caché tant qu'on n'a pas atteint le min de taps
   document.getElementById('tap-tempo-autostop').style.display = 'none';
   if (tapEndTimer) { clearTimeout(tapEndTimer); tapEndTimer = null; }
@@ -3593,6 +3608,9 @@ function tapTempoArmAutoStop() {
   tapEndTimer = setTimeout(tapTempoFinish, TAP_SILENCE_MS);
 }
 
+// Combien de taps pour remplir la jauge a 100 %. Au-dela c'est cap, ca reste plein.
+const TAP_GAUGE_FULL = 8;
+
 function tapTempoTap() {
   // 1er tap démarre la session ; si déjà active on ajoute juste
   if (!tapActive) {
@@ -3601,6 +3619,21 @@ function tapTempoTap() {
   const now = performance.now();
   tapTimes.push(now);
   document.getElementById('tap-tempo-count').textContent = tapTimes.length;
+
+  // Pulse visuel + jauge qui se remplit a chaque tap
+  const bar = document.getElementById('tap-tempo-bar');
+  if (bar) {
+    bar.classList.remove('tap-pulse');
+    // reflow pour relancer l'animation
+    void bar.offsetWidth;
+    bar.classList.add('tap-pulse');
+  }
+  const fill = document.getElementById('tap-tempo-gauge-fill');
+  if (fill) {
+    const pct = Math.min(100, (tapTimes.length / TAP_GAUGE_FULL) * 100);
+    fill.style.width = pct + '%';
+  }
+
   // BPM live (basé sur les 5 derniers intervalles, moyenne)
   if (tapTimes.length >= 2) {
     const recent = tapTimes.slice(-6);
@@ -4355,6 +4388,12 @@ function onMIDI(msg) {
     return;
   }
   unmappedCount = 0;
+  // Si le tap tempo est actif, le coup compte uniquement pour le tempo
+  // (n'importe quel pad → un tap)
+  if (tapActive && currentScreen === 'play') {
+    tapTempoTap();
+    return;
+  }
   // Si on attend le 1er coup pour démarrer l'exercice
   if (awaitingStart && currentScreen === 'play') {
     awaitingStart = false;
