@@ -53,6 +53,7 @@ App web type Synthesia pour apprendre la batterie, pensée pour enfants 4-6 ans.
 | `drum-trainer/index.html` | App version debug (calibration, log MIDI temps réel, mode Demo) |
 | `drum-trainer/DD-75-reference.md` | Référence complète du DD-75 : 75 kits, mapping notes MIDI, drum map, dispo physique des pads |
 | `drum-trainer/PRD-kids.md` | Product Requirements Document de la version kids |
+| `drum-trainer/PRD-next-exos.md` | Specs détaillées des 4 prochains modes à coder (Runner, Mémo, Echo, Studio) |
 
 ### Quick start drum trainer
 
