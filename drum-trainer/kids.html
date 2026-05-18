@@ -3617,6 +3617,12 @@ button:focus { outline: none; }
       <input type="checkbox" id="studio-metronome-toggle">
       <span>🥁 Metronome</span>
     </label>
+    <div class="studio-steps-mode" id="studio-record-snap" title="Pr&eacute;cision quand tu enregistres en tapant pendant la lecture">
+      <span class="ssm-label">Snap</span>
+      <button data-snap="beat">Beat</button>
+      <button data-snap="half">½</button>
+      <button data-snap="step" class="active">Fin</button>
+    </div>
   </div>
   <div class="studio-grid-wrap">
     <div class="studio-grid" id="studio-grid"></div>
@@ -8715,6 +8721,8 @@ const studio = {
   stepsCount: 16,             // 8, 16, 32, 64, 128 (8 max = 8 mesures)
   scrollMode: false,          // false = fit (cellules ecrasees), true = scroll-x
   metronome: false,           // click sur chaque temps pendant la lecture
+  recordSnap: 'step',         // 'beat' | 'half' | 'step' - quantize du live record
+  lastStepAt: 0,              // performance.now() du debut du step courant
   lanes: STUDIO_LANES_4,      // copie d'un des deux templates
   steps: {},                  // {kick: [bool * stepsCount], ...}
   loadedId: null,             // id du motif chargé depuis la lib (pour update)
@@ -8773,6 +8781,7 @@ function studioSaveDraft() {
     stepsCount: studio.stepsCount,
     scrollMode: studio.scrollMode,
     metronome: studio.metronome,
+    recordSnap: studio.recordSnap,
     lanes: studio.lanes,
     steps: studio.steps,
     loadedId: studio.loadedId,
@@ -8789,6 +8798,7 @@ function studioLoadDraft() {
     studio.stepsCount = STUDIO_STEPS_OPTIONS.includes(d.stepsCount) ? d.stepsCount : 16;
     studio.scrollMode = !!d.scrollMode;
     studio.metronome = !!d.metronome;
+    studio.recordSnap = ['beat','half','step'].includes(d.recordSnap) ? d.recordSnap : 'step';
     studio.lanes = d.lanes || lanesForMode(studio.laneMode);
     studio.steps = d.steps || studioFreshSteps(studio.lanes);
     studio.loadedId = d.loadedId || null;
@@ -8893,6 +8903,9 @@ function buildStudioGrid() {
   if (scrollChk) scrollChk.checked = !!studio.scrollMode;
   const metroChk = document.getElementById('studio-metronome-toggle');
   if (metroChk) metroChk.checked = !!studio.metronome;
+  document.querySelectorAll('#studio-record-snap button').forEach(b => {
+    b.classList.toggle('active', b.dataset.snap === studio.recordSnap);
+  });
   // Show "supprimer" only if loaded from library
   document.getElementById('studio-delete').style.display = studio.loadedId ? '' : 'none';
 }
@@ -8941,6 +8954,7 @@ function studioPlay() {
     const tick = () => {
       if (!studio.playing) return;
       studio.currentStep = (studio.currentStep + 1) % studio.stepsCount;
+      studio.lastStepAt = performance.now();
       studioRenderStep();
       studio.loopHandle = setTimeout(tick, studioStepIntervalMs());
     };
@@ -9219,9 +9233,16 @@ function studioOnPadTap(laneId) {
     studioPlay();
     return;
   }
-  // Si on est en train de jouer, ajoute la note au step courant (mode "live record")
+  // Si on est en train de jouer, ajoute la note au step quantize par precision (live record)
   if (studio.playing && studio.steps[laneId] && studio.currentStep >= 0) {
-    const step = studio.currentStep;
+    // Position reelle dans l'intervalle de step : si on est dans la 2e moitie,
+    // on vise le step suivant (au lieu d'arrondir vers le bas comme actuellement)
+    const stepMs = studioStepIntervalMs();
+    const elapsed = performance.now() - (studio.lastStepAt || performance.now());
+    const realStep = studio.currentStep + (elapsed >= stepMs / 2 ? 1 : 0);
+    // Quantize a la resolution choisie : 1 (Fin), 2 (Demi-beat), 4 (Beat)
+    const q = studio.recordSnap === 'beat' ? 4 : (studio.recordSnap === 'half' ? 2 : 1);
+    const step = (Math.round(realStep / q) * q + studio.stepsCount) % studio.stepsCount;
     if (!studio.steps[laneId][step]) {
       studio.steps[laneId][step] = true;
       const cell = document.querySelector(`.studio-cell[data-lane="${laneId}"][data-step="${step}"]`);
@@ -9301,6 +9322,20 @@ document.getElementById('studio-scroll-toggle').addEventListener('change', e => 
 // Toggle metronome
 document.getElementById('studio-metronome-toggle').addEventListener('change', e => {
   studio.metronome = !!e.target.checked;
+  studioSaveDraft();
+});
+
+// Selecteur de precision d'enregistrement live
+document.getElementById('studio-record-snap').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-snap]');
+  if (!btn) return;
+  const snap = btn.dataset.snap;
+  if (!['beat', 'half', 'step'].includes(snap)) return;
+  if (snap === studio.recordSnap) return;
+  studio.recordSnap = snap;
+  document.querySelectorAll('#studio-record-snap button').forEach(b => {
+    b.classList.toggle('active', b.dataset.snap === snap);
+  });
   studioSaveDraft();
 });
 
