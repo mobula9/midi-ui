@@ -1649,8 +1649,30 @@ button:focus { outline: none; }
   font-weight: 700;
   font-size: 13px;
   color: var(--text);
-  flex: 0 0 90px;
+  flex: 0 0 110px;
   padding-right: 4px;
+}
+.studio-lane-clear {
+  margin-left: auto;
+  opacity: 0;
+  pointer-events: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px 5px;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1;
+  transition: opacity 0.15s, background 0.1s, transform 0.08s;
+}
+.studio-row:hover .studio-lane-clear {
+  opacity: 0.55;
+  pointer-events: auto;
+}
+.studio-lane-clear:hover {
+  opacity: 1;
+  background: rgba(239, 68, 68, 0.15);
+  transform: scale(1.1);
 }
 .studio-row-label .srl-emoji { font-size: 20px; }
 .studio-row.tap-flash .studio-row-label {
@@ -8823,6 +8845,7 @@ function buildStudioGrid() {
       <div class="studio-row-label" style="color:${lane.color}">
         <span class="srl-emoji">${lane.emoji}</span>
         <span>${lane.name}</span>
+        <button class="studio-lane-clear" data-lane="${laneId}" title="Effacer cette ligne" aria-label="Effacer ${lane.name}">🗑️</button>
       </div>
       <div class="studio-row-cells">${cellsHtml.join('')}</div>
     `;
@@ -8848,6 +8871,13 @@ function buildStudioGrid() {
   // Wire cell clicks
   grid.querySelectorAll('.studio-cell').forEach(c => {
     c.addEventListener('click', () => studioToggleCell(c.dataset.lane, parseInt(c.dataset.step, 10)));
+  });
+  // Wire trash button par lane (clear cette ligne uniquement)
+  grid.querySelectorAll('.studio-lane-clear').forEach(b => {
+    b.addEventListener('click', e => {
+      e.stopPropagation();
+      studioClearLane(b.dataset.lane);
+    });
   });
   // Sync UI
   document.getElementById('studio-name').value = studio.name;
@@ -8886,6 +8916,13 @@ function studioToggleCell(laneId, step) {
       setTimeout(() => el.classList.remove('flash'), 200);
     }
   }
+  studioSaveDraft();
+}
+
+function studioClearLane(laneId) {
+  if (!studio.steps[laneId]) return;
+  for (let i = 0; i < studio.stepsCount; i++) studio.steps[laneId][i] = false;
+  document.querySelectorAll(`.studio-cell[data-lane="${laneId}"]`).forEach(c => c.classList.remove('on'));
   studioSaveDraft();
 }
 
