@@ -3543,6 +3543,10 @@ button:focus { outline: none; }
       <input type="checkbox" id="studio-scroll-toggle">
       <span>Scroll</span>
     </label>
+    <label class="studio-scroll-toggle" title="Click metronome sur chaque temps pendant la lecture">
+      <input type="checkbox" id="studio-metronome-toggle">
+      <span>🥁 Metronome</span>
+    </label>
   </div>
   <div class="studio-grid-wrap">
     <div class="studio-grid" id="studio-grid"></div>
@@ -8633,6 +8637,7 @@ const studio = {
   laneMode: 4,                // 4 ou 8
   stepsCount: 16,             // 8, 16, 32, 64, 128 (8 max = 8 mesures)
   scrollMode: false,          // false = fit (cellules ecrasees), true = scroll-x
+  metronome: false,           // click sur chaque temps pendant la lecture
   lanes: STUDIO_LANES_4,      // copie d'un des deux templates
   steps: {},                  // {kick: [bool * stepsCount], ...}
   loadedId: null,             // id du motif chargé depuis la lib (pour update)
@@ -8690,6 +8695,7 @@ function studioSaveDraft() {
     laneMode: studio.laneMode,
     stepsCount: studio.stepsCount,
     scrollMode: studio.scrollMode,
+    metronome: studio.metronome,
     lanes: studio.lanes,
     steps: studio.steps,
     loadedId: studio.loadedId,
@@ -8705,6 +8711,7 @@ function studioLoadDraft() {
     studio.laneMode = d.laneMode || 4;
     studio.stepsCount = STUDIO_STEPS_OPTIONS.includes(d.stepsCount) ? d.stepsCount : 16;
     studio.scrollMode = !!d.scrollMode;
+    studio.metronome = !!d.metronome;
     studio.lanes = d.lanes || (studio.laneMode === 8 ? STUDIO_LANES_8 : STUDIO_LANES_4);
     studio.steps = d.steps || studioFreshSteps(studio.lanes);
     studio.loadedId = d.loadedId || null;
@@ -8793,6 +8800,8 @@ function buildStudioGrid() {
   });
   const scrollChk = document.getElementById('studio-scroll-toggle');
   if (scrollChk) scrollChk.checked = !!studio.scrollMode;
+  const metroChk = document.getElementById('studio-metronome-toggle');
+  if (metroChk) metroChk.checked = !!studio.metronome;
   // Show "supprimer" only if loaded from library
   document.getElementById('studio-delete').style.display = studio.loadedId ? '' : 'none';
 }
@@ -8851,6 +8860,10 @@ function studioRenderStep() {
   document.querySelectorAll('.studio-cell.playing').forEach(c => c.classList.remove('playing'));
   // Ajoute sur la colonne courante + déclenche les pads actifs
   const step = studio.currentStep;
+  // Metronome : click sur chaque temps (step % 4), accent sur le 1 de chaque mesure (step % 16)
+  if (studio.metronome && step % 4 === 0 && typeof playClick === 'function') {
+    playClick(step % 16 === 0);
+  }
   let anyHit = false;
   for (const laneId of studio.lanes) {
     const isOn = studio.steps[laneId]?.[step];
@@ -9145,6 +9158,12 @@ document.getElementById('studio-scroll-toggle').addEventListener('change', e => 
   studio.scrollMode = !!e.target.checked;
   studioSaveDraft();
   buildStudioGrid();
+});
+
+// Toggle metronome
+document.getElementById('studio-metronome-toggle').addEventListener('change', e => {
+  studio.metronome = !!e.target.checked;
+  studioSaveDraft();
 });
 
 // =====================================================================
