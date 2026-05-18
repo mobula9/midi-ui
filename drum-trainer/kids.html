@@ -1556,13 +1556,48 @@ button:focus { outline: none; }
 .studio-cursor {
   position: absolute;
   pointer-events: none;
-  background: linear-gradient(to right, rgba(239, 68, 68, 0.28), rgba(239, 68, 68, 0.14));
-  border-left: 3px solid #ef4444;
-  border-right: 3px solid #ef4444;
-  box-shadow: 0 0 18px rgba(239, 68, 68, 0.6);
-  border-radius: 4px;
+  background: linear-gradient(to right, rgba(239, 68, 68, 0.55), rgba(239, 68, 68, 0.30));
+  border-left: 4px solid #ef4444;
+  border-right: 4px solid #ef4444;
+  box-shadow:
+    0 0 28px rgba(239, 68, 68, 0.85),
+    inset 0 0 12px rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
   z-index: 4;
   transition: left 0.04s linear, width 0.04s linear;
+  animation: studioCursorPulse 0.5s ease-in-out infinite alternate;
+}
+.studio-cursor::before {
+  /* Tete : triangle pointu en haut, comme un playhead de DAW */
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-top: 12px solid #ef4444;
+  filter: drop-shadow(0 2px 4px rgba(239, 68, 68, 0.8));
+}
+.studio-cursor::after {
+  /* Queue : meme triangle en bas pour symetrie */
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-bottom: 12px solid #ef4444;
+  filter: drop-shadow(0 -2px 4px rgba(239, 68, 68, 0.8));
+}
+@keyframes studioCursorPulse {
+  from { box-shadow: 0 0 18px rgba(239, 68, 68, 0.7), inset 0 0 10px rgba(255,255,255,0.2); }
+  to   { box-shadow: 0 0 38px rgba(239, 68, 68, 1),   inset 0 0 14px rgba(255,255,255,0.35); }
 }
 /* Mode FIT (defaut) : tout rentre, cellules ecrasees */
 .studio-grid.fit {
@@ -3542,6 +3577,7 @@ button:focus { outline: none; }
     <div class="studio-lane-mode" id="studio-lane-mode">
       <button data-mode="4" class="active">4 lanes</button>
       <button data-mode="8">8 lanes</button>
+      <button data-mode="10">10 (+pédales)</button>
     </div>
     <div class="studio-steps-mode" id="studio-steps-mode" title="Nombre de pas">
       <span class="ssm-label">Pas</span>
@@ -8642,6 +8678,13 @@ const echoAttribRefresh = setupScoreAttribution(
 const STUDIO_STEPS_OPTIONS = [8, 16, 32, 64, 128];
 const STUDIO_LANES_4 = ['kick', 'snare', 'hihat', 'crash'];
 const STUDIO_LANES_8 = ['kick', 'snare', 'hihat', 'crash', 'tomL', 'tomM', 'tomH', 'ride'];
+// 10 lanes = 8 pads + 2 pedales du DD-75 (kick + hh foot)
+const STUDIO_LANES_10 = ['kick', 'hhpedal', 'snare', 'hihat', 'ridecup', 'crash', 'tomL', 'tomM', 'tomH', 'ride'];
+function lanesForMode(m) {
+  if (m === 10) return STUDIO_LANES_10;
+  if (m === 8) return STUDIO_LANES_8;
+  return STUDIO_LANES_4;
+}
 
 const studio = {
   bpm: 100,
@@ -8724,7 +8767,7 @@ function studioLoadDraft() {
     studio.stepsCount = STUDIO_STEPS_OPTIONS.includes(d.stepsCount) ? d.stepsCount : 16;
     studio.scrollMode = !!d.scrollMode;
     studio.metronome = !!d.metronome;
-    studio.lanes = d.lanes || (studio.laneMode === 8 ? STUDIO_LANES_8 : STUDIO_LANES_4);
+    studio.lanes = d.lanes || lanesForMode(studio.laneMode);
     studio.steps = d.steps || studioFreshSteps(studio.lanes);
     studio.loadedId = d.loadedId || null;
     return true;
@@ -9014,7 +9057,7 @@ function studioDelete() {
 function studioNewPattern() {
   studioStop();
   studio.name = '';
-  studio.lanes = studio.laneMode === 8 ? STUDIO_LANES_8 : STUDIO_LANES_4;
+  studio.lanes = lanesForMode(studio.laneMode);
   studio.steps = studioFreshSteps(studio.lanes);
   studio.loadedId = null;
   studioSaveDraft();
@@ -9030,7 +9073,7 @@ function studioLoadPattern(id) {
   studio.bpm = p.bpm;
   studio.laneMode = p.laneMode || 4;
   studio.stepsCount = STUDIO_STEPS_OPTIONS.includes(p.stepsCount) ? p.stepsCount : 16;
-  studio.lanes = p.lanes || (studio.laneMode === 8 ? STUDIO_LANES_8 : STUDIO_LANES_4);
+  studio.lanes = p.lanes || lanesForMode(studio.laneMode);
   // Migration : ensure all lane keys exist + padded au stepsCount
   const fresh = studioFreshSteps(studio.lanes);
   studio.steps = {};
@@ -9058,7 +9101,7 @@ function studioOpenLibrary() {
       item.className = 'studio-lib-item' + (p.id === studio.loadedId ? ' active' : '');
       // Preview rendering : pour chaque lane, une mini-ligne 16 cells colorée
       let previewHtml = '';
-      const laneList = p.lanes || (p.laneMode === 8 ? STUDIO_LANES_8 : STUDIO_LANES_4);
+      const laneList = p.lanes || lanesForMode(p.laneMode);
       laneList.slice(0, 4).forEach(lid => {
         const lane = LANES.find(l => l.id === lid);
         const cells = (p.steps[lid] || new Array(16).fill(false))
@@ -9133,6 +9176,12 @@ function studioOnPadTap(laneId) {
     void row.offsetWidth;
     row.classList.add('tap-flash');
   }
+  // Pas en lecture : 1er coup de batterie demarre le count-in puis le pattern.
+  // (Avant cette ligne, la flash visuelle pour le feedback du tap a deja eu lieu.)
+  if (!studio.playing) {
+    studioPlay();
+    return;
+  }
   // Si on est en train de jouer, ajoute la note au step courant (mode "live record")
   if (studio.playing && studio.steps[laneId] && studio.currentStep >= 0) {
     const step = studio.currentStep;
@@ -9180,7 +9229,7 @@ document.getElementById('studio-lane-mode').addEventListener('click', e => {
   const mode = parseInt(btn.dataset.mode, 10);
   if (mode === studio.laneMode) return;
   studio.laneMode = mode;
-  const newLanes = mode === 8 ? STUDIO_LANES_8 : STUDIO_LANES_4;
+  const newLanes = lanesForMode(mode);
   // Préserve les cases existantes des lanes communes
   const oldSteps = studio.steps;
   studio.lanes = newLanes;
