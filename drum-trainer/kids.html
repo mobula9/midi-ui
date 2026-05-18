@@ -8722,7 +8722,7 @@ const studio = {
   scrollMode: false,          // false = fit (cellules ecrasees), true = scroll-x
   metronome: false,           // click sur chaque temps pendant la lecture
   recordSnap: 'step',         // 'beat' | 'half' | 'step' - quantize du live record
-  lastStepAt: 0,              // performance.now() du debut du step courant
+  patternStartedAt: 0,        // performance.now() du step 0 (apres count-in) - drift-free
   lanes: STUDIO_LANES_4,      // copie d'un des deux templates
   steps: {},                  // {kick: [bool * stepsCount], ...}
   loadedId: null,             // id du motif chargé depuis la lib (pour update)
@@ -8951,10 +8951,10 @@ function studioPlay() {
   let n = 4;
   const startPattern = () => {
     btn.textContent = '⏸ Stop';
+    studio.patternStartedAt = performance.now();
     const tick = () => {
       if (!studio.playing) return;
       studio.currentStep = (studio.currentStep + 1) % studio.stepsCount;
-      studio.lastStepAt = performance.now();
       studioRenderStep();
       studio.loopHandle = setTimeout(tick, studioStepIntervalMs());
     };
@@ -9235,14 +9235,14 @@ function studioOnPadTap(laneId) {
   }
   // Si on est en train de jouer, ajoute la note au step quantize par precision (live record)
   if (studio.playing && studio.steps[laneId] && studio.currentStep >= 0) {
-    // Position reelle dans l'intervalle de step : si on est dans la 2e moitie,
-    // on vise le step suivant (au lieu d'arrondir vers le bas comme actuellement)
+    // Position EXACTE depuis le debut du pattern (drift-free, pas de dependance
+    // aux ticks individuels qui peuvent etre en retard si event loop occupe).
     const stepMs = studioStepIntervalMs();
-    const elapsed = performance.now() - (studio.lastStepAt || performance.now());
-    const realStep = studio.currentStep + (elapsed >= stepMs / 2 ? 1 : 0);
+    const elapsedFromStart = performance.now() - (studio.patternStartedAt || performance.now());
+    const exactStep = elapsedFromStart / stepMs;  // position fractionnaire
     // Quantize a la resolution choisie : 1 (Fin), 2 (Demi-beat), 4 (Beat)
     const q = studio.recordSnap === 'beat' ? 4 : (studio.recordSnap === 'half' ? 2 : 1);
-    const step = (Math.round(realStep / q) * q + studio.stepsCount) % studio.stepsCount;
+    const step = ((Math.round(exactStep / q) * q) % studio.stepsCount + studio.stepsCount) % studio.stepsCount;
     if (!studio.steps[laneId][step]) {
       studio.steps[laneId][step] = true;
       const cell = document.querySelector(`.studio-cell[data-lane="${laneId}"][data-step="${step}"]`);
