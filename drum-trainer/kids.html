@@ -1547,10 +1547,22 @@ button:focus { outline: none; }
   padding: 16px;
   border-radius: 16px;
   box-shadow: var(--shadow);
+  position: relative;  /* pour le cursor absolu */
   --studio-cell-w: 36px;
   --studio-cell-h: 36px;
   --studio-cell-gap: 4px;
   --studio-cell-radius: 8px;
+}
+.studio-cursor {
+  position: absolute;
+  pointer-events: none;
+  background: linear-gradient(to right, rgba(239, 68, 68, 0.28), rgba(239, 68, 68, 0.14));
+  border-left: 3px solid #ef4444;
+  border-right: 3px solid #ef4444;
+  box-shadow: 0 0 18px rgba(239, 68, 68, 0.6);
+  border-radius: 4px;
+  z-index: 4;
+  transition: left 0.04s linear, width 0.04s linear;
 }
 /* Mode FIT (defaut) : tout rentre, cellules ecrasees */
 .studio-grid.fit {
@@ -8784,6 +8796,12 @@ function buildStudioGrid() {
   }
   numRow.innerHTML = `<div class="ssn-label-spacer"></div><div class="ssn-cells">${numCells.join('')}</div>`;
   grid.appendChild(numRow);
+  // Curseur de lecture (barre verticale qui suit le step en cours)
+  const cursor = document.createElement('div');
+  cursor.className = 'studio-cursor';
+  cursor.id = 'studio-cursor';
+  cursor.style.display = 'none';
+  grid.appendChild(cursor);
   // Wire cell clicks
   grid.querySelectorAll('.studio-cell').forEach(c => {
     c.addEventListener('click', () => studioToggleCell(c.dataset.lane, parseInt(c.dataset.step, 10)));
@@ -8833,15 +8851,33 @@ function studioPlay() {
   studio.playing = true;
   studio.currentStep = -1;
   const btn = document.getElementById('studio-play');
-  btn.textContent = '⏸ Stop';
   btn.classList.add('playing');
-  const tick = () => {
-    if (!studio.playing) return;
-    studio.currentStep = (studio.currentStep + 1) % studio.stepsCount;
-    studioRenderStep();
-    studio.loopHandle = setTimeout(tick, studioStepIntervalMs());
+  const beatMs = 60000 / studio.bpm;
+  // Count-in de 4 temps : "1, 2, 3, 4" puis le pattern demarre sur step 0
+  // Le 1er click est fort (downbeat), les 3 autres faibles.
+  let n = 4;
+  const startPattern = () => {
+    btn.textContent = '⏸ Stop';
+    const tick = () => {
+      if (!studio.playing) return;
+      studio.currentStep = (studio.currentStep + 1) % studio.stepsCount;
+      studioRenderStep();
+      studio.loopHandle = setTimeout(tick, studioStepIntervalMs());
+    };
+    tick();
   };
-  tick();
+  const countTick = () => {
+    if (!studio.playing) return;
+    if (n > 0) {
+      btn.textContent = `🎵 ${n}`;
+      playClick(n === 4);
+      n--;
+      studio.loopHandle = setTimeout(countTick, beatMs);
+    } else {
+      startPattern();
+    }
+  };
+  countTick();
 }
 
 function studioStop() {
@@ -8850,6 +8886,8 @@ function studioStop() {
   studio.currentStep = -1;
   // Cleanup visuel
   document.querySelectorAll('.studio-cell.playing').forEach(c => c.classList.remove('playing'));
+  const cursor = document.getElementById('studio-cursor');
+  if (cursor) cursor.style.display = 'none';
   const btn = document.getElementById('studio-play');
   btn.textContent = '▶ Jouer';
   btn.classList.remove('playing');
@@ -8863,6 +8901,20 @@ function studioRenderStep() {
   // Metronome : click sur chaque temps (step % 4), accent sur le 1 de chaque mesure (step % 16)
   if (studio.metronome && step % 4 === 0 && typeof playClick === 'function') {
     playClick(step % 16 === 0);
+  }
+  // Curseur de lecture : barre verticale rouge qui se cale sur la colonne en cours
+  const grid = document.getElementById('studio-grid');
+  const cursor = document.getElementById('studio-cursor');
+  const refCell = document.querySelector(`.studio-cell[data-step="${step}"]`);
+  const numbersRow = grid?.querySelector('.studio-step-numbers');
+  if (cursor && refCell && grid && numbersRow) {
+    const cellRect = refCell.getBoundingClientRect();
+    const gridRect = grid.getBoundingClientRect();
+    cursor.style.display = 'block';
+    cursor.style.left = (cellRect.left - gridRect.left + grid.scrollLeft) + 'px';
+    cursor.style.width = cellRect.width + 'px';
+    cursor.style.top = '12px';
+    cursor.style.height = (numbersRow.offsetTop - 12) + 'px';
   }
   let anyHit = false;
   for (const laneId of studio.lanes) {
